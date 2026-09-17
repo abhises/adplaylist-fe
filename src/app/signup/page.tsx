@@ -1,0 +1,175 @@
+"use client";
+
+import { useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/AuthProvider";
+import { ApiError } from "@/lib/api";
+
+export default function SignupPage() {
+  const router = useRouter();
+  const { register } = useAuth();
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await register(fullName, email, password);
+      router.push("/library");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Something went wrong."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
+      <div className="flex flex-col justify-between bg-brand px-10 py-12">
+        <Link
+          href="/"
+          className="text-[15px] font-extrabold tracking-[2.1px] text-brand-foreground uppercase"
+        >
+          Adplaylist
+        </Link>
+
+        <div className="max-w-md">
+          <h1 className="text-[56px] leading-[0.98] font-extrabold text-brand-foreground">
+            Your next ad is here.
+          </h1>
+          <div className="mt-6 h-px w-full bg-brand-foreground/30" />
+          <p className="mt-6 text-base text-brand-foreground">
+            Browse the creatives in adplaylist, then open any one as an
+            editable copy.
+          </p>
+        </div>
+
+        <div />
+      </div>
+
+      <div className="flex items-center justify-center bg-surface px-10 py-12">
+        <form onSubmit={handleSubmit} className="w-full max-w-[400px]">
+          <div className="text-[12px] font-normal tracking-[1.44px] text-ink-muted uppercase">
+            Sign up
+          </div>
+          <h2 className="mt-1 text-[32px] font-extrabold text-ink">
+            Create your account
+          </h2>
+
+          <div className="mt-8">
+            <label
+              htmlFor="fullName"
+              className="mb-[5px] block text-xs text-ink/70"
+            >
+              Full name
+            </label>
+            <input
+              id="fullName"
+              name="fullName"
+              type="text"
+              required
+              autoComplete="name"
+              placeholder="Nina Vogel"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+            />
+          </div>
+
+          <div className="mt-4">
+            <label htmlFor="email" className="mb-[5px] block text-xs text-ink/70">
+              Work email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="nina@atlasmedia.co"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+            />
+          </div>
+
+          <div className="mt-4">
+            <label htmlFor="password" className="mb-[5px] block text-xs text-ink/70">
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+            />
+            <p className="mt-1 text-xs text-ink-muted">At least 8 characters.</p>
+          </div>
+
+          <div className="mt-4">
+            <label
+              htmlFor="confirmPassword"
+              className="mb-[5px] block text-xs text-ink/70"
+            >
+              Confirm password
+            </label>
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              required
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+            />
+          </div>
+
+          {error && (
+            <p className="mt-4 text-sm text-brand" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="mt-6 w-full bg-brand py-2 text-sm font-extrabold text-brand-foreground disabled:opacity-60"
+          >
+            {submitting ? "Creating account…" : "Create account"}
+          </button>
+
+          <p className="mt-4 text-center text-sm text-ink-muted">
+            Already have an account?{" "}
+            <Link href="/login" className="font-medium text-brand">
+              Sign in
+            </Link>
+          </p>
+        </form>
+      </div>
+    </div>
+  );
+}
