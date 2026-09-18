@@ -7,19 +7,20 @@ export default function AdCard({
   footer,
   saved,
   onToggleSave,
+  disableLink,
 }: {
   ad: Ad;
   footer?: ReactNode;
   saved?: boolean;
   onToggleSave?: (id: string) => void;
+  disableLink?: boolean;
 }) {
   const useLight = ad.light && !ad.photo;
   const inkText = useLight ? "text-ink" : "text-white";
   const inkTextMuted = useLight ? "text-ink/70" : "text-white/80";
 
-  return (
-    <div>
-      <Link href={`/ads/${ad.id}`} className="group block">
+  const content = (
+    <>
         <div
           className={`relative overflow-hidden ${ad.photo ? "" : ad.swatch} ${
             ad.variant === "overlay" ? "aspect-[4/5]" : "aspect-[4/3]"
@@ -114,7 +115,18 @@ export default function AdCard({
         <p className="mt-2 text-sm font-bold text-ink">
           {ad.title} &mdash; {ad.format}
         </p>
-      </Link>
+    </>
+  );
+
+  return (
+    <div>
+      {disableLink ? (
+        <div className="group block">{content}</div>
+      ) : (
+        <Link href={`/ads/${ad.id}`} className="group block">
+          {content}
+        </Link>
+      )}
       {footer}
     </div>
   );

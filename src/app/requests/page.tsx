@@ -25,6 +25,17 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+type AttachmentKind = "image" | "pdf" | "other";
+
+function attachmentKind(nameOrUrl: string | undefined): AttachmentKind {
+  const ext = (nameOrUrl ?? "").split(".").pop()?.toLowerCase();
+  if (ext && ["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext)) {
+    return "image";
+  }
+  if (ext === "pdf") return "pdf";
+  return "other";
+}
+
 const TABS = ["Open", "Delivered", "Declined"] as const;
 
 const SIZE_NEEDED_OPTIONS = [
@@ -54,6 +65,44 @@ function shortDate(iso?: string) {
   });
 }
 
+function AttachmentPreview({ url, name }: { url: string; name?: string }) {
+  const kind = attachmentKind(name ?? url);
+  const displayName = name ?? url.split("/").pop() ?? "attachment";
+
+  return (
+    <div className="mt-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="min-w-0 truncate text-sm text-ink">{displayName}</p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="shrink-0 text-sm text-brand hover:underline"
+        >
+          {kind === "other" ? "Download" : "Open in new tab"}
+        </a>
+      </div>
+
+      {kind === "image" && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={url}
+          alt={displayName}
+          className="mt-2 max-h-72 w-full border border-border bg-surface-2 object-contain"
+        />
+      )}
+
+      {kind === "pdf" && (
+        <iframe
+          src={url}
+          title={displayName}
+          className="mt-2 h-[420px] w-full border border-border"
+        />
+      )}
+    </div>
+  );
+}
+
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
@@ -77,6 +126,7 @@ export default function RequestsPage() {
   const [attachmentName, setAttachmentName] = useState<string | null>(null);
   const [attachmentSize, setAttachmentSize] = useState<number | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -120,6 +170,9 @@ export default function RequestsPage() {
     setUploadError(null);
     setAttachmentName(file.name);
     setAttachmentSize(file.size);
+    if (attachmentKind(file.name) === "image") {
+      setAttachmentPreview(URL.createObjectURL(file));
+    }
     setUploading(true);
     try {
       const uploaded = await api.uploadFile(file);
@@ -130,6 +183,7 @@ export default function RequestsPage() {
       );
       setAttachmentName(null);
       setAttachmentSize(null);
+      setAttachmentPreview(null);
     } finally {
       setUploading(false);
     }
@@ -145,6 +199,7 @@ export default function RequestsPage() {
     setAttachmentName(null);
     setAttachmentSize(null);
     setAttachmentUrl(null);
+    setAttachmentPreview(null);
     setUploadError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -162,6 +217,7 @@ export default function RequestsPage() {
         neededBy: String(form.get("neededBy") || "") || undefined,
         notes: String(form.get("notes") || "") || undefined,
         attachmentUrl: attachmentUrl ?? undefined,
+        attachmentName: attachmentName ?? undefined,
       });
       setRequests((prev) => [request, ...prev]);
       setSubmitted(true);
@@ -457,17 +513,26 @@ export default function RequestsPage() {
               />
               {attachmentName ? (
                 <div className="flex items-center gap-3 border border-border bg-surface p-4">
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="18"
-                    height="18"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className="shrink-0 text-ink-muted"
-                  >
-                    <path d="M21.4 11.1 12 20.5a5 5 0 0 1-7-7l8.1-8.1a3.3 3.3 0 0 1 4.7 4.7l-8.1 8.1a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4" />
-                  </svg>
+                  {attachmentPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={attachmentPreview}
+                      alt=""
+                      className="h-10 w-10 shrink-0 border border-border object-cover"
+                    />
+                  ) : (
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="18"
+                      height="18"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="shrink-0 text-ink-muted"
+                    >
+                      <path d="M21.4 11.1 12 20.5a5 5 0 0 1-7-7l8.1-8.1a3.3 3.3 0 0 1 4.7 4.7l-8.1 8.1a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4" />
+                    </svg>
+                  )}
                   <div className="min-w-0 flex-1 text-[13px] leading-snug">
                     <p className="truncate text-ink">{attachmentName}</p>
                     <p className="mt-0.5 text-xs text-ink-muted">
@@ -566,12 +631,21 @@ export default function RequestsPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex w-full max-w-[440px] flex-col gap-4 border border-border bg-surface p-6 shadow-lg"
+            className="flex max-h-[88vh] w-full max-w-[520px] flex-col border border-border bg-surface shadow-lg"
           >
-            <div className="flex items-start justify-between gap-4">
-              <h2 className="text-xl leading-tight font-extrabold text-ink">
-                {viewingRequest.title}
-              </h2>
+            <div className="flex items-start justify-between gap-4 border-b border-border p-6 pb-5">
+              <div className="min-w-0">
+                <h2 className="text-xl leading-tight font-extrabold text-ink">
+                  {viewingRequest.title}
+                </h2>
+                <span
+                  className={`mt-2 inline-flex w-fit items-center px-2.5 py-[3px] text-[11px] tracking-[0.02em] ${
+                    STATUS_STYLE[viewingRequest.status] ?? "bg-[#f8f4f4] text-[#444141]"
+                  }`}
+                >
+                  {viewingRequest.status}
+                </span>
+              </div>
               <button
                 onClick={() => setViewingRequest(null)}
                 aria-label="Close"
@@ -581,62 +655,72 @@ export default function RequestsPage() {
               </button>
             </div>
 
-            <span
-              className={`inline-flex w-fit items-center px-2.5 py-[3px] text-[11px] tracking-[0.02em] ${
-                STATUS_STYLE[viewingRequest.status] ?? "bg-[#f8f4f4] text-[#444141]"
-              }`}
-            >
-              {viewingRequest.status}
-            </span>
+            <div className="flex-1 overflow-y-auto p-6">
+              <section>
+                <p className="text-[11px] tracking-[0.1em] text-ink-muted uppercase">
+                  Request details
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-4">
+                  <DetailRow label="Type">{viewingRequest.type}</DetailRow>
+                  <DetailRow label="Needed by">
+                    {shortDate(viewingRequest.neededBy)}
+                  </DetailRow>
+                  <DetailRow label="Sizes needed">
+                    {viewingRequest.sizeNeeded ?? "—"}
+                  </DetailRow>
+                  <DetailRow label="Raised">
+                    {user.fullName} &middot; {shortDate(viewingRequest.createdAt)}
+                  </DetailRow>
+                </div>
+              </section>
 
-            <div className="grid grid-cols-2 gap-4">
-              <DetailRow label="Type">{viewingRequest.type}</DetailRow>
-              <DetailRow label="Needed by">
-                {shortDate(viewingRequest.neededBy)}
-              </DetailRow>
-              <DetailRow label="Sizes needed">
-                {viewingRequest.sizeNeeded ?? "—"}
-              </DetailRow>
-              <DetailRow label="Raised">
-                {user.fullName} &middot; {shortDate(viewingRequest.createdAt)}
-              </DetailRow>
+              <section className="mt-5 border-t border-border pt-5">
+                <p className="text-[11px] tracking-[0.1em] text-ink-muted uppercase">
+                  Notes for the creative team
+                </p>
+                <div className="mt-1.5 text-sm text-ink">
+                  {viewingRequest.notes ? (
+                    <p className="leading-relaxed">{viewingRequest.notes}</p>
+                  ) : (
+                    <span className="text-ink-muted">No notes added.</span>
+                  )}
+                </div>
+              </section>
+
+              {viewingRequest.reason && (
+                <section className="mt-5 border-t border-border pt-5">
+                  <p className="text-[11px] tracking-[0.1em] text-ink-muted uppercase">
+                    Decline reason
+                  </p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-ink">
+                    {viewingRequest.reason}
+                  </p>
+                </section>
+              )}
+
+              <section className="mt-5 border-t border-border pt-5">
+                <p className="text-[11px] tracking-[0.1em] text-ink-muted uppercase">
+                  Attachment
+                </p>
+                {viewingRequest.attachmentUrl ? (
+                  <AttachmentPreview
+                    url={viewingRequest.attachmentUrl}
+                    name={viewingRequest.attachmentName}
+                  />
+                ) : (
+                  <p className="mt-1.5 text-sm text-ink-muted">None attached.</p>
+                )}
+              </section>
             </div>
 
-            <DetailRow label="Notes for the creative team">
-              {viewingRequest.notes ? (
-                <p className="leading-relaxed">{viewingRequest.notes}</p>
-              ) : (
-                <span className="text-ink-muted">No notes added.</span>
-              )}
-            </DetailRow>
-
-            {viewingRequest.reason && (
-              <DetailRow label="Decline reason">
-                {viewingRequest.reason}
-              </DetailRow>
-            )}
-
-            <DetailRow label="Attachment">
-              {viewingRequest.attachmentUrl ? (
-                <a
-                  href={viewingRequest.attachmentUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-brand hover:underline"
-                >
-                  Open attached file
-                </a>
-              ) : (
-                <span className="text-ink-muted">None attached.</span>
-              )}
-            </DetailRow>
-
-            <button
-              onClick={() => setViewingRequest(null)}
-              className="mt-2 self-start border border-border px-4 py-2 text-sm font-bold text-ink hover:bg-surface-2"
-            >
-              Close
-            </button>
+            <div className="border-t border-border p-6 pt-5">
+              <button
+                onClick={() => setViewingRequest(null)}
+                className="border border-border px-4 py-2 text-sm font-bold text-ink hover:bg-surface-2"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

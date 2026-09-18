@@ -3,6 +3,7 @@
 import { useRef, useState, type DragEvent, type FormEvent } from "react";
 import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
+import AdCard from "@/components/AdCard";
 import {
   CATEGORY_OPTIONS,
   DOMINANT_COLORS,
@@ -10,6 +11,7 @@ import {
   MARKET_OPTIONS,
   PLATFORM_OPTIONS,
   SIZE_OPTIONS,
+  type Ad,
 } from "@/lib/ads";
 import { api, ApiError } from "@/lib/api";
 import { useRequireAuth } from "@/lib/AuthProvider";
@@ -174,6 +176,33 @@ export default function AddAdPage() {
   }
 
   if (!ready || !user) return null;
+
+  const previewSwatch = COLOR_SWATCH[dominantColor] ?? COLOR_SWATCH.Black;
+  // Reuses the real AdCard component so the preview is a true WYSIWYG of how
+  // this ad will actually render everywhere else (Library, Saved, detail),
+  // rather than a hand-rolled lookalike that can drift out of sync.
+  const previewAd: Ad = {
+    id: "preview",
+    title: adName || "Untitled ad",
+    format: sizes[0] ?? "Feed 1:1",
+    variant: "overlay",
+    eyebrow: kicker || undefined,
+    headline: headline || "Your headline goes here.",
+    sub: sub || undefined,
+    cta: cta || undefined,
+    mediaType,
+    swatch: previewSwatch.bg,
+    light: previewSwatch.light,
+    category,
+    market,
+    language,
+    photo: photoUrl ?? undefined,
+    platforms,
+    editable: editableInCanva,
+    canvaUrl: canvaUrl || undefined,
+    dominantColor,
+    createdAt: new Date().toISOString(),
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -506,49 +535,8 @@ export default function AddAdPage() {
 
             <div className="border-2 border-ink/15 p-6">
               <h2 className="text-xl font-extrabold text-ink">Preview</h2>
-              <div
-                className={`relative mt-4 aspect-square w-full overflow-hidden ${
-                  photoUrl ? "" : (COLOR_SWATCH[dominantColor]?.bg ?? "bg-neutral-800")
-                }`}
-              >
-                {photoUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={photoUrl}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                )}
-                {photoUrl && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
-                )}
-                <div className="absolute inset-x-0 bottom-0 p-4">
-                  {kicker && (
-                    <span
-                      className={`text-[11px] font-medium tracking-[1px] uppercase ${
-                        photoUrl || !COLOR_SWATCH[dominantColor]?.light
-                          ? "text-white/90"
-                          : "text-ink/90"
-                      }`}
-                    >
-                      {kicker}
-                    </span>
-                  )}
-                  <p
-                    className={`mt-1 text-xl leading-tight font-extrabold ${
-                      photoUrl || !COLOR_SWATCH[dominantColor]?.light
-                        ? "text-white"
-                        : "text-ink"
-                    }`}
-                  >
-                    {headline || "Your headline goes here."}
-                  </p>
-                  {cta && (
-                    <span className="mt-3 inline-block bg-brand px-3 py-1.5 text-[11px] font-bold text-brand-foreground uppercase">
-                      {cta}
-                    </span>
-                  )}
-                </div>
+              <div className="mt-4 max-w-xs">
+                <AdCard ad={previewAd} disableLink />
               </div>
               <p className="mt-3 text-xs text-ink-muted">
                 {mediaType === "image" ? "Image" : "Video"} &middot; {category}{" "}

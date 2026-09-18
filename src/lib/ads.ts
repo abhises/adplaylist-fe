@@ -2,19 +2,21 @@ export type { Ad } from "@/lib/api";
 
 export const PLATFORM_OPTIONS = ["META", "Google", "TikTok", "LinkedIn"];
 
+// Order and dimension formatting (× not x) match the design's own Format
+// list exactly, verified against the rendered .dc.html mockup's DOM.
 export const SIZE_OPTIONS = [
-  { name: "Feed image", dims: "1080 x 1350" },
-  { name: "Feed square", dims: "1080 x 1080" },
-  { name: "Stories / Reels", dims: "1080 x 1920" },
-  { name: "Marketplace / Messenger", dims: "1200 x 1200" },
-  { name: "Horizontal", dims: "1920 x 1080" },
-  { name: "Landscape", dims: "1200 x 628" },
-  { name: "Portrait (PMax)", dims: "960 x 1200" },
-  { name: "Vertical (RDA)", dims: "900 x 1600" },
-  { name: "Logo landscape", dims: "1200 x 300" },
-  { name: "300 x 250", dims: "300 x 250" },
-  { name: "336 x 280", dims: "336 x 280" },
-  { name: "Single image", dims: "1200 x 627" },
+  { name: "Horizontal", dims: "1920 × 1080" },
+  { name: "Marketplace / Messenger", dims: "1200 × 1200" },
+  { name: "Landscape", dims: "1200 × 628" },
+  { name: "Single image", dims: "1200 × 627" },
+  { name: "Logo landscape", dims: "1200 × 300" },
+  { name: "Feed image", dims: "1080 × 1350" },
+  { name: "Feed square", dims: "1080 × 1080" },
+  { name: "Stories / Reels", dims: "1080 × 1920" },
+  { name: "Portrait (PMax)", dims: "960 × 1200" },
+  { name: "Vertical (RDA)", dims: "900 × 1600" },
+  { name: "336 × 280", dims: "336 × 280" },
+  { name: "300 × 250", dims: "300 × 250" },
 ];
 
 export const CATEGORY_OPTIONS = [

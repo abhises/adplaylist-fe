@@ -52,6 +52,7 @@ export type CreativeRequest = {
   status: string;
   reason?: string;
   attachmentUrl?: string;
+  attachmentName?: string;
   ad?: Ad;
   createdAt: string;
 };
@@ -164,6 +165,7 @@ export const api = {
     neededBy?: string;
     notes?: string;
     attachmentUrl?: string;
+    attachmentName?: string;
   }) =>
     request<{ request: CreativeRequest }>("/api/requests", {
       method: "POST",
