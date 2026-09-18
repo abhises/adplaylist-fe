@@ -19,6 +19,10 @@ export type Ad = {
   language: string;
   photo?: string;
   platforms: string[];
+  editable: boolean;
+  canvaUrl?: string;
+  dominantColor?: string;
+  videoLength?: string;
   createdAt: string;
 };
 
@@ -46,6 +50,9 @@ export type CreativeRequest = {
   neededBy?: string;
   notes?: string;
   status: string;
+  reason?: string;
+  attachmentUrl?: string;
+  ad?: Ad;
   createdAt: string;
 };
 
@@ -118,6 +125,29 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  uploadFile: async (
+    file: File,
+    dims?: { width: number; height: number }
+  ) => {
+    const token = getToken();
+    const form = new FormData();
+    form.append("file", file);
+    if (dims) {
+      form.append("width", String(dims.width));
+      form.append("height", String(dims.height));
+    }
+    const res = await fetch(`${API_URL}/api/uploads`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: form,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new ApiError(res.status, body.error ?? "Upload failed");
+    }
+    return body as { url: string; width?: number; height?: number };
+  },
+
   getSaved: () => request<{ ads: Ad[] }>("/api/saved"),
 
   saveAd: (id: string) =>
@@ -133,6 +163,7 @@ export const api = {
     sizeNeeded?: string;
     neededBy?: string;
     notes?: string;
+    attachmentUrl?: string;
   }) =>
     request<{ request: CreativeRequest }>("/api/requests", {
       method: "POST",

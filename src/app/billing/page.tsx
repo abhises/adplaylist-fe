@@ -42,7 +42,7 @@ export default function BillingPage() {
         </p>
 
         <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <div className="border border-ink/15 p-6">
+          <div className="border-2 border-ink/15 p-6">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-extrabold text-ink">{PLAN.name}</h2>
@@ -82,7 +82,7 @@ export default function BillingPage() {
             </div>
           </div>
 
-          <div className="border border-ink/15 p-6">
+          <div className="border-2 border-ink/15 p-6">
             <h2 className="text-xl font-extrabold text-ink">Payment Methods</h2>
             <p className="mt-2 text-sm text-ink-muted">
               View invoices, update payment methods, and manage your billing
@@ -99,7 +99,7 @@ export default function BillingPage() {
           </div>
         </div>
 
-        <div className="mt-10 border border-ink/15 p-6">
+        <div className="mt-10 border-2 border-ink/15 p-6">
           <h2 className="text-xl font-extrabold text-ink">Buy Credits</h2>
           <p className="mt-1 text-sm text-ink-muted">
             Buy credits to request and receive new ads. Credits never expire.
@@ -110,11 +110,11 @@ export default function BillingPage() {
               <div
                 key={tier.credits}
                 className={`relative border p-5 ${
-                  tier.popular ? "border-brand" : "border-ink/15"
+                  tier.popular ? "border-2 border-brand" : "border-ink/15"
                 }`}
               >
                 {tier.popular && (
-                  <span className="absolute top-0 right-0 bg-brand px-2 py-1 text-[10px] font-bold tracking-[0.5px] text-brand-foreground uppercase">
+                  <span className="absolute -top-px -right-px bg-brand px-2 py-1 text-[10px] font-bold tracking-[0.5px] text-brand-foreground uppercase">
                     Popular
                   </span>
                 )}

@@ -264,8 +264,8 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="mt-10 border border-ink/15 p-6">
-            <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+          <div className="mt-10 border border-brand p-6">
+            <p className="text-xs font-medium tracking-[1px] text-brand uppercase">
               Danger zone
             </p>
             <div className="mt-4 flex items-center justify-between gap-6">
@@ -275,13 +275,13 @@ export default function ProfilePage() {
                   Permanently delete your account and all associated data.
                 </p>
               </div>
-              <button className="border border-brand px-4 py-2 text-sm font-bold text-brand">
+              <button className="bg-brand px-4 py-2 text-sm font-bold text-brand-foreground">
                 Delete
               </button>
             </div>
           </div>
 
-          <div className="mt-8 flex items-center gap-3">
+          <div className="mt-8 flex items-center gap-3 border-t-2 border-ink/15 pt-6">
             <button
               onClick={handleSave}
               disabled={saving}

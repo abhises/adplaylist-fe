@@ -52,14 +52,16 @@ export const LANGUAGE_OPTIONS = [
 ];
 
 export const DOMINANT_COLORS = [
-  { name: "Black", hex: "#171717" },
-  { name: "White", hex: "#f5f5f5" },
-  { name: "Grey", hex: "#8a8a8a" },
+  { name: "Black", hex: "#201e1d" },
+  { name: "White", hex: "#f3f2f2" },
+  { name: "Grey", hex: "#8f8a8a" },
   { name: "Red", hex: "#ec3013" },
-  { name: "Orange", hex: "#e17a1f" },
-  { name: "Yellow", hex: "#e0b620" },
-  { name: "Green", hex: "#2f7a4d" },
-  { name: "Blue", hex: "#2d5ea8" },
-  { name: "Purple", hex: "#6a3fa0" },
-  { name: "Pink", hex: "#d5629b" },
+  { name: "Orange", hex: "#e07a1f" },
+  { name: "Yellow", hex: "#e5c02c" },
+  { name: "Green", hex: "#3f8f57" },
+  { name: "Blue", hex: "#2f5fa8" },
+  { name: "Purple", hex: "#6b4a9e" },
+  { name: "Pink", hex: "#d4699a" },
 ];
+
+export const VIDEO_LENGTH_OPTIONS = ["Under 6s", "6–15s", "15–30s", "30s+"];

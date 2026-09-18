@@ -5,9 +5,13 @@ import type { Ad } from "@/lib/ads";
 export default function AdCard({
   ad,
   footer,
+  saved,
+  onToggleSave,
 }: {
   ad: Ad;
   footer?: ReactNode;
+  saved?: boolean;
+  onToggleSave?: (id: string) => void;
 }) {
   const useLight = ad.light && !ad.photo;
   const inkText = useLight ? "text-ink" : "text-white";
@@ -31,6 +35,34 @@ export default function AdCard({
           )}
           {ad.photo && ad.variant === "overlay" && (
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
+          )}
+
+          {onToggleSave && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleSave(ad.id);
+              }}
+              aria-label={saved ? "Remove from saved" : "Save ad"}
+              title={saved ? "Remove from saved" : "Save ad"}
+              className={`absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center border border-border transition-opacity ${
+                saved
+                  ? "bg-brand text-brand-foreground opacity-100"
+                  : "bg-surface text-ink opacity-0 group-hover:opacity-100"
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="15"
+                height="15"
+                fill={saved ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M6 4h12v16l-6-4-6 4Z" />
+              </svg>
+            </button>
           )}
 
           {ad.eyebrow && (
