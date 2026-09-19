@@ -5,17 +5,22 @@ import type { Ad } from "@/lib/ads";
 export default function AdCard({
   ad,
   footer,
+  saved,
+  onToggleSave,
+  disableLink,
 }: {
   ad: Ad;
   footer?: ReactNode;
+  saved?: boolean;
+  onToggleSave?: (id: string) => void;
+  disableLink?: boolean;
 }) {
   const useLight = ad.light && !ad.photo;
   const inkText = useLight ? "text-ink" : "text-white";
   const inkTextMuted = useLight ? "text-ink/70" : "text-white/80";
 
-  return (
-    <div>
-      <Link href={`/ads/${ad.id}`} className="group block">
+  const content = (
+    <>
         <div
           className={`relative overflow-hidden ${ad.photo ? "" : ad.swatch} ${
             ad.variant === "overlay" ? "aspect-[4/5]" : "aspect-[4/3]"
@@ -31,6 +36,34 @@ export default function AdCard({
           )}
           {ad.photo && ad.variant === "overlay" && (
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
+          )}
+
+          {onToggleSave && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleSave(ad.id);
+              }}
+              aria-label={saved ? "Remove from saved" : "Save ad"}
+              title={saved ? "Remove from saved" : "Save ad"}
+              className={`absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center border border-border transition-opacity ${
+                saved
+                  ? "bg-brand text-brand-foreground opacity-100"
+                  : "bg-surface text-ink opacity-0 group-hover:opacity-100"
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="15"
+                height="15"
+                fill={saved ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M6 4h12v16l-6-4-6 4Z" />
+              </svg>
+            </button>
           )}
 
           {ad.eyebrow && (
@@ -82,7 +115,18 @@ export default function AdCard({
         <p className="mt-2 text-sm font-bold text-ink">
           {ad.title} &mdash; {ad.format}
         </p>
-      </Link>
+    </>
+  );
+
+  return (
+    <div>
+      {disableLink ? (
+        <div className="group block">{content}</div>
+      ) : (
+        <Link href={`/ads/${ad.id}`} className="group block">
+          {content}
+        </Link>
+      )}
       {footer}
     </div>
   );

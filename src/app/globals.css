@@ -34,3 +34,13 @@ body {
   color: var(--color-ink);
   transition: background-color 0.15s ease, color 0.15s ease;
 }
+
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}

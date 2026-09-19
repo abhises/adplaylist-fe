@@ -215,15 +215,26 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
               <button
                 onClick={toggleSaved}
                 aria-label="Save ad"
-                className={`flex h-9 w-9 items-center justify-center border border-border ${
+                title={saved ? "Remove from saved" : "Save ad"}
+                className={`flex h-9 w-9 cursor-pointer items-center justify-center border border-border ${
                   saved ? "bg-brand text-brand-foreground" : "text-ink"
                 }`}
               >
-                &#128278;
+                <svg
+                  viewBox="0 0 24 24"
+                  width="15"
+                  height="15"
+                  fill={saved ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M6 4h12v16l-6-4-6 4Z" />
+                </svg>
               </button>
               <button
                 aria-label="Copy link"
-                className="flex h-9 w-9 items-center justify-center border border-border text-ink"
+                title="Copy link"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center border border-border text-ink"
               >
                 &#128279;
               </button>

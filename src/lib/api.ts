@@ -19,6 +19,10 @@ export type Ad = {
   language: string;
   photo?: string;
   platforms: string[];
+  editable: boolean;
+  canvaUrl?: string;
+  dominantColor?: string;
+  videoLength?: string;
   createdAt: string;
 };
 
@@ -46,6 +50,10 @@ export type CreativeRequest = {
   neededBy?: string;
   notes?: string;
   status: string;
+  reason?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  ad?: Ad;
   createdAt: string;
 };
 
@@ -118,6 +126,37 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  uploadFile: async (
+    file: File,
+    dims?: { width: number; height: number }
+  ) => {
+    // The API issues a short-lived signed URL and the browser uploads
+    // straight to Supabase Storage with it — the file bytes never pass
+    // through our own server, which sidesteps a proxy in front of the API
+    // (inherited from its original PHP hosting) that corrupts
+    // multipart/form-data request bodies.
+    const { signedUrl, url } = await request<{
+      path: string;
+      token: string;
+      signedUrl: string;
+      url: string;
+    }>("/api/uploads/sign", {
+      method: "POST",
+      body: JSON.stringify({ filename: file.name, contentType: file.type }),
+    });
+
+    const putRes = await fetch(signedUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+    if (!putRes.ok) {
+      throw new ApiError(putRes.status, "Upload failed");
+    }
+
+    return { url, width: dims?.width, height: dims?.height };
+  },
+
   getSaved: () => request<{ ads: Ad[] }>("/api/saved"),
 
   saveAd: (id: string) =>
@@ -133,6 +172,8 @@ export const api = {
     sizeNeeded?: string;
     neededBy?: string;
     notes?: string;
+    attachmentUrl?: string;
+    attachmentName?: string;
   }) =>
     request<{ request: CreativeRequest }>("/api/requests", {
       method: "POST",
