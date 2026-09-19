@@ -130,23 +130,31 @@ export const api = {
     file: File,
     dims?: { width: number; height: number }
   ) => {
-    const token = getToken();
-    const form = new FormData();
-    form.append("file", file);
-    if (dims) {
-      form.append("width", String(dims.width));
-      form.append("height", String(dims.height));
-    }
-    const res = await fetch(`${API_URL}/api/uploads`, {
+    // The API issues a short-lived signed URL and the browser uploads
+    // straight to Supabase Storage with it — the file bytes never pass
+    // through our own server, which sidesteps a proxy in front of the API
+    // (inherited from its original PHP hosting) that corrupts
+    // multipart/form-data request bodies.
+    const { signedUrl, url } = await request<{
+      path: string;
+      token: string;
+      signedUrl: string;
+      url: string;
+    }>("/api/uploads/sign", {
       method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      body: form,
+      body: JSON.stringify({ filename: file.name, contentType: file.type }),
     });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new ApiError(res.status, body.error ?? "Upload failed");
+
+    const putRes = await fetch(signedUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+    if (!putRes.ok) {
+      throw new ApiError(putRes.status, "Upload failed");
     }
-    return body as { url: string; width?: number; height?: number };
+
+    return { url, width: dims?.width, height: dims?.height };
   },
 
   getSaved: () => request<{ ads: Ad[] }>("/api/saved"),
