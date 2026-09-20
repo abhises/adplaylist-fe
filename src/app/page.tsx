@@ -115,7 +115,10 @@ export default function LandingPage() {
       <main className="flex-1 px-10 py-16">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           {FEATURES.map((f) => (
-            <div key={f.title} className="border border-ink/15 p-6">
+            <div
+              key={f.title}
+              className="border border-ink/15 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-ink/40 hover:shadow-lg"
+            >
               <h2 className="text-lg font-extrabold text-ink">{f.title}</h2>
               <p className="mt-2 text-sm text-ink-muted">{f.desc}</p>
             </div>
@@ -132,10 +135,11 @@ export default function LandingPage() {
 
           <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
             {PREVIEW_CARDS.map((card) => (
-              <div key={card.id}>
-                <div
-                  className={`relative aspect-[4/5] overflow-hidden ${card.swatch}`}
-                >
+              <div key={card.id} className="group">
+                <div className="relative aspect-[4/5] overflow-hidden shadow-none transition-shadow duration-200 group-hover:shadow-xl">
+                  <div
+                    className={`absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-110 ${card.swatch}`}
+                  />
                   {card.eyebrow && (
                     <span className="absolute top-3 left-3 text-[11px] font-medium tracking-[1px] text-white/90 uppercase">
                       {card.eyebrow}
@@ -149,7 +153,7 @@ export default function LandingPage() {
                       <p className="mt-1 text-xs text-white/80">{card.sub}</p>
                     )}
                     {card.cta && (
-                      <span className="mt-3 inline-block bg-brand px-3 py-1.5 text-[11px] font-bold text-brand-foreground uppercase">
+                      <span className="mt-3 inline-block bg-brand px-3 py-1.5 text-[11px] font-bold text-brand-foreground uppercase transition-transform duration-200 group-hover:scale-105">
                         {card.cta}
                       </span>
                     )}

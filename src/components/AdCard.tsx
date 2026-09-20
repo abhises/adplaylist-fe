@@ -22,16 +22,20 @@ export default function AdCard({
   const content = (
     <>
         <div
-          className={`relative overflow-hidden ${ad.photo ? "" : ad.swatch} ${
+          className={`relative overflow-hidden shadow-none transition-shadow duration-200 group-hover:shadow-xl ${
             ad.variant === "overlay" ? "aspect-[4/5]" : "aspect-[4/3]"
           }`}
         >
-          {ad.photo && (
+          {ad.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={ad.photo}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
+            />
+          ) : (
+            <div
+              className={`absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-110 ${ad.swatch}`}
             />
           )}
           {ad.photo && ad.variant === "overlay" && (
