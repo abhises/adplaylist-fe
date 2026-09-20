@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthProvider";
-import { ApiError } from "@/lib/api";
+import { ApiError, type Role } from "@/lib/api";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -13,6 +13,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<Exclude<Role, "admin">>("client");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +32,7 @@ export default function SignupPage() {
 
     setSubmitting(true);
     try {
-      await register(fullName, email, password);
+      await register(fullName, email, password, role);
       router.push("/library");
     } catch (err) {
       setError(
@@ -110,6 +111,22 @@ export default function SignupPage() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
             />
+          </div>
+
+          <div className="mt-4">
+            <label htmlFor="role" className="mb-[5px] block text-xs text-ink/70">
+              I am a
+            </label>
+            <select
+              id="role"
+              name="role"
+              value={role}
+              onChange={(e) => setRole(e.target.value as Exclude<Role, "admin">)}
+              className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+            >
+              <option value="client">Client — browse, save, and request ads</option>
+              <option value="designer">Designer — also publish ads and fulfil requests</option>
+            </select>
           </div>
 
           <div className="mt-4">

@@ -116,10 +116,15 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
 
-  register: (fullName: string, email: string, password: string) =>
+  register: (
+    fullName: string,
+    email: string,
+    password: string,
+    role: Exclude<Role, "admin">
+  ) =>
     request<{ token: string; user: User }>("/api/auth/register", {
       method: "POST",
-      body: JSON.stringify({ fullName, email, password }),
+      body: JSON.stringify({ fullName, email, password, role }),
     }),
 
   me: () => request<{ user: User }>("/api/auth/me"),
