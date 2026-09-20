@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   DOMINANT_COLORS,
   LANGUAGE_OPTIONS,
@@ -10,7 +11,7 @@ import {
   PLATFORM_OPTIONS,
   VIDEO_LENGTH_OPTIONS,
 } from "@/lib/ads";
-import { api, type Ad } from "@/lib/api";
+import { api, ApiError, type Ad } from "@/lib/api";
 import { useRequireAuth } from "@/lib/AuthProvider";
 
 const ADDED_OPTIONS = [
@@ -26,6 +27,9 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Ad | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [keyword, setKeyword] = useState("");
   const [mediaTypes, setMediaTypes] = useState<string[]>([]);
@@ -79,6 +83,30 @@ export default function LibraryPage() {
         else next.delete(id);
         return next;
       });
+    }
+  }
+
+  function handleDeleteAd(id: string) {
+    const ad = ads.find((a) => a.id === id);
+    if (ad) setDeleteTarget(ad);
+  }
+
+  async function handleConfirmDeleteAd() {
+    if (!deleteTarget) return;
+    setDeleteError(null);
+    setDeleting(true);
+    const id = deleteTarget.id;
+    try {
+      await api.deleteAd(id);
+      setAds((list) => list.filter((a) => a.id !== id));
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(
+        err instanceof ApiError ? err.message : "Couldn't delete that ad."
+      );
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -549,6 +577,11 @@ export default function LibraryPage() {
           {error && (
             <p className="mt-10 text-sm text-brand">{error}</p>
           )}
+          {deleteError && (
+            <p className="mt-4 text-sm text-brand" role="alert">
+              {deleteError}
+            </p>
+          )}
 
           {!loading && !error && (
             <>
@@ -559,6 +592,7 @@ export default function LibraryPage() {
                     ad={ad}
                     saved={savedIds.has(ad.id)}
                     onToggleSave={toggleSave}
+                    onDelete={user.role === "admin" ? handleDeleteAd : undefined}
                   />
                 ))}
               </div>
@@ -572,6 +606,23 @@ export default function LibraryPage() {
           )}
         </main>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete ad"
+        message={
+          deleteTarget && (
+            <>
+              Delete <strong className="text-ink">{deleteTarget.title}</strong>?
+              This can&rsquo;t be undone.
+            </>
+          )
+        }
+        confirmLabel="Delete"
+        loading={deleting}
+        onConfirm={handleConfirmDeleteAd}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

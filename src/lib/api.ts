@@ -142,6 +142,9 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  deleteAd: (id: string) =>
+    request<void>(`/api/ads/${id}`, { method: "DELETE" }),
+
   uploadFile: async (
     file: File,
     dims?: { width: number; height: number }
@@ -206,11 +209,20 @@ export const api = {
 
   getUsers: () => request<{ users: AdminUser[] }>("/api/admin/users"),
 
+  updateUser: (id: number, data: { fullName: string; email: string }) =>
+    request<{ user: AdminUser }>(`/api/admin/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
   updateUserRole: (id: number, role: Role) =>
     request<{ user: AdminUser }>(`/api/admin/users/${id}/role`, {
       method: "PATCH",
       body: JSON.stringify({ role }),
     }),
+
+  deleteUser: (id: number) =>
+    request<void>(`/api/admin/users/${id}`, { method: "DELETE" }),
 };
 
 export { ApiError };

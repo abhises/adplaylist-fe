@@ -7,12 +7,14 @@ export default function AdCard({
   footer,
   saved,
   onToggleSave,
+  onDelete,
   disableLink,
 }: {
   ad: Ad;
   footer?: ReactNode;
   saved?: boolean;
   onToggleSave?: (id: string) => void;
+  onDelete?: (id: string) => void;
   disableLink?: boolean;
 }) {
   const useLight = ad.light && !ad.photo;
@@ -42,32 +44,59 @@ export default function AdCard({
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
           )}
 
-          {onToggleSave && (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onToggleSave(ad.id);
-              }}
-              aria-label={saved ? "Remove from saved" : "Save ad"}
-              title={saved ? "Remove from saved" : "Save ad"}
-              className={`absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center border border-border transition-opacity ${
-                saved
-                  ? "bg-brand text-brand-foreground opacity-100"
-                  : "bg-surface text-ink opacity-0 group-hover:opacity-100"
-              }`}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="15"
-                height="15"
-                fill={saved ? "currentColor" : "none"}
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M6 4h12v16l-6-4-6 4Z" />
-              </svg>
-            </button>
+          {(onToggleSave || onDelete) && (
+            <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+              {onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDelete(ad.id);
+                  }}
+                  aria-label="Delete ad"
+                  title="Delete ad"
+                  className="flex h-9 w-9 items-center justify-center border border-border bg-surface text-ink opacity-0 transition-opacity group-hover:opacity-100 hover:border-brand hover:text-brand"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13" />
+                  </svg>
+                </button>
+              )}
+              {onToggleSave && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleSave(ad.id);
+                  }}
+                  aria-label={saved ? "Remove from saved" : "Save ad"}
+                  title={saved ? "Remove from saved" : "Save ad"}
+                  className={`flex h-9 w-9 items-center justify-center border border-border transition-opacity ${
+                    saved
+                      ? "bg-brand text-brand-foreground opacity-100"
+                      : "bg-surface text-ink opacity-0 group-hover:opacity-100"
+                  }`}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="15"
+                    height="15"
+                    fill={saved ? "currentColor" : "none"}
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M6 4h12v16l-6-4-6 4Z" />
+                  </svg>
+                </button>
+              )}
+            </div>
           )}
 
           {ad.eyebrow && (
