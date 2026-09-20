@@ -14,7 +14,7 @@ import {
   type Ad,
 } from "@/lib/ads";
 import { api, ApiError } from "@/lib/api";
-import { useRequireAuth } from "@/lib/AuthProvider";
+import { useRequireRole } from "@/lib/AuthProvider";
 
 const COLOR_SWATCH: Record<string, { bg: string; light: boolean }> = {
   Black: { bg: "bg-neutral-900", light: false },
@@ -51,7 +51,7 @@ function readImageDimensions(file: File): Promise<{ width: number; height: numbe
 }
 
 export default function AddAdPage() {
-  const { user, ready } = useRequireAuth();
+  const { user, ready } = useRequireRole(["designer", "admin"]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [adName, setAdName] = useState("");

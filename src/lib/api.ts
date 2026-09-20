@@ -26,10 +26,13 @@ export type Ad = {
   createdAt: string;
 };
 
+export type Role = "client" | "designer" | "admin";
+
 export type User = {
   id: number;
   email: string;
   fullName: string;
+  role: Role;
   defaultLanguage: string;
   gridDensity: string;
   memberSince: string;
@@ -40,6 +43,14 @@ export type User = {
     brand: boolean;
     newsletter: boolean;
   };
+};
+
+export type AdminUser = {
+  id: number;
+  email: string;
+  fullName: string;
+  role: Role;
+  createdAt: string;
 };
 
 export type CreativeRequest = {
@@ -186,6 +197,14 @@ export const api = {
     request<{ user: User }>("/api/profile", {
       method: "PUT",
       body: JSON.stringify(data),
+    }),
+
+  getUsers: () => request<{ users: AdminUser[] }>("/api/admin/users"),
+
+  updateUserRole: (id: number, role: Role) =>
+    request<{ user: AdminUser }>(`/api/admin/users/${id}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
     }),
 };
 

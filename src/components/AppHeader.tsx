@@ -3,16 +3,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AccountMenu from "@/components/AccountMenu";
+import { useAuth } from "@/lib/AuthProvider";
 
 const NAV_LINKS = [
   { href: "/library", label: "Explore ads" },
   { href: "/saved", label: "My saved ads" },
   { href: "/requests", label: "Requests" },
-  { href: "/add-ad", label: "Add ad" },
 ];
 
 export default function AppHeader() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const canPublish = user?.role === "designer" || user?.role === "admin";
+  const isAdmin = user?.role === "admin";
+
+  const navLinks = [
+    ...NAV_LINKS,
+    ...(canPublish ? [{ href: "/add-ad", label: "Add ad" }] : []),
+    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+  ];
 
   return (
     <header className="border-b border-ink/15 bg-surface">
@@ -25,7 +34,7 @@ export default function AppHeader() {
             Adplaylist
           </Link>
           <nav className="flex items-center gap-6">
-            {NAV_LINKS.map((link) => {
+            {navLinks.map((link) => {
               const active = pathname.startsWith(link.href);
               return (
                 <Link

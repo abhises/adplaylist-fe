@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { api, clearToken, getToken, setToken, type User } from "@/lib/api";
+import { api, clearToken, getToken, setToken, type Role, type User } from "@/lib/api";
 
 type AuthContextValue = {
   user: User | null;
@@ -87,4 +87,28 @@ export function useRequireAuth() {
   }, [ready, user, router]);
 
   return { user, ready };
+}
+
+// Redirects to /login if signed out, or to /library if signed in with a role
+// that isn't allowed — e.g. a client hitting /admin directly by URL. This is
+// a UX guard, not the security boundary: every route it protects is also
+// enforced server-side.
+export function useRequireRole(roles: Role[]) {
+  const { user, ready } = useAuth();
+  const router = useRouter();
+  const rolesKey = roles.join(",");
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (!rolesKey.split(",").includes(user.role)) {
+      router.replace("/library");
+    }
+  }, [ready, user, router, rolesKey]);
+
+  const allowed = !!user && rolesKey.split(",").includes(user.role);
+  return { user, ready: ready && allowed };
 }
