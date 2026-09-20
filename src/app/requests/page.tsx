@@ -121,6 +121,7 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachmentName, setAttachmentName] = useState<string | null>(null);
@@ -210,6 +211,7 @@ export default function RequestsPage() {
     const form = new FormData(formEl);
     setSubmitting(true);
     setSubmitted(false);
+    setSubmitError(null);
     try {
       const { request } = await api.createRequest({
         title: String(form.get("title")),
@@ -224,6 +226,10 @@ export default function RequestsPage() {
       formEl.reset();
       clearAttachment();
       setTab("Open");
+    } catch (err) {
+      setSubmitError(
+        err instanceof ApiError ? err.message : "Something went wrong."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -611,6 +617,11 @@ export default function RequestsPage() {
               </svg>
               {submitting ? "Submitting…" : "Submit request"}
             </button>
+            {submitError && (
+              <p className="text-sm text-brand" role="alert">
+                {submitError}
+              </p>
+            )}
             {submitted && (
               <p className="text-sm text-ink-muted">
                 Request sent to the creative team.

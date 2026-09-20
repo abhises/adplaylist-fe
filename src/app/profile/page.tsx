@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppHeader from "@/components/AppHeader";
-import { api, type User } from "@/lib/api";
+import { api, ApiError, type User } from "@/lib/api";
 import { useAuth, useRequireAuth } from "@/lib/AuthProvider";
 
 const EMAIL_PREFS: {
@@ -98,6 +98,7 @@ export default function ProfilePage() {
   );
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   useEffect(() => {
     if (!authUser) return;
@@ -110,12 +111,16 @@ export default function ProfilePage() {
     if (!form) return;
     setSaving(true);
     setSavedMessage(null);
+    setSaveFailed(false);
     try {
       await api.updateProfile(form);
       await refresh();
       setSavedMessage("Changes saved.");
-    } catch {
-      setSavedMessage("Couldn't save changes.");
+    } catch (err) {
+      setSaveFailed(true);
+      setSavedMessage(
+        err instanceof ApiError ? err.message : "Couldn't save changes."
+      );
     } finally {
       setSaving(false);
     }
@@ -296,7 +301,12 @@ export default function ProfilePage() {
               Discard
             </button>
             {savedMessage && (
-              <span className="text-sm text-ink-muted">{savedMessage}</span>
+              <span
+                className={`text-sm ${saveFailed ? "text-brand" : "text-ink-muted"}`}
+                role={saveFailed ? "alert" : undefined}
+              >
+                {savedMessage}
+              </span>
             )}
           </div>
         </div>
