@@ -65,6 +65,7 @@ export type CreativeRequest = {
   attachmentUrl?: string;
   attachmentName?: string;
   ad?: Ad;
+  requester?: { fullName: string; email: string };
   createdAt: string;
 };
 
@@ -197,6 +198,21 @@ export const api = {
     request<{ request: CreativeRequest }>("/api/requests", {
       method: "POST",
       body: JSON.stringify(data),
+    }),
+
+  getRequestsQueue: () =>
+    request<{ requests: CreativeRequest[] }>("/api/requests/queue"),
+
+  deliverRequest: (id: number, adId: string) =>
+    request<{ request: CreativeRequest }>(`/api/requests/${id}/deliver`, {
+      method: "POST",
+      body: JSON.stringify({ adId }),
+    }),
+
+  declineRequest: (id: number, reason: string) =>
+    request<{ request: CreativeRequest }>(`/api/requests/${id}/decline`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
     }),
 
   getProfile: () => request<{ user: User }>("/api/profile"),

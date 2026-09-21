@@ -4,22 +4,24 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AccountMenu from "@/components/AccountMenu";
 import { useAuth } from "@/lib/AuthProvider";
-
-const NAV_LINKS = [
-  { href: "/library", label: "Explore ads" },
-  { href: "/saved", label: "My saved ads" },
-  { href: "/requests", label: "Requests" },
-];
+import { slugify } from "@/lib/slug";
 
 export default function AppHeader() {
   const pathname = usePathname();
   const { user } = useAuth();
   const canPublish = user?.role === "designer" || user?.role === "admin";
   const isAdmin = user?.role === "admin";
+  const libraryHref =
+    user?.role === "client" ? `/library/${slugify(user.fullName)}` : "/library";
 
   const navLinks = [
-    ...NAV_LINKS,
+    { href: libraryHref, label: "Explore ads" },
+    { href: "/saved", label: "My saved ads" },
+    { href: "/requests", label: "Requests" },
     ...(canPublish ? [{ href: "/add-ad", label: "Add ad" }] : []),
+    ...(canPublish
+      ? [{ href: "/admin/requests", label: "Requests queue" }]
+      : []),
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
 
@@ -28,7 +30,7 @@ export default function AppHeader() {
       <div className="flex items-center justify-between px-10 py-4">
         <div className="flex items-center gap-10">
           <Link
-            href="/library"
+            href={libraryHref}
             className="text-sm font-extrabold tracking-[2px] text-ink uppercase"
           >
             Adplaylist
