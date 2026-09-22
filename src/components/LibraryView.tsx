@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import Spinner from "@/components/Spinner";
 import {
   DOMINANT_COLORS,
   LANGUAGE_OPTIONS,
@@ -573,7 +574,10 @@ export default function LibraryView({
           </div>
 
           {loading && (
-            <p className="mt-10 text-sm text-ink-muted">Loading ads…</p>
+            <div className="mt-10 flex items-center gap-2 text-sm text-ink-muted">
+              <Spinner />
+              Loading ads…
+            </div>
           )}
           {error && (
             <p className="mt-10 text-sm text-brand">{error}</p>

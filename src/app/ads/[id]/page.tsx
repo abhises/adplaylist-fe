@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
+import Spinner from "@/components/Spinner";
 import { SIZE_OPTIONS } from "@/lib/ads";
 
 function parseAspectRatio(dims: string) {
@@ -61,7 +62,10 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
     return (
       <div className="flex min-h-screen flex-col">
         <AppHeader />
-        <p className="px-10 py-8 text-sm text-ink-muted">Loading ad…</p>
+        <div className="flex items-center gap-2 px-10 py-8 text-sm text-ink-muted">
+          <Spinner />
+          Loading ad…
+        </div>
       </div>
     );
   }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
+import Spinner from "@/components/Spinner";
 import { api, type Ad } from "@/lib/api";
 import { useRequireAuth } from "@/lib/AuthProvider";
 
@@ -43,7 +44,10 @@ export default function SavedAdsPage() {
         </p>
 
         {loading && (
-          <p className="mt-10 text-sm text-ink-muted">Loading saved ads…</p>
+          <div className="mt-10 flex items-center gap-2 text-sm text-ink-muted">
+            <Spinner />
+            Loading saved ads…
+          </div>
         )}
 
         {!loading && savedAds.length > 0 && (

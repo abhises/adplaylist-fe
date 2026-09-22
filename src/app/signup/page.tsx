@@ -4,16 +4,16 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthProvider";
-import { ApiError, type Role } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
 export default function SignupPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<Exclude<Role, "admin">>("client");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +32,7 @@ export default function SignupPage() {
 
     setSubmitting(true);
     try {
-      await register(fullName, email, password, role);
+      await register(fullName, email, password, "client");
       router.push("/library");
     } catch (err) {
       setError(
@@ -40,6 +40,18 @@ export default function SignupPage() {
       );
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleGoogleCredential(credential: string) {
+    setError(null);
+    try {
+      await loginWithGoogle(credential);
+      router.push("/library");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Something went wrong."
+      );
     }
   }
 
@@ -76,7 +88,20 @@ export default function SignupPage() {
             Create your account
           </h2>
 
-          <div className="mt-8">
+          <div className="mt-6">
+            <GoogleSignInButton
+              onCredential={handleGoogleCredential}
+              onError={setError}
+            />
+          </div>
+
+          <div className="mt-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-ink-muted uppercase">or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          <div className="mt-6">
             <label
               htmlFor="fullName"
               className="mb-[5px] block text-xs text-ink/70"
@@ -111,22 +136,6 @@ export default function SignupPage() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
             />
-          </div>
-
-          <div className="mt-4">
-            <label htmlFor="role" className="mb-[5px] block text-xs text-ink/70">
-              I am a
-            </label>
-            <select
-              id="role"
-              name="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as Exclude<Role, "admin">)}
-              className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
-            >
-              <option value="client">Client — browse, save, and request ads</option>
-              <option value="designer">Designer — also publish ads and fulfil requests</option>
-            </select>
           </div>
 
           <div className="mt-4">

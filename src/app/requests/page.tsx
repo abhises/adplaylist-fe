@@ -10,6 +10,7 @@ import {
 } from "react";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
+import Spinner from "@/components/Spinner";
 import { api, ApiError, type CreativeRequest } from "@/lib/api";
 import { useRequireAuth } from "@/lib/AuthProvider";
 
@@ -269,7 +270,10 @@ export default function RequestsPage() {
           </div>
 
           {loading && (
-            <p className="mt-8 text-sm text-ink-muted">Loading requests…</p>
+            <div className="mt-8 flex items-center gap-2 text-sm text-ink-muted">
+              <Spinner />
+              Loading requests…
+            </div>
           )}
 
           {!loading && tab === "Open" && (

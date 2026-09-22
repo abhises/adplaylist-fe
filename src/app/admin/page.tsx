@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import AppHeader from "@/components/AppHeader";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Modal from "@/components/Modal";
+import Spinner from "@/components/Spinner";
 import { api, ApiError, type AdminUser, type Role } from "@/lib/api";
 import { useAuth, useRequireRole } from "@/lib/AuthProvider";
 
@@ -127,7 +128,10 @@ export default function AdminUsersPage() {
         </p>
 
         {loading && (
-          <p className="mt-8 text-sm text-ink-muted">Loading users…</p>
+          <div className="mt-8 flex items-center gap-2 text-sm text-ink-muted">
+            <Spinner />
+            Loading users…
+          </div>
         )}
         {error && <p className="mt-8 text-sm text-brand">{error}</p>}
 

@@ -14,6 +14,7 @@ type AuthContextValue = {
   user: User | null;
   ready: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   register: (
     fullName: string,
     email: string,
@@ -57,6 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(user);
   }
 
+  async function loginWithGoogle(credential: string) {
+    const { token, user } = await api.loginWithGoogle(credential);
+    setToken(token);
+    setUser(user);
+  }
+
   async function register(
     fullName: string,
     email: string,
@@ -75,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, ready, login, register, logout, refresh }}
+      value={{ user, ready, login, loginWithGoogle, register, logout, refresh }}
     >
       {children}
     </AuthContext.Provider>

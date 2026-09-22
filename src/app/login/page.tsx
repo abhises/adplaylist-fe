@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthProvider";
 import { ApiError } from "@/lib/api";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState("anna.smith@atlasmedia.co");
   const [password, setPassword] = useState("");
   const [keepSignedIn, setKeepSignedIn] = useState(true);
@@ -28,6 +29,18 @@ export default function LoginPage() {
       );
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleGoogleCredential(credential: string) {
+    setError(null);
+    try {
+      await loginWithGoogle(credential);
+      router.push("/library");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Something went wrong."
+      );
     }
   }
 
@@ -64,7 +77,20 @@ export default function LoginPage() {
             Get to your ads
           </h2>
 
-          <div className="mt-8">
+          <div className="mt-6">
+            <GoogleSignInButton
+              onCredential={handleGoogleCredential}
+              onError={setError}
+            />
+          </div>
+
+          <div className="mt-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-ink-muted uppercase">or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          <div className="mt-6">
             <label htmlFor="email" className="mb-[5px] block text-xs text-ink/70">
               Work email
             </label>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import Modal from "@/components/Modal";
+import Spinner from "@/components/Spinner";
 import { api, ApiError, type Ad, type CreativeRequest } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
 
@@ -97,7 +98,10 @@ function DeliverModal({
 
       <div className="mt-2 max-h-56 divide-y divide-border overflow-y-auto border border-border">
         {searching && (
-          <p className="p-3 text-sm text-ink-muted">Searching…</p>
+          <div className="flex items-center gap-2 p-3 text-sm text-ink-muted">
+            <Spinner />
+            Searching…
+          </div>
         )}
         {!searching && results.length === 0 && (
           <p className="p-3 text-sm text-ink-muted">No ads found.</p>
@@ -290,7 +294,12 @@ export default function RequestsQueuePage() {
           ))}
         </div>
 
-        {loading && <p className="mt-8 text-sm text-ink-muted">Loading requests…</p>}
+        {loading && (
+          <div className="mt-8 flex items-center gap-2 text-sm text-ink-muted">
+            <Spinner />
+            Loading requests…
+          </div>
+        )}
         {loadError && <p className="mt-8 text-sm text-brand">{loadError}</p>}
 
         {!loading && !loadError && tab === "Open" && (

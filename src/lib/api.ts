@@ -128,6 +128,12 @@ export const api = {
       body: JSON.stringify({ fullName, email, password, role }),
     }),
 
+  loginWithGoogle: (credential: string) =>
+    request<{ token: string; user: User }>("/api/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+    }),
+
   me: () => request<{ user: User }>("/api/auth/me"),
 
   getAds: (params?: Record<string, string>) => {
