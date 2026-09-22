@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Modal from "@/components/Modal";
@@ -20,7 +21,8 @@ function formatDate(iso: string) {
 
 export default function AdminUsersPage() {
   const { user: authUser, ready } = useRequireRole(["admin"]);
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, refresh, logout } = useAuth();
+  const router = useRouter();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +56,10 @@ export default function AdminUsersPage() {
     setSavingId(id);
     try {
       await api.updateUserRole(id, role);
+      // Your own admin session relies on the role stored in AuthProvider
+      // (used by useRequireRole above) — refresh it so changing your own
+      // role takes effect immediately instead of on next navigation.
+      if (id === currentUser?.id) await refresh();
     } catch (err) {
       setUsers(previous);
       setRowError({
@@ -99,8 +105,13 @@ export default function AdminUsersPage() {
     setDeleting(true);
     try {
       await api.deleteUser(deleteTarget.id);
+      const deletedSelf = deleteTarget.id === currentUser?.id;
       setUsers((list) => list.filter((existing) => existing.id !== deleteTarget.id));
       setDeleteTarget(null);
+      if (deletedSelf) {
+        logout();
+        router.push("/login");
+      }
     } catch (err) {
       setRowError({
         id: deleteTarget.id,
@@ -151,7 +162,6 @@ export default function AdminUsersPage() {
             </thead>
             <tbody>
               {users.map((u) => {
-                const isSelf = u.id === currentUser?.id;
                 return (
                   <tr key={u.id} className="hover:bg-surface-2/60">
                     <td className="border-b border-border p-2 font-semibold text-ink">
@@ -167,11 +177,10 @@ export default function AdminUsersPage() {
                       <div className="flex items-center gap-2">
                         <select
                           value={u.role}
-                          disabled={isSelf || savingId === u.id}
+                          disabled={savingId === u.id}
                           onChange={(e) =>
                             handleRoleChange(u.id, e.target.value as Role)
                           }
-                          title={isSelf ? "You can't change your own role" : undefined}
                           className="border border-border bg-surface-2 px-2.5 py-1 text-sm text-ink outline-none disabled:opacity-60"
                         >
                           {ROLES.map((r) => (
@@ -199,8 +208,6 @@ export default function AdminUsersPage() {
                       <button
                         type="button"
                         onClick={() => setDeleteTarget(u)}
-                        disabled={isSelf}
-                        title={isSelf ? "You can't delete your own account" : undefined}
                         className="ml-4 text-sm text-brand hover:underline disabled:cursor-not-allowed disabled:text-ink-muted disabled:no-underline"
                       >
                         Delete
