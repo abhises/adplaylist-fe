@@ -50,9 +50,138 @@ function readImageDimensions(file: File): Promise<{ width: number; height: numbe
   });
 }
 
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      result.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+function parseCsvRows(text: string): string[][] {
+  return text
+    .replace(/^﻿/, "")
+    .split(/\r\n|\n|\r/)
+    .filter((l) => l.trim().length > 0)
+    .map(parseCsvLine);
+}
+
+function normalizeKey(s: string): string {
+  return s.trim().toLowerCase().replace(/[\s_-]+/g, "");
+}
+
+// Maps normalized column/field labels (spaces and case stripped) to the
+// canonical keys used by handleCsvFile below.
+const FIELD_ALIASES: Record<string, string> = {
+  adname: "adname",
+  mediatype: "mediatype",
+  kicker: "kicker",
+  headline: "headline",
+  sub: "sub",
+  subheadline: "sub",
+  supportingline: "sub",
+  cta: "cta",
+  calltoaction: "cta",
+  category: "category",
+  market: "market",
+  language: "language",
+  platforms: "platforms",
+  platform: "platforms",
+  sizes: "sizes",
+  size: "sizes",
+  placementsizes: "sizes",
+  dominantcolor: "dominantcolor",
+  dominantcolour: "dominantcolor",
+  canvaurl: "canvaurl",
+  canvalink: "canvaurl",
+  canvatemplatelink: "canvaurl",
+};
+
+function canonicalKey(label: string): string | undefined {
+  return FIELD_ALIASES[normalizeKey(label)];
+}
+
+// Accepts either a "wide" CSV (one header row of field names, one data row
+// of values) or a "long" CSV with two columns (e.g. "Field,Answer") and one
+// row per field — the shape a lot of research/export tools produce.
+function parseAdCsv(text: string): Record<string, string> {
+  const rows = parseCsvRows(text);
+  if (rows.length < 2) return {};
+
+  const headerCells = rows[0].map(normalizeKey);
+  const isLongFormat =
+    headerCells.length === 2 &&
+    headerCells[0] === "field" &&
+    headerCells[1] === "answer";
+
+  const fields: Record<string, string> = {};
+
+  if (isLongFormat) {
+    for (const row of rows.slice(1)) {
+      const [label, value] = row;
+      if (!label) continue;
+      const key = canonicalKey(label);
+      if (key) fields[key] = (value ?? "").trim();
+    }
+  } else {
+    const values = rows[1] ?? [];
+    rows[0].forEach((label, i) => {
+      const key = canonicalKey(label);
+      if (key) fields[key] = (values[i] ?? "").trim();
+    });
+  }
+
+  return fields;
+}
+
+function findOption(options: string[], value: string): string | undefined {
+  const norm = value.trim().toLowerCase();
+  return options.find((o) => o.toLowerCase() === norm);
+}
+
+function normalizeDims(s: string): string | null {
+  const m = s.match(/(\d+)\s*[x×X]\s*(\d+)/);
+  return m ? `${m[1]}x${m[2]}` : null;
+}
+
+// Matches a size token by exact name first ("Feed square"), then falls back
+// to matching by dimensions so labels like "Square 1200×1200" still resolve
+// to the "Marketplace / Messenger" (1200 × 1200) option.
+function matchSizeOption(token: string): string | undefined {
+  const t = token.trim();
+  const byName = SIZE_OPTIONS.find((s) => s.name.toLowerCase() === t.toLowerCase());
+  if (byName) return byName.name;
+  const dims = normalizeDims(t);
+  if (!dims) return undefined;
+  return SIZE_OPTIONS.find((s) => normalizeDims(s.dims) === dims)?.name;
+}
+
 export default function AddAdPage() {
   const { user, ready } = useRequireRole(["designer", "admin"]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   const [adName, setAdName] = useState("");
   const [mediaType, setMediaType] = useState<"image" | "video">("image");
@@ -80,6 +209,10 @@ export default function AddAdPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+
+  const [csvFileName, setCsvFileName] = useState<string | null>(null);
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const [csvDragOver, setCsvDragOver] = useState(false);
 
   function togglePlatform(p: string) {
     setPlatforms((list) =>
@@ -136,6 +269,126 @@ export default function AddAdPage() {
     setPhotoDims(null);
     setUploadError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleCsvFile(file: File | undefined) {
+    if (!file) return;
+    if (!/\.csv$/i.test(file.name) && file.type !== "text/csv") {
+      setCsvError("Please upload a .csv file.");
+      return;
+    }
+    setCsvError(null);
+    try {
+      const row = parseAdCsv(await file.text());
+      if (Object.keys(row).length === 0) {
+        setCsvError("That CSV has no data rows.");
+        return;
+      }
+      let matched = 0;
+
+      if (row.adname) {
+        setAdName(row.adname);
+        matched++;
+      }
+      const mediaTypeVal = row.mediatype?.trim().toLowerCase();
+      if (mediaTypeVal === "image" || mediaTypeVal === "video") {
+        setMediaType(mediaTypeVal);
+        matched++;
+      }
+      if (row.kicker) {
+        setKicker(row.kicker);
+        matched++;
+      }
+      if (row.headline) {
+        setHeadline(row.headline);
+        matched++;
+      }
+      if (row.sub) {
+        setSub(row.sub);
+        matched++;
+      }
+      if (row.cta) {
+        setCta(row.cta);
+        matched++;
+      }
+      const categoryVal = row.category
+        ? findOption(CATEGORY_OPTIONS, row.category)
+        : undefined;
+      if (categoryVal) {
+        setCategory(categoryVal);
+        matched++;
+      }
+      const marketVal = row.market
+        ? findOption(MARKET_OPTIONS, row.market)
+        : undefined;
+      if (marketVal) {
+        setMarket(marketVal);
+        matched++;
+      }
+      const languageVal = row.language
+        ? findOption(LANGUAGE_OPTIONS, row.language)
+        : undefined;
+      if (languageVal) {
+        setLanguage(languageVal);
+        matched++;
+      }
+      if (row.platforms) {
+        const list = row.platforms
+          .split(/[;|]/)
+          .map((v) => findOption(PLATFORM_OPTIONS, v))
+          .filter((v): v is string => !!v);
+        if (list.length) {
+          setPlatforms(list);
+          matched++;
+        }
+      }
+      if (row.sizes) {
+        const list = row.sizes
+          .split(/[;|]/)
+          .map((v) => matchSizeOption(v))
+          .filter((v): v is string => !!v);
+        if (list.length) {
+          setSizes(list);
+          matched++;
+        }
+      }
+      const dominantColorVal = row.dominantcolor
+        ? findOption(
+            DOMINANT_COLORS.map((c) => c.name),
+            row.dominantcolor
+          )
+        : undefined;
+      if (dominantColorVal) {
+        setDominantColor(dominantColorVal);
+        matched++;
+      }
+      if (row.canvaurl) {
+        setCanvaUrl(row.canvaurl);
+        matched++;
+      }
+
+      if (matched === 0) {
+        setCsvError(
+          "None of the CSV columns were recognized. Expected headers like adName, headline, category…"
+        );
+        return;
+      }
+      setCsvFileName(file.name);
+    } catch {
+      setCsvError("Couldn't read that CSV.");
+    }
+  }
+
+  function handleCsvDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setCsvDragOver(false);
+    handleCsvFile(e.dataTransfer.files?.[0]);
+  }
+
+  function clearCsv() {
+    setCsvFileName(null);
+    setCsvError(null);
+    if (csvInputRef.current) csvInputRef.current.value = "";
   }
 
   async function handlePublish(e: FormEvent<HTMLFormElement>) {
@@ -263,6 +516,60 @@ export default function AddAdPage() {
                     Video
                   </label>
                 </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="mb-[5px] block text-xs text-ink/70">
+                  Text data (CSV)
+                </label>
+                <input
+                  ref={csvInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => handleCsvFile(e.target.files?.[0])}
+                />
+                {csvFileName ? (
+                  <div className="relative mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-border text-ink-muted">
+                    <span className="text-2xl">&#128247;</span>
+                    <span className="text-sm text-ink">{csvFileName}</span>
+                    <span className="text-xs">Form filled from CSV</span>
+                    <button
+                      type="button"
+                      onClick={clearCsv}
+                      className="absolute top-2 right-2 bg-surface px-2 py-1 text-xs font-bold text-ink"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => csvInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setCsvDragOver(true);
+                    }}
+                    onDragLeave={() => setCsvDragOver(false)}
+                    onDrop={handleCsvDrop}
+                    className={`mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-dashed text-ink-muted ${
+                      csvDragOver ? "border-brand bg-brand/5" : "border-border"
+                    } cursor-pointer`}
+                  >
+                    <span className="text-2xl">&#128247;</span>
+                    <span className="text-sm">Drop file, or click to browse</span>
+                    <span className="text-xs">No file yet</span>
+                  </div>
+                )}
+                {csvError && (
+                  <p className="mt-1 text-xs text-brand">{csvError}</p>
+                )}
+                <p className="mt-1 text-xs text-ink-muted">
+                  Accepts a header row of fields (adName, mediaType, kicker,
+                  headline, sub, cta, category, market, language, platforms,
+                  sizes, dominantColor, canvaUrl) or a two-column
+                  &quot;Field,Answer&quot; export with one row per field.
+                  Separate multiple platforms/sizes with &quot;;&quot;.
+                </p>
               </div>
 
               <div className="mt-4">
