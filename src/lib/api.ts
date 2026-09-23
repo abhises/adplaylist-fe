@@ -11,6 +11,7 @@ export type Ad = {
   sub?: string;
   cta?: string;
   badge?: string;
+  description?: string;
   mediaType: "image" | "video";
   swatch: string;
   light?: boolean;

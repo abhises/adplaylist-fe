@@ -242,8 +242,86 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
                 <span className="text-ink-muted">Market</span>
                 <span className="text-ink">{ad.market}</span>
               </div>
+              <div className="flex justify-between py-3 text-sm">
+                <span className="text-ink-muted">Language</span>
+                <span className="text-ink">{ad.language}</span>
+              </div>
+              <div className="flex justify-between py-3 text-sm">
+                <span className="text-ink-muted">Media type</span>
+                <span className="text-ink capitalize">{ad.mediaType}</span>
+              </div>
+              <div className="flex justify-between py-3 text-sm">
+                <span className="text-ink-muted">Platforms</span>
+                <span className="text-ink">{ad.platforms.join(", ")}</span>
+              </div>
+              {ad.dominantColor && (
+                <div className="flex justify-between py-3 text-sm">
+                  <span className="text-ink-muted">Dominant colour</span>
+                  <span className="text-ink">{ad.dominantColor}</span>
+                </div>
+              )}
+              {ad.canvaUrl && (
+                <div className="flex justify-between py-3 text-sm">
+                  <span className="text-ink-muted">Canva template</span>
+                  <a
+                    href={ad.canvaUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand"
+                  >
+                    Open link
+                  </a>
+                </div>
+              )}
             </div>
           </div>
+
+          {(ad.eyebrow || ad.headline || ad.sub || ad.cta) && (
+            <div className="mt-8">
+              <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+                Ad copy
+              </p>
+              <div className="mt-2 divide-y divide-ink/10 border-t border-ink/10">
+                {ad.eyebrow && (
+                  <div className="flex justify-between gap-4 py-3 text-sm">
+                    <span className="shrink-0 text-ink-muted">Kicker</span>
+                    <span className="text-right text-ink">{ad.eyebrow}</span>
+                  </div>
+                )}
+                <div className="flex justify-between gap-4 py-3 text-sm">
+                  <span className="shrink-0 text-ink-muted">Headline</span>
+                  <span className="text-right text-ink">{ad.headline}</span>
+                </div>
+                {ad.sub && (
+                  <div className="flex justify-between gap-4 py-3 text-sm">
+                    <span className="shrink-0 text-ink-muted">
+                      Supporting line
+                    </span>
+                    <span className="text-right text-ink">{ad.sub}</span>
+                  </div>
+                )}
+                {ad.cta && (
+                  <div className="flex justify-between gap-4 py-3 text-sm">
+                    <span className="shrink-0 text-ink-muted">
+                      Call to action
+                    </span>
+                    <span className="text-right text-ink">{ad.cta}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {ad.description && (
+            <div className="mt-8">
+              <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+                Description
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-ink">
+                {ad.description}
+              </p>
+            </div>
+          )}
         </div>
       </main>
 

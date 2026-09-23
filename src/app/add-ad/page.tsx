@@ -104,6 +104,7 @@ const FIELD_ALIASES: Record<string, string> = {
   supportingline: "sub",
   cta: "cta",
   calltoaction: "cta",
+  description: "description",
   category: "category",
   market: "market",
   language: "language",
@@ -189,6 +190,7 @@ export default function AddAdPage() {
   const [headline, setHeadline] = useState("");
   const [sub, setSub] = useState("");
   const [cta, setCta] = useState("");
+  const [description, setDescription] = useState("");
   const [category, setCategory] = useState(CATEGORY_OPTIONS[0]);
   const [market, setMarket] = useState(MARKET_OPTIONS[1]);
   const [language, setLanguage] = useState(LANGUAGE_OPTIONS[0]);
@@ -311,6 +313,10 @@ export default function AddAdPage() {
         setCta(row.cta);
         matched++;
       }
+      if (row.description) {
+        setDescription(row.description);
+        matched++;
+      }
       const categoryVal = row.category
         ? findOption(CATEGORY_OPTIONS, row.category)
         : undefined;
@@ -405,6 +411,7 @@ export default function AddAdPage() {
         headline: headline || "Your headline goes here.",
         sub: sub || undefined,
         cta: cta || undefined,
+        description: description || undefined,
         mediaType,
         swatch: swatch.bg,
         light: swatch.light,
@@ -442,6 +449,7 @@ export default function AddAdPage() {
     headline: headline || "Your headline goes here.",
     sub: sub || undefined,
     cta: cta || undefined,
+    description: description || undefined,
     mediaType,
     swatch: previewSwatch.bg,
     light: previewSwatch.light,
@@ -565,10 +573,11 @@ export default function AddAdPage() {
                 )}
                 <p className="mt-1 text-xs text-ink-muted">
                   Accepts a header row of fields (adName, mediaType, kicker,
-                  headline, sub, cta, category, market, language, platforms,
-                  sizes, dominantColor, canvaUrl) or a two-column
-                  &quot;Field,Answer&quot; export with one row per field.
-                  Separate multiple platforms/sizes with &quot;;&quot;.
+                  headline, sub, cta, description, category, market,
+                  language, platforms, sizes, dominantColor, canvaUrl) or a
+                  two-column &quot;Field,Answer&quot; export with one row per
+                  field. Separate multiple platforms/sizes with
+                  &quot;;&quot;.
                 </p>
               </div>
 
@@ -698,6 +707,18 @@ export default function AddAdPage() {
                     value={cta}
                     onChange={(e) => setCta(e.target.value)}
                     placeholder="Shop now"
+                    className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+                  />
+                </div>
+                <div>
+                  <label className="mb-[5px] block text-xs text-ink/70">
+                    Description
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="What this creative is and why it works…"
+                    rows={4}
                     className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
                   />
                 </div>
