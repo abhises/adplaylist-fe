@@ -67,7 +67,6 @@ export default function AddAdPage() {
   const [dominantColor, setDominantColor] = useState(DOMINANT_COLORS[0].name);
   const [sizes, setSizes] = useState<string[]>([]);
   const [canvaUrl, setCanvaUrl] = useState("");
-  const [editableInCanva, setEditableInCanva] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [result, setResult] = useState<{ message: string; adId?: string } | null>(
     null
@@ -161,7 +160,7 @@ export default function AddAdPage() {
         language,
         platforms,
         photo: photoUrl ?? undefined,
-        editable: editableInCanva,
+        editable: false,
         canvaUrl: canvaUrl || undefined,
         dominantColor,
       });
@@ -198,7 +197,7 @@ export default function AddAdPage() {
     language,
     photo: photoUrl ?? undefined,
     platforms,
-    editable: editableInCanva,
+    editable: false,
     canvaUrl: canvaUrl || undefined,
     dominantColor,
     createdAt: new Date().toISOString(),
@@ -342,15 +341,6 @@ export default function AddAdPage() {
                   className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
                 />
               </div>
-              <label className="mt-3 flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  checked={editableInCanva}
-                  onChange={() => setEditableInCanva((v) => !v)}
-                  className="h-[15px] w-[15px] accent-brand"
-                />
-                Editable in Canva
-              </label>
             </div>
 
             <div className="border-2 border-ink/15 p-6">
@@ -542,7 +532,6 @@ export default function AddAdPage() {
                 {mediaType === "image" ? "Image" : "Video"} &middot; {category}{" "}
                 &middot; {sizes.length} size(s) &middot; {platforms.length}{" "}
                 platform(s)
-                {editableInCanva && <> &middot; Editable in Canva</>}
               </p>
 
               <div className="mt-6 flex flex-wrap items-center gap-3">

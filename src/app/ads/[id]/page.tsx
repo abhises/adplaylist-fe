@@ -7,6 +7,12 @@ import AdCard from "@/components/AdCard";
 import Spinner from "@/components/Spinner";
 import { SIZE_OPTIONS } from "@/lib/ads";
 
+const SQUARE_SIZE = { name: "Square", dims: "1200 × 1200" };
+const SQUARE_INDEX = Math.max(
+  SIZE_OPTIONS.findIndex((s) => s.dims === SQUARE_SIZE.dims),
+  0
+);
+
 function parseAspectRatio(dims: string) {
   const [w, h] = dims.split("x").map((n) => parseInt(n.trim(), 10));
   return w && h ? `${w} / ${h}` : "4 / 5";
@@ -22,15 +28,15 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
   const [allAds, setAllAds] = useState<Ad[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeSize, setActiveSize] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [activeSize, setActiveSize] = useState(SQUARE_INDEX);
 
   useEffect(() => {
     if (!user) return;
     Promise.resolve().then(() => {
       setLoading(true);
       setNotFound(false);
-      setActiveSize(0);
+      setActiveSize(SQUARE_INDEX);
 
       return Promise.all([api.getAd(id), api.getAds(), api.getSaved()])
         .then(([adRes, adsRes, savedRes]) => {
@@ -90,11 +96,8 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
     .filter((a) => a.category === ad.category && a.id !== ad.id)
     .slice(0, 4);
 
-  const useLight = ad.light && !ad.photo;
-  const inkText = useLight ? "text-ink" : "text-white";
-  const inkTextMuted = useLight ? "text-ink/70" : "text-white/80";
   const previewAspectRatio = parseAspectRatio(
-    SIZE_OPTIONS[activeSize]?.dims ?? "1080 x 1350"
+    SIZE_OPTIONS[activeSize]?.dims ?? SQUARE_SIZE.dims
   );
 
   return (
@@ -143,29 +146,6 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
                 className="absolute inset-0 h-full w-full object-cover"
               />
             )}
-            {ad.photo && (
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
-            )}
-            {ad.eyebrow && (
-              <span
-                className={`absolute top-4 left-4 text-[11px] font-medium tracking-[1px] uppercase ${inkText}/90`}
-              >
-                {ad.eyebrow}
-              </span>
-            )}
-            <div className="absolute inset-x-0 bottom-0 p-6">
-              <p className={`text-3xl leading-tight font-extrabold ${inkText}`}>
-                {ad.headline}
-              </p>
-              {ad.sub && (
-                <p className={`mt-2 text-sm ${inkTextMuted}`}>{ad.sub}</p>
-              )}
-              {ad.cta && (
-                <span className="mt-4 inline-block bg-brand px-4 py-2 text-xs font-bold text-brand-foreground uppercase">
-                  {ad.cta}
-                </span>
-              )}
-            </div>
           </div>
 
           <div className="mt-8">
@@ -189,29 +169,25 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 border-t border-l border-ink/15 sm:grid-cols-4">
-            {SIZE_OPTIONS.map((size, i) => (
-              <button
-                key={size.name}
-                onClick={() => setActiveSize(i)}
-                className={`border-r border-b border-ink/15 px-3 py-3 text-left text-sm ${
-                  i === activeSize
-                    ? "border-b-2 border-b-brand font-bold text-ink"
-                    : "text-ink-muted"
-                }`}
-              >
-                <span className="block">{size.name}</span>
-                <span className="block text-xs text-ink-muted">
-                  {size.dims}
-                </span>
-              </button>
-            ))}
+          <div className="mt-6 flex items-center gap-3">
+            <div className="border border-ink/15 border-b-2 border-b-brand px-3 py-3 text-left text-sm font-bold text-ink">
+              <span className="block">{SIZE_OPTIONS[SQUARE_INDEX]?.name}</span>
+              <span className="block text-xs text-ink-muted">
+                {SIZE_OPTIONS[SQUARE_INDEX]?.dims}
+              </span>
+            </div>
+            <Link
+              href="/requests"
+              className="bg-brand px-4 py-2.5 text-sm font-bold text-brand-foreground"
+            >
+              Request more sizes
+            </Link>
           </div>
         </div>
 
         <div className="px-10 py-8">
           <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
-            Creative &middot; {SIZE_OPTIONS[activeSize]?.dims}
+            Creative &middot; {SIZE_OPTIONS[activeSize]?.dims ?? SQUARE_SIZE.dims}
           </p>
           <div className="mt-1 flex items-start justify-between">
             <h1 className="text-3xl font-extrabold text-ink">{ad.title}</h1>
