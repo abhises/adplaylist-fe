@@ -22,8 +22,14 @@ export default function AppHeader() {
     ...(canPublish
       ? [{ href: "/admin/requests", label: "Requests queue" }]
       : []),
+    ...(isAdmin ? [{ href: "/admin/brand-pages", label: "Brand pages" }] : []),
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
+  // "/admin" is a prefix of the other admin links, so only the longest
+  // matching link counts as active.
+  const activeHref = navLinks
+    .filter((link) => pathname.startsWith(link.href))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <header className="border-b border-ink/15 bg-surface">
@@ -37,7 +43,7 @@ export default function AppHeader() {
           </Link>
           <nav className="flex items-center gap-6">
             {navLinks.map((link) => {
-              const active = pathname.startsWith(link.href);
+              const active = link.href === activeHref;
               return (
                 <Link
                   key={link.href}

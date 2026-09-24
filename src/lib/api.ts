@@ -70,6 +70,27 @@ export type CreativeRequest = {
   createdAt: string;
 };
 
+export type BrandPage = {
+  id: number;
+  slug: string;
+  brandName: string;
+  heading: string;
+  bodyHtml: string;
+  ctaLabel: string;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BrandPageInput = {
+  brandName: string;
+  slug?: string;
+  heading?: string;
+  bodyHtml?: string;
+  ctaLabel?: string;
+  published?: boolean;
+};
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(TOKEN_KEY);
@@ -252,6 +273,31 @@ export const api = {
 
   deleteUser: (id: number) =>
     request<void>(`/api/admin/users/${id}`, { method: "DELETE" }),
+
+  getPublicBrandPage: (slug: string) =>
+    request<{ page: BrandPage }>(
+      `/api/brand-pages/public/${encodeURIComponent(slug)}`
+    ),
+
+  getBrandPages: () => request<{ pages: BrandPage[] }>("/api/brand-pages"),
+
+  getBrandPage: (id: number) =>
+    request<{ page: BrandPage }>(`/api/brand-pages/${id}`),
+
+  createBrandPage: (data: BrandPageInput) =>
+    request<{ page: BrandPage }>("/api/brand-pages", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateBrandPage: (id: number, data: BrandPageInput) =>
+    request<{ page: BrandPage }>(`/api/brand-pages/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteBrandPage: (id: number) =>
+    request<void>(`/api/brand-pages/${id}`, { method: "DELETE" }),
 };
 
 export { ApiError };

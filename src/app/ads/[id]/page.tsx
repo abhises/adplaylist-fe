@@ -195,9 +195,20 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
               {user.role === "admin" && (
                 <Link
                   href={`/ads/${ad.id}/edit`}
-                  className="flex h-9 items-center justify-center border border-border px-3 text-sm font-bold text-ink"
+                  aria-label="Edit ad"
+                  title="Edit ad"
+                  className="flex h-9 w-9 items-center justify-center border border-border text-ink"
                 >
-                  &#9998; Edit
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" />
+                  </svg>
                 </Link>
               )}
               <button
