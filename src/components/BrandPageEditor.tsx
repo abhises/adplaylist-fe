@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/Link";
 import DOMPurify from "dompurify";
 import AppHeader from "@/components/AppHeader";
 import BrandPageView, { brandSignupHref } from "@/components/BrandPageView";

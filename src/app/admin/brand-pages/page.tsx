@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/Link";
 import AppHeader from "@/components/AppHeader";
 import Spinner from "@/components/Spinner";
 import { api, type BrandPage } from "@/lib/api";

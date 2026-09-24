@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/Link";
 import AppHeader from "@/components/AppHeader";
 import {
   CATEGORY_OPTIONS,
