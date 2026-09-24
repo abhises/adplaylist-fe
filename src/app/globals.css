@@ -120,3 +120,102 @@ button:disabled,
   font-size: 0.875rem;
   color: var(--color-ink-muted);
 }
+
+/* Library ad creatives embedded in brand pages (src/lib/adEmbed.ts): the
+   image with its copy overlaid and a tiled Adplaylist watermark. */
+.brand-content .ad-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+.brand-content .ad-embed {
+  max-width: 360px;
+  margin: 0;
+}
+.brand-content .ad-row .ad-embed {
+  max-width: none;
+}
+.ad-embed-frame {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  color: #fff;
+  user-select: none;
+}
+.ad-embed-light .ad-embed-frame {
+  color: var(--color-ink);
+}
+.brand-content .ad-embed-frame img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  pointer-events: none;
+}
+.ad-embed-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.7), rgb(0 0 0 / 0.05) 50%, transparent);
+}
+.ad-embed-kicker {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 2;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.ad-embed-copy {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 1rem;
+}
+.brand-content .ad-embed-copy p {
+  margin: 0;
+}
+.ad-embed-headline {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.brand-content .ad-embed-sub {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  opacity: 0.85;
+}
+.ad-embed-cta {
+  display: inline-block;
+  margin-top: 0.75rem;
+  background: var(--color-brand);
+  color: var(--color-brand-foreground);
+  padding: 0.375rem 0.75rem;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.ad-embed-watermark {
+  position: absolute;
+  inset: -50%;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  gap: 2.5rem 3rem;
+  transform: rotate(-30deg);
+  pointer-events: none;
+}
+.ad-embed-watermark span {
+  color: rgb(255 255 255 / 0.22);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-shadow: 0 0 2px rgb(0 0 0 / 0.25);
+}

@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import DOMPurify from "dompurify";
 import AppHeader from "@/components/AppHeader";
 import BrandPageView, { brandSignupHref } from "@/components/BrandPageView";
-import { ApiError, type BrandPageInput } from "@/lib/api";
+import Modal from "@/components/Modal";
+import { adEmbedSnippet, renderAdEmbeds } from "@/lib/adEmbed";
+import { api, ApiError, type Ad, type BrandPageInput } from "@/lib/api";
 import { slugify } from "@/lib/slug";
 import {
   SUPPORTED_IMAGE_ACCEPT,
@@ -49,6 +51,24 @@ export default function BrandPageEditor({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  const [ads, setAds] = useState<Ad[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
+
+  // The library, for the ad picker and for rendering embedded ads in the
+  // preview exactly as the public page will.
+  useEffect(() => {
+    api
+      .getAds()
+      .then((res) => setAds(res.ads))
+      .catch(() => {});
+  }, []);
+  const adsBySlug = useMemo(
+    () => Object.fromEntries(ads.map((ad) => [ad.id, ad])),
+    [ads]
+  );
+
   // Blank fields fall back the same way the API does, so the preview and the
   // saved page agree.
   const effectiveSlug = slug || slugify(brandName);
@@ -59,8 +79,11 @@ export default function BrandPageEditor({
     () =>
       typeof window === "undefined"
         ? ""
-        : DOMPurify.sanitize(bodyHtml, { ADD_ATTR: ["target"] }),
-    [bodyHtml]
+        : renderAdEmbeds(
+            DOMPurify.sanitize(bodyHtml, { ADD_ATTR: ["target"] }),
+            adsBySlug
+          ),
+    [bodyHtml, adsBySlug]
   );
 
   // Inserts a snippet at the cursor (or replaces the selection) in the HTML box.
@@ -105,6 +128,17 @@ export default function BrandPageEditor({
     );
   }
 
+  function closePicker() {
+    setPickerOpen(false);
+    setPicked([]);
+    setPickerQuery("");
+  }
+
+  function insertPickedAds() {
+    if (picked.length) insertHtml(adEmbedSnippet(picked));
+    closePicker();
+  }
+
   async function handleSave() {
     if (!brandName.trim()) {
       setError("Enter the brand name.");
@@ -120,6 +154,16 @@ export default function BrandPageEditor({
       setSaving(false);
     }
   }
+
+  const q = pickerQuery.trim().toLowerCase();
+  const pickerAds = q
+    ? ads.filter(
+        (ad) =>
+          ad.title.toLowerCase().includes(q) ||
+          ad.headline.toLowerCase().includes(q) ||
+          ad.category.toLowerCase().includes(q)
+      )
+    : ads;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -235,6 +279,13 @@ export default function BrandPageEditor({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setPickerOpen(true)}
+                  className="border border-border px-3 py-1 text-xs font-bold text-ink"
+                >
+                  🖼 Insert ad creative
+                </button>
+                <button
+                  type="button"
                   onClick={insertSignupButton}
                   className="border border-border px-3 py-1 text-xs font-bold text-ink"
                 >
@@ -259,6 +310,8 @@ export default function BrandPageEditor({
               inline styles. Scripts and event handlers are removed when you
               save. A sign-up button is always shown at the bottom of the page;
               use &ldquo;+ Sign-up button&rdquo; to add more inside the content.
+              &ldquo;Insert ad creative&rdquo; adds library ads with their copy
+              and an Adplaylist watermark; they update when the ad is edited.
             </p>
           </div>
         </div>
@@ -282,6 +335,85 @@ export default function BrandPageEditor({
           </div>
         </div>
       </main>
+      <Modal open={pickerOpen} onClose={closePicker} maxWidth="max-w-3xl">
+        <h2 className="text-lg font-extrabold text-ink">Insert ad creatives</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Pick one or more ads. Several are shown side by side.
+        </p>
+        <input
+          type="search"
+          value={pickerQuery}
+          onChange={(e) => setPickerQuery(e.target.value)}
+          placeholder="Search by name, headline or category"
+          className={`mt-4 ${inputClass}`}
+        />
+        <div className="mt-4 grid max-h-[55vh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-4">
+          {pickerAds.map((ad) => {
+            const index = picked.indexOf(ad.id);
+            return (
+              <button
+                key={ad.id}
+                type="button"
+                onClick={() =>
+                  setPicked((list) =>
+                    index >= 0
+                      ? list.filter((id) => id !== ad.id)
+                      : [...list, ad.id]
+                  )
+                }
+                className={`relative border-2 text-left ${
+                  index >= 0 ? "border-brand" : "border-transparent"
+                }`}
+              >
+                <div
+                  className={`relative aspect-[4/5] overflow-hidden ${
+                    ad.photo ? "" : ad.swatch
+                  }`}
+                >
+                  {ad.photo && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={ad.photo}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  )}
+                  {index >= 0 && (
+                    <span className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center bg-brand text-xs font-bold text-brand-foreground">
+                      {index + 1}
+                    </span>
+                  )}
+                </div>
+                <p className="truncate px-1 py-1 text-xs font-bold text-ink">
+                  {ad.title}
+                </p>
+              </button>
+            );
+          })}
+          {pickerAds.length === 0 && (
+            <p className="col-span-full text-sm text-ink-muted">
+              No ads match.
+            </p>
+          )}
+        </div>
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={closePicker}
+            className="border border-border px-4 py-2 text-sm font-bold text-ink"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={insertPickedAds}
+            disabled={picked.length === 0}
+            className="bg-brand px-4 py-2 text-sm font-bold text-brand-foreground disabled:opacity-60"
+          >
+            Insert {picked.length || ""} {picked.length === 1 ? "ad" : "ads"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
