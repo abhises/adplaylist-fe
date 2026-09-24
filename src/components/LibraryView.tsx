@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -28,6 +29,7 @@ export default function LibraryView({
   heading: string;
   user: User;
 }) {
+  const router = useRouter();
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -598,6 +600,11 @@ export default function LibraryView({
                     saved={savedIds.has(ad.id)}
                     onToggleSave={toggleSave}
                     onDelete={user.role === "admin" ? handleDeleteAd : undefined}
+                    onEdit={
+                      user.role === "admin"
+                        ? (id) => router.push(`/ads/${id}/edit`)
+                        : undefined
+                    }
                   />
                 ))}
               </div>

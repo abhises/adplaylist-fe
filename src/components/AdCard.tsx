@@ -8,6 +8,7 @@ export default function AdCard({
   saved,
   onToggleSave,
   onDelete,
+  onEdit,
   disableLink,
 }: {
   ad: Ad;
@@ -15,10 +16,10 @@ export default function AdCard({
   saved?: boolean;
   onToggleSave?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onEdit?: (id: string) => void;
   disableLink?: boolean;
 }) {
   const useLight = ad.light && !ad.photo;
-  const inkText = useLight ? "text-ink" : "text-white";
   const inkTextMuted = useLight ? "text-ink/70" : "text-white/80";
 
   const content = (
@@ -40,12 +41,31 @@ export default function AdCard({
               className={`absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-110 ${ad.swatch}`}
             />
           )}
-          {ad.photo && ad.variant === "overlay" && (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
-          )}
-
-          {(onToggleSave || onDelete) && (
+          {(onToggleSave || onDelete || onEdit) && (
             <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+              {onEdit && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEdit(ad.id);
+                  }}
+                  aria-label="Edit ad"
+                  title="Edit ad"
+                  className="flex h-9 w-9 items-center justify-center border border-border bg-surface text-ink opacity-0 transition-opacity group-hover:opacity-100 hover:border-brand hover:text-brand"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" />
+                  </svg>
+                </button>
+              )}
               {onDelete && (
                 <button
                   onClick={(e) => {
@@ -99,13 +119,6 @@ export default function AdCard({
             </div>
           )}
 
-          {ad.eyebrow && (
-            <span
-              className={`absolute top-3 left-3 text-[11px] font-medium tracking-[1px] uppercase ${inkText}/90`}
-            >
-              {ad.eyebrow}
-            </span>
-          )}
           {ad.badge && (
             <span
               className={`absolute top-3 right-3 flex items-center gap-1 text-[11px] font-medium tracking-[0.5px] uppercase ${inkTextMuted}`}
@@ -114,39 +127,10 @@ export default function AdCard({
               {ad.badge}
             </span>
           )}
-
-          {ad.variant === "overlay" && (
-            <div className="absolute inset-x-0 bottom-0 p-4">
-              <p
-                className={`text-xl leading-tight font-extrabold ${inkText}`}
-              >
-                {ad.headline}
-              </p>
-              {ad.sub && (
-                <p className={`mt-1 text-xs ${inkTextMuted}`}>{ad.sub}</p>
-              )}
-              {ad.cta && (
-                <span className="mt-3 inline-block bg-brand px-3 py-1.5 text-[11px] font-bold text-brand-foreground uppercase">
-                  {ad.cta}
-                </span>
-              )}
-            </div>
-          )}
         </div>
 
-        {ad.variant === "lockup" && (
-          <div className="bg-surface pt-3">
-            <p className="text-sm leading-tight font-bold text-ink">
-              {ad.headline}
-            </p>
-            {ad.sub && (
-              <p className="mt-1 text-xs text-ink-muted">{ad.sub}</p>
-            )}
-          </div>
-        )}
-
         <p className="mt-2 text-sm font-bold text-ink">
-          {ad.title} &mdash; {ad.format}
+          {ad.title}
         </p>
     </>
   );

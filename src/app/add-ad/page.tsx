@@ -1,207 +1,34 @@
 "use client";
 
-import { useRef, useState, type DragEvent, type FormEvent } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
+import { SIZE_OPTIONS } from "@/lib/ads";
 import {
-  CATEGORY_OPTIONS,
-  DOMINANT_COLORS,
-  LANGUAGE_OPTIONS,
-  MARKET_OPTIONS,
-  PLATFORM_OPTIONS,
-  SIZE_OPTIONS,
-  type Ad,
-} from "@/lib/ads";
-import { api, ApiError } from "@/lib/api";
+  applyCsvToDraft,
+  draftToAd,
+  emptyDraft,
+  loadDraft,
+  saveDraft,
+  type AdDraft,
+} from "@/lib/adDraft";
+import {
+  SUPPORTED_IMAGE_ACCEPT,
+  uploadImage,
+  validateImageFile,
+} from "@/lib/upload";
 import { useRequireRole } from "@/lib/AuthProvider";
-
-const COLOR_SWATCH: Record<string, { bg: string; light: boolean }> = {
-  Black: { bg: "bg-neutral-900", light: false },
-  White: { bg: "bg-neutral-100", light: true },
-  Grey: { bg: "bg-neutral-400", light: false },
-  Red: { bg: "bg-brand", light: false },
-  Orange: { bg: "bg-orange-500", light: false },
-  Yellow: { bg: "bg-yellow-400", light: true },
-  Green: { bg: "bg-emerald-600", light: false },
-  Blue: { bg: "bg-blue-700", light: false },
-  Purple: { bg: "bg-purple-700", light: false },
-  Pink: { bg: "bg-pink-500", light: false },
-};
-
-// Kept in sync with the backend's multer fileFilter in adplaylist-be/src/routes/uploads.ts
-const SUPPORTED_IMAGE_TYPES = /^image\/(png|jpe?g|webp|gif|svg\+xml)$/;
-const SUPPORTED_IMAGE_ACCEPT = ".png,.jpg,.jpeg,.webp,.gif,.svg";
-const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
-
-function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      URL.revokeObjectURL(url);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Couldn't read that image"));
-    };
-    img.src = url;
-  });
-}
-
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let cur = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (line[i + 1] === '"') {
-          cur += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        cur += ch;
-      }
-    } else if (ch === '"') {
-      inQuotes = true;
-    } else if (ch === ",") {
-      result.push(cur);
-      cur = "";
-    } else {
-      cur += ch;
-    }
-  }
-  result.push(cur);
-  return result;
-}
-
-function parseCsvRows(text: string): string[][] {
-  return text
-    .replace(/^﻿/, "")
-    .split(/\r\n|\n|\r/)
-    .filter((l) => l.trim().length > 0)
-    .map(parseCsvLine);
-}
-
-function normalizeKey(s: string): string {
-  return s.trim().toLowerCase().replace(/[\s_-]+/g, "");
-}
-
-// Maps normalized column/field labels (spaces and case stripped) to the
-// canonical keys used by handleCsvFile below.
-const FIELD_ALIASES: Record<string, string> = {
-  adname: "adname",
-  mediatype: "mediatype",
-  kicker: "kicker",
-  headline: "headline",
-  sub: "sub",
-  subheadline: "sub",
-  supportingline: "sub",
-  cta: "cta",
-  calltoaction: "cta",
-  description: "description",
-  category: "category",
-  market: "market",
-  language: "language",
-  platforms: "platforms",
-  platform: "platforms",
-  sizes: "sizes",
-  size: "sizes",
-  placementsizes: "sizes",
-  dominantcolor: "dominantcolor",
-  dominantcolour: "dominantcolor",
-  canvaurl: "canvaurl",
-  canvalink: "canvaurl",
-  canvatemplatelink: "canvaurl",
-};
-
-function canonicalKey(label: string): string | undefined {
-  return FIELD_ALIASES[normalizeKey(label)];
-}
-
-// Accepts either a "wide" CSV (one header row of field names, one data row
-// of values) or a "long" CSV with two columns (e.g. "Field,Answer") and one
-// row per field — the shape a lot of research/export tools produce.
-function parseAdCsv(text: string): Record<string, string> {
-  const rows = parseCsvRows(text);
-  if (rows.length < 2) return {};
-
-  const headerCells = rows[0].map(normalizeKey);
-  const isLongFormat =
-    headerCells.length === 2 &&
-    headerCells[0] === "field" &&
-    headerCells[1] === "answer";
-
-  const fields: Record<string, string> = {};
-
-  if (isLongFormat) {
-    for (const row of rows.slice(1)) {
-      const [label, value] = row;
-      if (!label) continue;
-      const key = canonicalKey(label);
-      if (key) fields[key] = (value ?? "").trim();
-    }
-  } else {
-    const values = rows[1] ?? [];
-    rows[0].forEach((label, i) => {
-      const key = canonicalKey(label);
-      if (key) fields[key] = (values[i] ?? "").trim();
-    });
-  }
-
-  return fields;
-}
-
-function findOption(options: string[], value: string): string | undefined {
-  const norm = value.trim().toLowerCase();
-  return options.find((o) => o.toLowerCase() === norm);
-}
-
-function normalizeDims(s: string): string | null {
-  const m = s.match(/(\d+)\s*[x×X]\s*(\d+)/);
-  return m ? `${m[1]}x${m[2]}` : null;
-}
-
-// Matches a size token by exact name first ("Feed square"), then falls back
-// to matching by dimensions so labels like "Square 1200×1200" still resolve
-// to the "Marketplace / Messenger" (1200 × 1200) option.
-function matchSizeOption(token: string): string | undefined {
-  const t = token.trim();
-  const byName = SIZE_OPTIONS.find((s) => s.name.toLowerCase() === t.toLowerCase());
-  if (byName) return byName.name;
-  const dims = normalizeDims(t);
-  if (!dims) return undefined;
-  return SIZE_OPTIONS.find((s) => normalizeDims(s.dims) === dims)?.name;
-}
 
 export default function AddAdPage() {
   const { user, ready } = useRequireRole(["designer", "admin"]);
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
-  const [adName, setAdName] = useState("");
-  const [mediaType, setMediaType] = useState<"image" | "video">("image");
-  const [kicker, setKicker] = useState("");
-  const [headline, setHeadline] = useState("");
-  const [sub, setSub] = useState("");
-  const [cta, setCta] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState(CATEGORY_OPTIONS[0]);
-  const [market, setMarket] = useState(MARKET_OPTIONS[1]);
-  const [language, setLanguage] = useState(LANGUAGE_OPTIONS[0]);
-  const [platforms, setPlatforms] = useState<string[]>(["META"]);
-  const [dominantColor, setDominantColor] = useState(DOMINANT_COLORS[0].name);
-  const [sizes, setSizes] = useState<string[]>([]);
+  // Fields parsed from the CSV; null until a CSV has been loaded.
+  const [csvDraft, setCsvDraft] = useState<AdDraft | null>(null);
   const [canvaUrl, setCanvaUrl] = useState("");
-  const [publishing, setPublishing] = useState(false);
-  const [result, setResult] = useState<{ message: string; adId?: string } | null>(
-    null
-  );
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -216,42 +43,41 @@ export default function AddAdPage() {
   const [csvError, setCsvError] = useState<string | null>(null);
   const [csvDragOver, setCsvDragOver] = useState(false);
 
-  function togglePlatform(p: string) {
-    setPlatforms((list) =>
-      list.includes(p) ? list.filter((v) => v !== p) : [...list, p]
-    );
-  }
-
-  function toggleSize(name: string) {
-    setSizes((list) =>
-      list.includes(name) ? list.filter((v) => v !== name) : [...list, name]
-    );
-  }
+  // Coming back from the preview page ("Back to edit") restores what was
+  // already filled in instead of making the designer start over.
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      const stored = loadDraft();
+      if (!stored) return;
+      if (stored.csvFileName) {
+        setCsvDraft(stored);
+        setCsvFileName(stored.csvFileName);
+      }
+      setCanvaUrl(stored.canvaUrl);
+      if (stored.photoUrl) {
+        setPhotoUrl(stored.photoUrl);
+        setPhotoPreview(stored.photoUrl);
+        setPhotoDims(stored.photoDims ?? null);
+      }
+    });
+  }, []);
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
-    if (!SUPPORTED_IMAGE_TYPES.test(file.type)) {
-      setUploadError(
-        "Unsupported format. Use PNG, JPG, WEBP, GIF or SVG."
-      );
-      return;
-    }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      setUploadError("That file is over the 8 MB limit.");
+    const invalid = validateImageFile(file);
+    if (invalid) {
+      setUploadError(invalid);
       return;
     }
     setUploadError(null);
     setPhotoPreview(URL.createObjectURL(file));
     setUploading(true);
     try {
-      const dims = await readImageDimensions(file);
+      const { url, dims } = await uploadImage(file);
       setPhotoDims(dims);
-      const uploaded = await api.uploadFile(file, dims);
-      setPhotoUrl(uploaded.url);
+      setPhotoUrl(url);
     } catch (err) {
-      setUploadError(
-        err instanceof ApiError ? err.message : "Couldn't upload that file."
-      );
+      setUploadError((err as Error).message);
       setPhotoPreview(null);
       setPhotoDims(null);
     } finally {
@@ -281,105 +107,23 @@ export default function AddAdPage() {
     }
     setCsvError(null);
     try {
-      const row = parseAdCsv(await file.text());
-      if (Object.keys(row).length === 0) {
+      const { draft, matched, empty } = applyCsvToDraft(
+        await file.text(),
+        emptyDraft()
+      );
+      if (empty) {
         setCsvError("That CSV has no data rows.");
         return;
       }
-      let matched = 0;
-
-      if (row.adname) {
-        setAdName(row.adname);
-        matched++;
-      }
-      const mediaTypeVal = row.mediatype?.trim().toLowerCase();
-      if (mediaTypeVal === "image" || mediaTypeVal === "video") {
-        setMediaType(mediaTypeVal);
-        matched++;
-      }
-      if (row.kicker) {
-        setKicker(row.kicker);
-        matched++;
-      }
-      if (row.headline) {
-        setHeadline(row.headline);
-        matched++;
-      }
-      if (row.sub) {
-        setSub(row.sub);
-        matched++;
-      }
-      if (row.cta) {
-        setCta(row.cta);
-        matched++;
-      }
-      if (row.description) {
-        setDescription(row.description);
-        matched++;
-      }
-      const categoryVal = row.category
-        ? findOption(CATEGORY_OPTIONS, row.category)
-        : undefined;
-      if (categoryVal) {
-        setCategory(categoryVal);
-        matched++;
-      }
-      const marketVal = row.market
-        ? findOption(MARKET_OPTIONS, row.market)
-        : undefined;
-      if (marketVal) {
-        setMarket(marketVal);
-        matched++;
-      }
-      const languageVal = row.language
-        ? findOption(LANGUAGE_OPTIONS, row.language)
-        : undefined;
-      if (languageVal) {
-        setLanguage(languageVal);
-        matched++;
-      }
-      if (row.platforms) {
-        const list = row.platforms
-          .split(/[;|]/)
-          .map((v) => findOption(PLATFORM_OPTIONS, v))
-          .filter((v): v is string => !!v);
-        if (list.length) {
-          setPlatforms(list);
-          matched++;
-        }
-      }
-      if (row.sizes) {
-        const list = row.sizes
-          .split(/[;|]/)
-          .map((v) => matchSizeOption(v))
-          .filter((v): v is string => !!v);
-        if (list.length) {
-          setSizes(list);
-          matched++;
-        }
-      }
-      const dominantColorVal = row.dominantcolor
-        ? findOption(
-            DOMINANT_COLORS.map((c) => c.name),
-            row.dominantcolor
-          )
-        : undefined;
-      if (dominantColorVal) {
-        setDominantColor(dominantColorVal);
-        matched++;
-      }
-      if (row.canvaurl) {
-        setCanvaUrl(row.canvaurl);
-        matched++;
-      }
-
       if (matched === 0) {
         setCsvError(
           "None of the CSV columns were recognized. Expected headers like adName, headline, category…"
         );
         return;
       }
+      setCsvDraft(draft);
       setCsvFileName(file.name);
+      if (draft.canvaUrl) setCanvaUrl(draft.canvaUrl);
     } catch {
       setCsvError("Couldn't read that CSV.");
     }
@@ -392,77 +136,71 @@ export default function AddAdPage() {
   }
 
   function clearCsv() {
+    setCsvDraft(null);
     setCsvFileName(null);
     setCsvError(null);
     if (csvInputRef.current) csvInputRef.current.value = "";
   }
 
-  async function handlePublish(e: FormEvent<HTMLFormElement>) {
+  function currentDraft(): AdDraft | null {
+    if (!csvDraft) return null;
+    return {
+      ...csvDraft,
+      canvaUrl,
+      photoUrl: photoUrl ?? undefined,
+      photoDims: photoDims ?? undefined,
+      csvFileName: csvFileName ?? undefined,
+    };
+  }
+
+  function handleShowPreview(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setPublishing(true);
-    setResult(null);
-    const swatch = COLOR_SWATCH[dominantColor] ?? COLOR_SWATCH.Black;
-    try {
-      const { ad } = await api.createAd({
-        title: adName,
-        format: sizes[0] ?? "Feed 1:1",
-        variant: "overlay",
-        eyebrow: kicker || undefined,
-        headline: headline || "Your headline goes here.",
-        sub: sub || undefined,
-        cta: cta || undefined,
-        description: description || undefined,
-        mediaType,
-        swatch: swatch.bg,
-        light: swatch.light,
-        category,
-        market,
-        language,
-        platforms,
-        photo: photoUrl ?? undefined,
-        editable: false,
-        canvaUrl: canvaUrl || undefined,
-        dominantColor,
-      });
-      setResult({ message: "Published to the library.", adId: ad.id });
-    } catch (err) {
-      setResult({
-        message: err instanceof ApiError ? err.message : "Something went wrong.",
-      });
-    } finally {
-      setPublishing(false);
+    const draft = currentDraft();
+    if (!draft) {
+      setCsvError("Upload a CSV to preview the ad.");
+      return;
     }
+    saveDraft(draft);
+    router.push("/add-ad/preview");
   }
 
   if (!ready || !user) return null;
 
-  const previewSwatch = COLOR_SWATCH[dominantColor] ?? COLOR_SWATCH.Black;
-  // Reuses the real AdCard component so the preview is a true WYSIWYG of how
-  // this ad will actually render everywhere else (Library, Saved, detail),
-  // rather than a hand-rolled lookalike that can drift out of sync.
-  const previewAd: Ad = {
-    id: "preview",
-    title: adName || "Untitled ad",
-    format: sizes[0] ?? "Feed 1:1",
-    variant: "overlay",
-    eyebrow: kicker || undefined,
-    headline: headline || "Your headline goes here.",
-    sub: sub || undefined,
-    cta: cta || undefined,
-    description: description || undefined,
-    mediaType,
-    swatch: previewSwatch.bg,
-    light: previewSwatch.light,
-    category,
-    market,
-    language,
-    photo: photoUrl ?? undefined,
-    platforms,
-    editable: false,
-    canvaUrl: canvaUrl || undefined,
-    dominantColor,
-    createdAt: new Date().toISOString(),
-  };
+  const draft = currentDraft();
+  const previewAd = draft
+    ? {
+        ...draftToAd(draft),
+        title: draft.adName || "Untitled ad",
+        id: "preview",
+        createdAt: new Date().toISOString(),
+      }
+    : null;
+  const fieldRows: [string, string][] = draft
+    ? [
+        ["Ad name", draft.adName],
+        ["Media type", draft.mediaType === "image" ? "Image" : "Video"],
+        ["Kicker", draft.kicker],
+        ["Headline", draft.headline],
+        ["Supporting line", draft.sub],
+        ["Call to action", draft.cta],
+        ["Description", draft.description],
+        ["Category", draft.category],
+        ["Market", draft.market],
+        ["Language", draft.language],
+        ["Platforms", draft.platforms.join(", ")],
+        ["Dominant colour", draft.dominantColor],
+        [
+          "Placement sizes",
+          draft.sizes
+            .map((name) => {
+              const size = SIZE_OPTIONS.find((s) => s.name === name);
+              return size ? `${size.name} (${size.dims})` : name;
+            })
+            .join(", "),
+        ],
+        ["Canva template", draft.canvaUrl],
+      ]
+    : [];
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -473,420 +211,185 @@ export default function AddAdPage() {
         </p>
         <h1 className="text-3xl font-extrabold text-ink">Add a new ad</h1>
         <p className="mt-2 text-sm text-ink-muted">
-          Upload the creative, classify it, and publish it to the library.
+          Upload the text data and creative, then preview the ad before
+          publishing it to the library.
         </p>
 
         <form
-          onSubmit={handlePublish}
+          onSubmit={handleShowPreview}
           className="mt-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-2"
         >
-          <div className="flex flex-col gap-6">
-            <div className="border-2 border-ink/15 p-6">
-              <h2 className="text-xl font-extrabold text-ink">Creative</h2>
+          <div className="border-2 border-ink/15 p-6">
+            <h2 className="text-xl font-extrabold text-ink">Creative</h2>
 
-              <div className="mt-4">
-                <label className="mb-[5px] block text-xs text-ink/70">
-                  Ad name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={adName}
-                  onChange={(e) => setAdName(e.target.value)}
-                  placeholder="Long Walk Home — Feed 1:1"
-                  className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
-                />
-              </div>
-
-              <div className="mt-4">
-                <p className="mb-[5px] block text-xs text-ink/70">
-                  Media type
-                </p>
-                <div className="flex gap-6">
-                  <label className="flex items-center gap-2 text-sm text-ink">
-                    <input
-                      type="radio"
-                      name="mediaType"
-                      checked={mediaType === "image"}
-                      onChange={() => setMediaType("image")}
-                      className="h-4 w-4 accent-brand"
-                    />
-                    Image
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-ink">
-                    <input
-                      type="radio"
-                      name="mediaType"
-                      checked={mediaType === "video"}
-                      onChange={() => setMediaType("video")}
-                      className="h-4 w-4 accent-brand"
-                    />
-                    Video
-                  </label>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <label className="mb-[5px] block text-xs text-ink/70">
-                  Text data (CSV)
-                </label>
-                <input
-                  ref={csvInputRef}
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="hidden"
-                  onChange={(e) => handleCsvFile(e.target.files?.[0])}
-                />
-                {csvFileName ? (
-                  <div className="relative mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-border text-ink-muted">
-                    <span className="text-2xl">&#128247;</span>
-                    <span className="text-sm text-ink">{csvFileName}</span>
-                    <span className="text-xs">Form filled from CSV</span>
-                    <button
-                      type="button"
-                      onClick={clearCsv}
-                      className="absolute top-2 right-2 bg-surface px-2 py-1 text-xs font-bold text-ink"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    onClick={() => csvInputRef.current?.click()}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setCsvDragOver(true);
-                    }}
-                    onDragLeave={() => setCsvDragOver(false)}
-                    onDrop={handleCsvDrop}
-                    className={`mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-dashed text-ink-muted ${
-                      csvDragOver ? "border-brand bg-brand/5" : "border-border"
-                    } cursor-pointer`}
+            <div className="mt-4">
+              <label className="mb-[5px] block text-xs text-ink/70">
+                Text data (CSV)
+              </label>
+              <input
+                ref={csvInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => handleCsvFile(e.target.files?.[0])}
+              />
+              {csvFileName ? (
+                <div className="relative mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-border text-ink-muted">
+                  <span className="text-2xl">&#128196;</span>
+                  <span className="text-sm text-ink">{csvFileName}</span>
+                  <span className="text-xs">Fields loaded from CSV</span>
+                  <button
+                    type="button"
+                    onClick={clearCsv}
+                    className="absolute top-2 right-2 bg-surface px-2 py-1 text-xs font-bold text-ink"
                   >
-                    <span className="text-2xl">&#128247;</span>
-                    <span className="text-sm">Drop file, or click to browse</span>
-                    <span className="text-xs">No file yet</span>
-                  </div>
-                )}
-                {csvError && (
-                  <p className="mt-1 text-xs text-brand">{csvError}</p>
-                )}
-                <p className="mt-1 text-xs text-ink-muted">
-                  Accepts a header row of fields (adName, mediaType, kicker,
-                  headline, sub, cta, description, category, market,
-                  language, platforms, sizes, dominantColor, canvaUrl) or a
-                  two-column &quot;Field,Answer&quot; export with one row per
-                  field. Separate multiple platforms/sizes with
-                  &quot;;&quot;.
-                </p>
-              </div>
-
-              <div className="mt-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs text-ink/70">Master file</label>
-                  <span className="text-xs text-ink-muted">
-                    {photoDims
-                      ? `${photoDims.width} × ${photoDims.height}px`
-                      : "PNG, JPG or WEBP · up to 8 MB"}
-                  </span>
+                    Remove
+                  </button>
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={SUPPORTED_IMAGE_ACCEPT}
-                  className="hidden"
-                  onChange={(e) => handleFile(e.target.files?.[0])}
-                />
-                {photoPreview ? (
-                  <div className="relative mt-1 h-40 border border-border">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={photoPreview}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                    {uploading && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-surface/80 text-sm text-ink">
-                        Uploading…
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={clearPhoto}
-                      className="absolute top-2 right-2 bg-surface px-2 py-1 text-xs font-bold text-ink"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragOver(true);
-                    }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={handleDrop}
-                    className={`mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-dashed text-ink-muted ${
-                      dragOver ? "border-brand bg-brand/5" : "border-border"
-                    } cursor-pointer`}
-                  >
-                    <span className="text-2xl">&#128247;</span>
-                    <span className="text-sm">Drop file, or click to browse</span>
-                    <span className="text-xs">No file yet</span>
-                  </div>
-                )}
-                {uploadError && (
-                  <p className="mt-1 text-xs text-brand">{uploadError}</p>
-                )}
-                <p className="mt-1 text-xs text-ink-muted">
-                  Uploaded files are published with the ad and shown in the
-                  library.
-                </p>
-              </div>
-
-              <div className="mt-4">
-                <label className="mb-[5px] block text-xs text-ink/70">
-                  Canva template link
-                </label>
-                <input
-                  type="url"
-                  value={canvaUrl}
-                  onChange={(e) => setCanvaUrl(e.target.value)}
-                  placeholder="https://www.canva.com/design/…"
-                  className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
-                />
-              </div>
+              ) : (
+                <div
+                  onClick={() => csvInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setCsvDragOver(true);
+                  }}
+                  onDragLeave={() => setCsvDragOver(false)}
+                  onDrop={handleCsvDrop}
+                  className={`mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-dashed text-ink-muted ${
+                    csvDragOver ? "border-brand bg-brand/5" : "border-border"
+                  } cursor-pointer`}
+                >
+                  <span className="text-2xl">&#128196;</span>
+                  <span className="text-sm">Drop file, or click to browse</span>
+                  <span className="text-xs">No file yet</span>
+                </div>
+              )}
+              {csvError && (
+                <p className="mt-1 text-xs text-brand">{csvError}</p>
+              )}
+              <p className="mt-1 text-xs text-ink-muted">
+                Accepts a header row of fields (adName, mediaType, kicker,
+                headline, sub, cta, description, category, market,
+                language, platforms, sizes, dominantColor, canvaUrl) or a
+                two-column &quot;Field,Answer&quot; export with one row per
+                field. Separate multiple platforms/sizes with
+                &quot;;&quot;.
+              </p>
             </div>
 
-            <div className="border-2 border-ink/15 p-6">
-              <h2 className="text-xl font-extrabold text-ink">Ad copy</h2>
-              <div className="mt-4 space-y-3">
-                <div>
-                  <label className="mb-[5px] block text-xs text-ink/70">
-                    Kicker
-                  </label>
-                  <input
-                    type="text"
-                    value={kicker}
-                    onChange={(e) => setKicker(e.target.value)}
-                    placeholder="Spring drop"
-                    className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
-                  />
-                </div>
-                <div>
-                  <label className="mb-[5px] block text-xs text-ink/70">
-                    Headline
-                  </label>
-                  <input
-                    type="text"
-                    value={headline}
-                    onChange={(e) => setHeadline(e.target.value)}
-                    placeholder="Built for the long walk home."
-                    className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
-                  />
-                </div>
-                <div>
-                  <label className="mb-[5px] block text-xs text-ink/70">
-                    Supporting line
-                  </label>
-                  <input
-                    type="text"
-                    value={sub}
-                    onChange={(e) => setSub(e.target.value)}
-                    placeholder="Free returns for 60 days"
-                    className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
-                  />
-                </div>
-                <div>
-                  <label className="mb-[5px] block text-xs text-ink/70">
-                    Call to action
-                  </label>
-                  <input
-                    type="text"
-                    value={cta}
-                    onChange={(e) => setCta(e.target.value)}
-                    placeholder="Shop now"
-                    className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
-                  />
-                </div>
-                <div>
-                  <label className="mb-[5px] block text-xs text-ink/70">
-                    Description
-                  </label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="What this creative is and why it works…"
-                    rows={4}
-                    className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
-                  />
-                </div>
+            <div className="mt-4">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-ink/70">Master file</label>
+                <span className="text-xs text-ink-muted">
+                  {photoDims
+                    ? `${photoDims.width} × ${photoDims.height}px`
+                    : "PNG, JPG or WEBP · up to 8 MB"}
+                </span>
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={SUPPORTED_IMAGE_ACCEPT}
+                className="hidden"
+                onChange={(e) => handleFile(e.target.files?.[0])}
+              />
+              {photoPreview ? (
+                <div className="relative mt-1 h-40 border border-border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photoPreview}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                  {uploading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-surface/80 text-sm text-ink">
+                      Uploading…
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={clearPhoto}
+                    className="absolute top-2 right-2 bg-surface px-2 py-1 text-xs font-bold text-ink"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                  className={`mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-dashed text-ink-muted ${
+                    dragOver ? "border-brand bg-brand/5" : "border-border"
+                  } cursor-pointer`}
+                >
+                  <span className="text-2xl">&#128247;</span>
+                  <span className="text-sm">Drop file, or click to browse</span>
+                  <span className="text-xs">No file yet</span>
+                </div>
+              )}
+              {uploadError && (
+                <p className="mt-1 text-xs text-brand">{uploadError}</p>
+              )}
+              <p className="mt-1 text-xs text-ink-muted">
+                Uploaded files are published with the ad and shown in the
+                library.
+              </p>
+            </div>
+
+            <div className="mt-4">
+              <label className="mb-[5px] block text-xs text-ink/70">
+                Canva template link
+              </label>
+              <input
+                type="url"
+                value={canvaUrl}
+                onChange={(e) => setCanvaUrl(e.target.value)}
+                placeholder="https://www.canva.com/design/…"
+                className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+              />
             </div>
           </div>
 
-          <div className="flex flex-col gap-6">
-            <div className="border-2 border-ink/15 p-6">
-              <h2 className="text-xl font-extrabold text-ink">
-                Classification
-              </h2>
-
-              <div className="mt-4">
-                <label className="mb-[5px] block text-xs text-ink/70">
-                  Category
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none"
-                >
-                  {CATEGORY_OPTIONS.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-[5px] block text-xs text-ink/70">
-                    Market
-                  </label>
-                  <select
-                    value={market}
-                    onChange={(e) => setMarket(e.target.value)}
-                    className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none"
-                  >
-                    {MARKET_OPTIONS.map((m) => (
-                      <option key={m}>{m}</option>
-                    ))}
-                  </select>
+          <div className="border-2 border-ink/15 p-6">
+            <h2 className="text-xl font-extrabold text-ink">Preview</h2>
+            {draft && previewAd ? (
+              <>
+                <div className="mt-4 max-w-xs">
+                  <AdCard ad={previewAd} disableLink />
                 </div>
-                <div>
-                  <label className="mb-[5px] block text-xs text-ink/70">
-                    Language
-                  </label>
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none"
-                  >
-                    {LANGUAGE_OPTIONS.map((l) => (
-                      <option key={l}>{l}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <p className="mb-[5px] block text-xs text-ink/70">Platforms</p>
-                <div className="flex flex-col gap-2">
-                  {PLATFORM_OPTIONS.map((p) => (
-                    <label
-                      key={p}
-                      className="flex items-center gap-2 text-sm text-ink"
+                <div className="mt-6 divide-y divide-ink/10 border-t border-ink/10">
+                  {fieldRows.map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex justify-between gap-4 py-2.5 text-sm"
                     >
-                      <input
-                        type="checkbox"
-                        checked={platforms.includes(p)}
-                        onChange={() => togglePlatform(p)}
-                        className="h-[15px] w-[15px] accent-brand"
-                      />
-                      {p}
-                    </label>
+                      <span className="shrink-0 text-ink-muted">{label}</span>
+                      <span className="min-w-0 text-right break-words text-ink">
+                        {value || <span className="text-ink/30">&mdash;</span>}
+                      </span>
+                    </div>
                   ))}
                 </div>
-              </div>
-
-              <div className="mt-4">
-                <p className="mb-[5px] block text-xs text-ink/70">
-                  Dominant colour
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {DOMINANT_COLORS.map((c) => (
-                    <button
-                      key={c.name}
-                      type="button"
-                      title={c.name}
-                      aria-label={c.name}
-                      onClick={() => setDominantColor(c.name)}
-                      style={{ backgroundColor: c.hex }}
-                      className={`h-7 w-7 border ${
-                        dominantColor === c.name
-                          ? "outline outline-2 outline-offset-2 outline-brand"
-                          : "border-ink/15"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="border-2 border-ink/15 p-6">
-              <h2 className="text-xl font-extrabold text-ink">
-                Placement sizes
-              </h2>
-              <p className="mt-1 text-xs text-ink-muted">
-                Tick every size this creative ships in. Sizes appear as tabs
-                on the ad page.
+              </>
+            ) : (
+              <p className="mt-4 text-sm text-ink-muted">
+                Upload the text data CSV to see the ad&apos;s fields here.
               </p>
-              <div className="mt-3 flex max-h-[300px] flex-col overflow-y-auto border border-border">
-                {SIZE_OPTIONS.map((size) => (
-                  <label
-                    key={size.name}
-                    className="flex items-center gap-2 border-b border-border px-2.5 py-1.5 text-sm text-ink last:border-b-0"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={sizes.includes(size.name)}
-                      onChange={() => toggleSize(size.name)}
-                      className="h-[15px] w-[15px] shrink-0 accent-brand"
-                    />
-                    <span className="min-w-0 flex-1 truncate">{size.name}</span>
-                    <span className="text-xs text-ink-muted tabular-nums">
-                      {size.dims}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
+            )}
 
-            <div className="border-2 border-ink/15 p-6">
-              <h2 className="text-xl font-extrabold text-ink">Preview</h2>
-              <div className="mt-4 max-w-xs">
-                <AdCard ad={previewAd} disableLink />
-              </div>
-              <p className="mt-3 text-xs text-ink-muted">
-                {mediaType === "image" ? "Image" : "Video"} &middot; {category}{" "}
-                &middot; {sizes.length} size(s) &middot; {platforms.length}{" "}
-                platform(s)
-              </p>
-
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <button
-                  type="submit"
-                  disabled={publishing || uploading}
-                  className="bg-brand px-5 py-2.5 text-sm font-bold text-brand-foreground disabled:opacity-60"
-                >
-                  {publishing ? "Publishing…" : "Publish to library"}
-                </button>
-                <button
-                  type="button"
-                  className="border border-border px-5 py-2.5 text-sm font-bold text-ink"
-                >
-                  Save as draft
-                </button>
-                {result && (
-                  <span className="text-sm text-ink-muted">
-                    {result.message}{" "}
-                    {result.adId && (
-                      <Link href={`/ads/${result.adId}`} className="text-brand">
-                        View ad
-                      </Link>
-                    )}
-                  </span>
-                )}
-              </div>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                disabled={!draft || uploading}
+                className="bg-brand px-5 py-2.5 text-sm font-bold text-brand-foreground disabled:opacity-60"
+              >
+                Show preview
+              </button>
             </div>
           </div>
         </form>

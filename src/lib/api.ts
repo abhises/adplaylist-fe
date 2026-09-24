@@ -150,6 +150,12 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  updateAd: (id: string, data: Partial<Ad>) =>
+    request<{ ad: Ad }>(`/api/ads/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
   deleteAd: (id: string) =>
     request<void>(`/api/ads/${id}`, { method: "DELETE" }),
 

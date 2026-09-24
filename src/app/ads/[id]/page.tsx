@@ -192,6 +192,14 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
           <div className="mt-1 flex items-start justify-between">
             <h1 className="text-3xl font-extrabold text-ink">{ad.title}</h1>
             <div className="flex gap-2">
+              {user.role === "admin" && (
+                <Link
+                  href={`/ads/${ad.id}/edit`}
+                  className="flex h-9 items-center justify-center border border-border px-3 text-sm font-bold text-ink"
+                >
+                  &#9998; Edit
+                </Link>
+              )}
               <button
                 onClick={toggleSaved}
                 aria-label="Save ad"
