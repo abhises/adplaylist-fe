@@ -302,7 +302,7 @@ export default function AddAdPage() {
                   <img
                     src={photoPreview}
                     alt=""
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                   />
                   {uploading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-surface/80 text-sm text-ink">

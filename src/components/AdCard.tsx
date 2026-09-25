@@ -27,14 +27,16 @@ export default function AdCard({
         <div
           className={`relative overflow-hidden shadow-none transition-shadow duration-200 group-hover:shadow-xl ${
             ad.variant === "overlay" ? "aspect-[4/5]" : "aspect-[4/3]"
-          }`}
+          } ${ad.photo ? "bg-ink/5" : ""}`}
         >
           {ad.photo ? (
+            // Creatives come in many shapes, so fit the whole image in the
+            // card rather than cropping it to fill.
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={ad.photo}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
+              className="absolute inset-0 h-full w-full object-contain"
             />
           ) : (
             <div

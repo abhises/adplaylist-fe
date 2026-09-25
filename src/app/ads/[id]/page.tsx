@@ -13,9 +13,10 @@ const SQUARE_INDEX = Math.max(
   0
 );
 
+// Width over height of a size like "1200 × 1200"; 4:5 if it can't be read.
 function parseAspectRatio(dims: string) {
-  const [w, h] = dims.split("x").map((n) => parseInt(n.trim(), 10));
-  return w && h ? `${w} / ${h}` : "4 / 5";
+  const [w, h] = dims.split(/[x×]/).map((n) => parseInt(n.trim(), 10));
+  return w && h ? w / h : 4 / 5;
 }
 import { api, ApiError, type Ad } from "@/lib/api";
 import { useRequireAuth } from "@/lib/AuthProvider";
@@ -79,7 +80,7 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
     return (
       <div className="flex min-h-screen flex-col">
         <AppHeader />
-        <div className="px-10 py-8">
+        <div className="min-w-0 px-10 py-8 break-words">
           <p className="text-sm text-ink-muted">Ad not found.</p>
           <Link href="/library" className="mt-2 inline-block text-sm text-brand">
             &larr; Back to Library
@@ -130,11 +131,15 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
         </div>
       </div>
 
-      <main className="grid flex-1 grid-cols-1 lg:grid-cols-[1fr_420px]">
-        <div className="border-r border-ink/15 px-10 py-8">
+      <main className="grid flex-1 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="min-w-0 border-r border-ink/15 px-10 py-8">
           <div
-            style={{ aspectRatio: previewAspectRatio }}
-            className={`relative mx-auto w-full max-w-md overflow-hidden ${
+            // Fill the column, but never taller than 80% of the screen.
+            style={{
+              aspectRatio: previewAspectRatio,
+              width: `min(100%, calc(80vh * ${previewAspectRatio}))`,
+            }}
+            className={`relative mx-auto overflow-hidden ${
               ad.photo ? "" : ad.swatch
             }`}
           >
@@ -143,7 +148,7 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
               <img
                 src={ad.photo}
                 alt=""
-                className="absolute inset-0 h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-contain"
               />
             )}
           </div>
@@ -252,35 +257,35 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
             <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
               Details
             </p>
-            <div className="mt-2 divide-y divide-ink/10 border-t border-ink/10">
-              <div className="flex justify-between py-3 text-sm">
+            <div className="mt-2 grid grid-cols-1 gap-x-8 border-t border-ink/10 sm:grid-cols-2">
+              <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                 <span className="text-ink-muted">Category</span>
-                <span className="text-ink">{ad.category}</span>
+                <span className="text-right text-ink">{ad.category}</span>
               </div>
-              <div className="flex justify-between py-3 text-sm">
+              <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                 <span className="text-ink-muted">Market</span>
-                <span className="text-ink">{ad.market}</span>
+                <span className="text-right text-ink">{ad.market}</span>
               </div>
-              <div className="flex justify-between py-3 text-sm">
+              <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                 <span className="text-ink-muted">Language</span>
-                <span className="text-ink">{ad.language}</span>
+                <span className="text-right text-ink">{ad.language}</span>
               </div>
-              <div className="flex justify-between py-3 text-sm">
+              <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                 <span className="text-ink-muted">Media type</span>
-                <span className="text-ink capitalize">{ad.mediaType}</span>
+                <span className="text-right text-ink capitalize">{ad.mediaType}</span>
               </div>
-              <div className="flex justify-between py-3 text-sm">
+              <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                 <span className="text-ink-muted">Platforms</span>
-                <span className="text-ink">{ad.platforms.join(", ")}</span>
+                <span className="text-right text-ink">{ad.platforms.join(", ")}</span>
               </div>
               {ad.dominantColor && (
-                <div className="flex justify-between py-3 text-sm">
+                <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                   <span className="text-ink-muted">Dominant colour</span>
-                  <span className="text-ink">{ad.dominantColor}</span>
+                  <span className="text-right text-ink">{ad.dominantColor}</span>
                 </div>
               )}
               {ad.canvaUrl && (
-                <div className="flex justify-between py-3 text-sm">
+                <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                   <span className="text-ink-muted">Canva template</span>
                   <a
                     href={ad.canvaUrl}
@@ -350,7 +355,7 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
               <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
                 Description of the creative
               </p>
-              <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-ink">
+              <p className="mt-2 text-justify text-sm leading-relaxed whitespace-pre-line hyphens-auto text-ink">
                 {ad.creativeDescription}
               </p>
             </div>

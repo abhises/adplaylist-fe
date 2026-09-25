@@ -21,7 +21,7 @@ import {
 } from "@/lib/upload";
 
 // Mirrors the ad detail page (src/app/ads/[id]/page.tsx), which always shows
-// the Marketplace / Messenger tab and a 4:5 creative.
+// the Marketplace / Messenger tab and a square creative.
 const SQUARE_SIZE =
   SIZE_OPTIONS.find((s) => s.dims === "1200 × 1200") ?? SIZE_OPTIONS[0];
 
@@ -61,11 +61,13 @@ function TextSection({
   value,
   editing,
   onChange,
+  justify,
 }: {
   label: string;
   value: string;
   editing: boolean;
   onChange: (value: string) => void;
+  justify?: boolean;
 }) {
   if (!editing && !value) return null;
   return (
@@ -81,7 +83,11 @@ function TextSection({
           className={`mt-2 ${inputClass}`}
         />
       ) : (
-        <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-ink">
+        <p
+          className={`mt-2 text-sm leading-relaxed whitespace-pre-line text-ink ${
+            justify ? "text-justify hyphens-auto" : ""
+          }`}
+        >
           {value}
         </p>
       )}
@@ -207,11 +213,12 @@ export default function AdEditor({
         </div>
       </div>
 
-      <main className="grid flex-1 grid-cols-1 lg:grid-cols-[1fr_420px]">
-        <div className="border-r border-ink/15 px-10 py-8">
+      <main className="grid flex-1 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="min-w-0 border-r border-ink/15 px-10 py-8">
           <div
-            style={{ aspectRatio: "4 / 5" }}
-            className={`group relative mx-auto w-full max-w-md overflow-hidden ${
+            // Fill the column, but never taller than 80% of the screen.
+            style={{ aspectRatio: "1 / 1", width: "min(100%, 80vh)" }}
+            className={`group relative mx-auto overflow-hidden ${
               ad.photo ? "" : ad.swatch
             }`}
           >
@@ -220,7 +227,7 @@ export default function AdEditor({
               <img
                 src={ad.photo}
                 alt=""
-                className="absolute inset-0 h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-contain"
               />
             )}
             {uploading && (
@@ -245,7 +252,7 @@ export default function AdEditor({
             </button>
           </div>
           {uploadError && (
-            <p className="mx-auto mt-2 max-w-md text-xs text-brand">
+            <p className="mt-2 text-center text-xs text-brand">
               {uploadError}
             </p>
           )}
@@ -317,7 +324,7 @@ export default function AdEditor({
           )}
         </div>
 
-        <div className="px-10 py-8">
+        <div className="min-w-0 px-10 py-8 break-words">
           <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
             Creative &middot; {SQUARE_SIZE.dims}
           </p>
@@ -361,7 +368,15 @@ export default function AdEditor({
             <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
               Details
             </p>
-            <div className="mt-2 divide-y divide-ink/10 border-t border-ink/10">
+            {/* Two columns when viewing, like the detail page; one column
+                while editing so the inputs have room. */}
+            <div
+              className={`mt-2 border-t border-ink/10 ${
+                editing
+                  ? "divide-y divide-ink/10"
+                  : "grid grid-cols-1 gap-x-8 *:border-b *:border-ink/10 sm:grid-cols-2"
+              }`}
+            >
               <Row
                 label="Category"
                 value={draft.category}
@@ -538,6 +553,7 @@ export default function AdEditor({
             value={draft.creativeDescription}
             editing={editing}
             onChange={(creativeDescription) => update({ creativeDescription })}
+            justify
           />
 
           {(editing || draft.tags.length > 0) && (
