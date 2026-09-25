@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "@/components/Link";
 import AppHeader from "@/components/AppHeader";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import Spinner from "@/components/Spinner";
 import { formatPostDate } from "@/components/BlogLayout";
-import { api, type BlogPost } from "@/lib/api";
+import { api, ApiError, type BlogPost } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
 
 export default function BlogPostsList() {
@@ -13,6 +14,9 @@ export default function BlogPostsList() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<BlogPost | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -24,6 +28,24 @@ export default function BlogPostsList() {
         .finally(() => setLoading(false))
     );
   }, [user]);
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await api.deleteBlogPost(id);
+      setPosts((list) => list.filter((p) => p.id !== id));
+    } catch (err) {
+      setDeleteError(
+        err instanceof ApiError ? err.message : "Couldn't delete that post."
+      );
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  }
 
   if (!ready || !user) return null;
 
@@ -52,6 +74,12 @@ export default function BlogPostsList() {
             + New post
           </Link>
         </div>
+
+        {deleteError && (
+          <p className="mt-4 text-sm text-brand" role="alert">
+            {deleteError}
+          </p>
+        )}
 
         {loading ? (
           <div className="mt-8 flex items-center gap-2 text-sm text-ink-muted">
@@ -114,10 +142,17 @@ export default function BlogPostsList() {
                       )}
                       <Link
                         href={`/admin/blog/${post.id}`}
-                        className="text-sm font-medium text-brand"
+                        className="mr-3 text-sm font-medium text-brand"
                       >
                         Edit
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(post)}
+                        className="text-sm text-ink-muted hover:text-brand"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -126,6 +161,23 @@ export default function BlogPostsList() {
           </div>
         )}
       </main>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete blog post"
+        message={
+          deleteTarget && (
+            <>
+              Delete <strong className="text-ink">{deleteTarget.title}</strong>?
+              {deleteTarget.published && " Its link will stop working."} This
+              can&rsquo;t be undone.
+            </>
+          )
+        }
+        loading={deleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
