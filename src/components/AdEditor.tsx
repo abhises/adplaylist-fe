@@ -216,8 +216,9 @@ export default function AdEditor({
       <main className="grid flex-1 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="min-w-0 border-r border-ink/15 px-10 py-8">
           <div
-            // Fill the column, but never taller than 80% of the screen.
-            style={{ aspectRatio: "1 / 1", width: "min(100%, 80vh)" }}
+            // Kept to 75% of the column and 60% of the screen height so the
+            // platform and size buttons below stay in view.
+            style={{ aspectRatio: "1 / 1", width: "min(75%, 60vh)" }}
             className={`group relative mx-auto overflow-hidden ${
               ad.photo ? "" : ad.swatch
             }`}
@@ -345,24 +346,26 @@ export default function AdEditor({
             </h1>
           )}
 
-          {draft.canvaUrl && !editing ? (
-            <a
-              href={draft.canvaUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-6 block w-full bg-brand py-2.5 text-center text-sm font-bold text-brand-foreground"
-            >
-              &#9998; Edit in Canva
-            </a>
-          ) : (
-            <span className="mt-6 block w-full bg-brand py-2.5 text-center text-sm font-bold text-brand-foreground opacity-60">
-              &#9998; Edit in Canva
+          <div className="mt-6 grid grid-cols-2 gap-2">
+            {draft.canvaUrl && !editing ? (
+              <a
+                href={draft.canvaUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="block bg-brand py-2.5 text-center text-sm font-bold text-brand-foreground"
+              >
+                &#9998; Edit in Canva
+              </a>
+            ) : (
+              <span className="block bg-brand py-2.5 text-center text-sm font-bold text-brand-foreground opacity-60">
+                &#9998; Edit in Canva
+              </span>
+            )}
+            <span className="flex items-center justify-between border border-border px-3 py-2.5 text-sm font-bold text-ink/50">
+              <span>&#8595; Download</span>
+              <span>&#9662;</span>
             </span>
-          )}
-          <span className="mt-2 flex w-full items-center justify-between border border-border px-3 py-2.5 text-sm font-bold text-ink/50">
-            <span>&#8595; Download</span>
-            <span>&#9662;</span>
-          </span>
+          </div>
 
           <div className="mt-8">
             <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
@@ -514,7 +517,13 @@ export default function AdEditor({
               <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
                 Ad copy
               </p>
-              <div className="mt-2 divide-y divide-ink/10 border-t border-ink/10">
+              <div
+                className={`mt-2 border-t border-ink/10 ${
+                  editing
+                    ? "divide-y divide-ink/10"
+                    : "grid grid-cols-1 gap-x-8 *:border-b *:border-ink/10 sm:grid-cols-2"
+                }`}
+              >
                 {(
                   [
                     ["Brand name", "brandName"],

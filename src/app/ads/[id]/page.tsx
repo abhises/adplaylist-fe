@@ -134,10 +134,11 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
       <main className="grid flex-1 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="min-w-0 border-r border-ink/15 px-10 py-8">
           <div
-            // Fill the column, but never taller than 80% of the screen.
+            // Kept to 75% of the column and 60% of the screen height so the
+            // platform and size buttons below stay in view.
             style={{
               aspectRatio: previewAspectRatio,
-              width: `min(100%, calc(80vh * ${previewAspectRatio}))`,
+              width: `min(75%, calc(60vh * ${previewAspectRatio}))`,
             }}
             className={`relative mx-auto overflow-hidden ${
               ad.photo ? "" : ad.swatch
@@ -245,13 +246,15 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
             </div>
           </div>
 
-          <button className="mt-6 w-full bg-brand py-2.5 text-sm font-bold text-brand-foreground">
-            &#9998; Edit in Canva
-          </button>
-          <button className="mt-2 flex w-full items-center justify-between border border-border px-3 py-2.5 text-sm font-bold text-ink">
-            <span>&#8595; Download</span>
-            <span>&#9662;</span>
-          </button>
+          <div className="mt-6 grid grid-cols-2 gap-2">
+            <button className="bg-brand py-2.5 text-sm font-bold text-brand-foreground">
+              &#9998; Edit in Canva
+            </button>
+            <button className="flex items-center justify-between border border-border px-3 py-2.5 text-sm font-bold text-ink">
+              <span>&#8595; Download</span>
+              <span>&#9662;</span>
+            </button>
+          </div>
 
           <div className="mt-8">
             <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
@@ -316,19 +319,19 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
               <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
                 Ad copy
               </p>
-              <div className="mt-2 divide-y divide-ink/10 border-t border-ink/10">
+              <div className="mt-2 grid grid-cols-1 gap-x-8 border-t border-ink/10 sm:grid-cols-2">
                 {ad.brandName && (
-                  <div className="flex justify-between gap-4 py-3 text-sm">
+                  <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                     <span className="shrink-0 text-ink-muted">Brand name</span>
                     <span className="text-right text-ink">{ad.brandName}</span>
                   </div>
                 )}
-                <div className="flex justify-between gap-4 py-3 text-sm">
+                <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                   <span className="shrink-0 text-ink-muted">Headline</span>
                   <span className="text-right text-ink">{ad.headline}</span>
                 </div>
                 {ad.cta && (
-                  <div className="flex justify-between gap-4 py-3 text-sm">
+                  <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                     <span className="shrink-0 text-ink-muted">
                       Call to action
                     </span>
