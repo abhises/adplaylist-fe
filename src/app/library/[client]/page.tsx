@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { use, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import LibraryView from "@/components/LibraryView";
 import { useRequireAuth } from "@/lib/AuthProvider";
 import { slugify } from "@/lib/slug";
 
-export default function ClientLibraryPage() {
+export default function ClientLibraryPage({
+  searchParams,
+}: PageProps<"/library/[client]">) {
+  const { tag } = use(searchParams);
   const { user, ready } = useRequireAuth();
   const router = useRouter();
   const params = useParams<{ client: string }>();
@@ -29,5 +32,5 @@ export default function ClientLibraryPage() {
     return null;
   }
 
-  return <LibraryView heading={user.fullName} user={user} />;
+  return <LibraryView heading={user.fullName} user={user} initialTags={tag} />;
 }

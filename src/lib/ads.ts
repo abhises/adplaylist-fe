@@ -67,14 +67,3 @@ export const DOMINANT_COLORS = [
 ];
 
 export const VIDEO_LENGTH_OPTIONS = ["Under 6s", "6–15s", "15–30s", "30s+"];
-
-export const TAG_OPTIONS = [
-  "auto insurance",
-  "price comparison",
-  "save money",
-  "insurance quote",
-  "performance marketing",
-  "lead gen",
-  "finance offer",
-  "discount ad",
-];

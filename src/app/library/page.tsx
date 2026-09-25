@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { use, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import LibraryView from "@/components/LibraryView";
 import { useRequireAuth } from "@/lib/AuthProvider";
 import { slugify } from "@/lib/slug";
 
-export default function LibraryPage() {
+export default function LibraryPage({ searchParams }: PageProps<"/library">) {
+  const { tag } = use(searchParams);
   const { user, ready } = useRequireAuth();
   const router = useRouter();
 
@@ -20,5 +21,5 @@ export default function LibraryPage() {
 
   if (!ready || !user || user.role === "client") return null;
 
-  return <LibraryView heading="Explore Ads" user={user} />;
+  return <LibraryView heading="Explore Ads" user={user} initialTags={tag} />;
 }

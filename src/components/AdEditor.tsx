@@ -565,32 +565,19 @@ export default function AdEditor({
             justify
           />
 
-          {(editing || draft.tags.length > 0) && (
-            <div className="mt-8">
-              <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
-                Tags
-              </p>
-              {editing ? (
-                <div className="mt-2">
-                  <TagPicker
-                    value={draft.tags}
-                    onChange={(tags) => update({ tags })}
-                  />
-                </div>
-              ) : (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {draft.tags.map((tag, i) => (
-                    <span
-                      key={i}
-                      className="border border-border px-2 py-0.5 text-xs text-ink"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+          {/* Tags are picked rather than typed, so they're editable without
+              switching to "Edit text". */}
+          <div className="mt-8">
+            <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+              Tags
+            </p>
+            <div className="mt-2">
+              <TagPicker
+                value={draft.tags}
+                onChange={(tags) => update({ tags })}
+              />
             </div>
-          )}
+          </div>
 
           <div className="mt-8 flex flex-col gap-2 border-t border-ink/15 pt-6">
             {submitButton}

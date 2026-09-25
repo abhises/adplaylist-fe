@@ -74,6 +74,11 @@ export type CreativeRequest = {
   createdAt: string;
 };
 
+export type Tag = {
+  id: number;
+  name: string;
+};
+
 export type BrandPage = {
   id: number;
   slug: string;
@@ -282,6 +287,23 @@ export const api = {
     request<{ page: BrandPage }>(
       `/api/brand-pages/public/${encodeURIComponent(slug)}`
     ),
+
+  getTags: () => request<{ tags: Tag[] }>("/api/tags"),
+
+  createTag: (name: string) =>
+    request<{ tag: Tag }>("/api/tags", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+
+  renameTag: (id: number, name: string) =>
+    request<{ tag: Tag }>(`/api/tags/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+
+  deleteTag: (id: number) =>
+    request<void>(`/api/tags/${id}`, { method: "DELETE" }),
 
   getBrandPages: () => request<{ pages: BrandPage[] }>("/api/brand-pages"),
 

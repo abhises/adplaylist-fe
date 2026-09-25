@@ -5,7 +5,6 @@ import {
   MARKET_OPTIONS,
   PLATFORM_OPTIONS,
   SIZE_OPTIONS,
-  TAG_OPTIONS,
   type Ad,
 } from "@/lib/ads";
 
@@ -332,8 +331,7 @@ export function applyCsvToDraft(
     const list = row.tags
       .split(/[,;|]/)
       .map((t) => t.trim())
-      .filter(Boolean)
-      .map((t) => findOption(TAG_OPTIONS, t) ?? t);
+      .filter(Boolean);
     if (list.length) {
       draft.tags = list;
       matched++;

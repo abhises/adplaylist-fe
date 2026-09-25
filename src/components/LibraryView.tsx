@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -25,11 +25,16 @@ const ADDED_OPTIONS = [
 export default function LibraryView({
   heading,
   user,
+  initialTags,
 }: {
   heading: string;
   user: User;
+  // The page's ?tag= value(s), so a tag clicked on an ad page opens the
+  // library already filtered to it.
+  initialTags?: string | string[];
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +56,25 @@ export default function LibraryView({
   const [editableOnly, setEditableOnly] = useState(false);
   const [selectedLengths, setSelectedLengths] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  // Taken from the page's searchParams rather than window.location, which
+  // still holds the previous page's URL while Next is navigating here.
+  const [selectedTags, setSelectedTags] = useState<string[]>(() =>
+    initialTags === undefined
+      ? []
+      : Array.isArray(initialTags)
+        ? initialTags
+        : [initialTags]
+  );
   const [moreOpen, setMoreOpen] = useState(false);
+
+  // Keep ?tag= in step with the ticked tags so a filtered view can be
+  // bookmarked or shared.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    selectedTags.forEach((t) => params.append("tag", t));
+    const qs = params.toString();
+    window.history.replaceState(null, "", `${pathname}${qs ? `?${qs}` : ""}`);
+  }, [selectedTags, pathname]);
 
   function handleAddedChange(value: string) {
     const days = value === "" ? null : Number(value);
@@ -127,6 +150,23 @@ export default function LibraryView({
     }));
   }, [ads]);
 
+  // Tags in use, most-used first. Matching ignores case so an older ad
+  // tagged "Lead Gen" counts toward "lead gen".
+  const tagOptions = useMemo(() => {
+    const counts = new Map<string, { name: string; count: number }>();
+    for (const ad of ads) {
+      for (const tag of ad.tags ?? []) {
+        const key = tag.toLowerCase();
+        const entry = counts.get(key) ?? { name: tag, count: 0 };
+        entry.count++;
+        counts.set(key, entry);
+      }
+    }
+    return [...counts.values()].sort(
+      (a, b) => b.count - a.count || a.name.localeCompare(b.name)
+    );
+  }, [ads]);
+
   const formatOptions = useMemo(() => {
     const names = [...new Set(ads.map((ad) => ad.format))].sort();
     return names.map((name) => ({
@@ -155,15 +195,23 @@ export default function LibraryView({
     setEditableOnly(false);
     setSelectedLengths([]);
     setSelectedColors([]);
+    setSelectedTags([]);
   }
 
   const filtered = useMemo(() => {
+    const kw = keyword.toLowerCase();
+    const wantedTags = selectedTags.map((t) => t.toLowerCase());
     return ads.filter((ad) => {
+      const adTags = (ad.tags ?? []).map((t) => t.toLowerCase());
       if (
-        keyword &&
-        !ad.headline.toLowerCase().includes(keyword.toLowerCase()) &&
-        !ad.title.toLowerCase().includes(keyword.toLowerCase())
+        kw &&
+        !ad.headline.toLowerCase().includes(kw) &&
+        !ad.title.toLowerCase().includes(kw) &&
+        !adTags.some((t) => t.includes(kw))
       ) {
+        return false;
+      }
+      if (wantedTags.length && !wantedTags.some((t) => adTags.includes(t))) {
         return false;
       }
       if (mediaTypes.length && !mediaTypes.includes(ad.mediaType)) {
@@ -217,6 +265,7 @@ export default function LibraryView({
     editableOnly,
     selectedLengths,
     selectedColors,
+    selectedTags,
   ]);
 
   const activeCount =
@@ -230,7 +279,8 @@ export default function LibraryView({
     selectedFormats.length +
     (editableOnly ? 1 : 0) +
     selectedLengths.length +
-    selectedColors.length;
+    selectedColors.length +
+    selectedTags.length;
 
   const catSummary =
     selectedCategories.length === 0
@@ -263,7 +313,7 @@ export default function LibraryView({
               </svg>
               <input
                 type="search"
-                placeholder="Campaign, headline, SKU"
+                placeholder="Campaign, headline, tag"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 className="w-full border border-border bg-surface-2 py-1.5 pr-2.5 pl-8 text-sm text-ink outline-none focus:border-ink/70"
@@ -384,6 +434,55 @@ export default function LibraryView({
               )}
             </div>
           </div>
+
+          {tagOptions.length > 0 && (
+            <div className="mt-6">
+              <div className="mb-3 flex items-baseline gap-2">
+                <p className="text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
+                  Tags
+                </p>
+                {selectedTags.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTags([])}
+                    className="ml-auto text-xs text-brand hover:underline"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="flex max-h-56 flex-col gap-2.5 overflow-y-auto">
+                {tagOptions.map((tag) => {
+                  const checked = selectedTags.some(
+                    (t) => t.toLowerCase() === tag.name.toLowerCase()
+                  );
+                  return (
+                    <label
+                      key={tag.name}
+                      className="flex items-center gap-2 text-sm text-ink"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setSelectedTags((list) =>
+                            checked
+                              ? list.filter(
+                                  (t) => t.toLowerCase() !== tag.name.toLowerCase()
+                                )
+                              : [...list, tag.name]
+                          )
+                        }
+                        className="h-[15px] w-[15px] shrink-0 accent-brand"
+                      />
+                      <span className="min-w-0 flex-1 truncate">{tag.name}</span>
+                      <span className="text-xs text-ink-muted">{tag.count}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6">
             <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">

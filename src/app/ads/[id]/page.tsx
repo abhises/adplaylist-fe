@@ -6,6 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
 import Spinner from "@/components/Spinner";
 import { SIZE_OPTIONS } from "@/lib/ads";
+import { slugify } from "@/lib/slug";
 
 const SQUARE_SIZE = { name: "Square", dims: "1200 × 1200" };
 const SQUARE_INDEX = Math.max(
@@ -14,6 +15,21 @@ const SQUARE_INDEX = Math.max(
 );
 
 // Width over height of a size like "1200 × 1200"; 4:5 if it can't be read.
+function sharedTagCount(a: Ad, b: Ad) {
+  const tagsA = new Set((a.tags ?? []).map((t) => t.toLowerCase()));
+  return (b.tags ?? []).filter((t) => tagsA.has(t.toLowerCase())).length;
+}
+
+// How alike two ads are for "More like this": each shared tag counts 2, the
+// same category and the same market 1 each.
+function similarity(a: Ad, b: Ad) {
+  return (
+    sharedTagCount(a, b) * 2 +
+    (a.category === b.category ? 1 : 0) +
+    (a.market === b.market ? 1 : 0)
+  );
+}
+
 function parseAspectRatio(dims: string) {
   const [w, h] = dims.split(/[x×]/).map((n) => parseInt(n.trim(), 10));
   return w && h ? w / h : 4 / 5;
@@ -93,9 +109,20 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
   const index = allAds.findIndex((a) => a.id === ad.id);
   const prevAd = index > 0 ? allAds[index - 1] : null;
   const nextAd = index >= 0 && index < allAds.length - 1 ? allAds[index + 1] : null;
+  // Ads with nothing in common beyond the market aren't "like this", so an
+  // ad needs a shared tag or the same category to be shown.
   const related = allAds
-    .filter((a) => a.category === ad.category && a.id !== ad.id)
-    .slice(0, 4);
+    .filter((a) => a.id !== ad.id)
+    .map((a) => ({ a, score: similarity(ad, a), shared: sharedTagCount(ad, a) }))
+    .filter(({ a, shared }) => shared > 0 || a.category === ad.category)
+    // On a tie, the ad sharing more tags wins: a tag is more specific than a
+    // category or market.
+    .sort((x, y) => y.score - x.score || y.shared - x.shared)
+    .slice(0, 4)
+    .map(({ a }) => a);
+  // Clients browse the library at their own branded URL (see /library).
+  const libraryHref =
+    user.role === "client" ? `/library/${slugify(user.fullName)}` : "/library";
 
   const previewAspectRatio = parseAspectRatio(
     SIZE_OPTIONS[activeSize]?.dims ?? SQUARE_SIZE.dims
@@ -371,12 +398,14 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {ad.tags.map((tag, i) => (
-                  <span
+                  <Link
                     key={i}
-                    className="border border-border px-2 py-0.5 text-xs text-ink"
+                    href={`${libraryHref}?tag=${encodeURIComponent(tag)}`}
+                    title={`See all ads tagged “${tag}”`}
+                    className="border border-border px-2 py-0.5 text-xs text-ink hover:border-brand hover:text-brand"
                   >
                     {tag}
-                  </span>
+                  </Link>
                 ))}
               </div>
             </div>
