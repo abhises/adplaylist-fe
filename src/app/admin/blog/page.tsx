@@ -7,10 +7,10 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import Spinner from "@/components/Spinner";
 import { formatPostDate } from "@/components/BlogLayout";
 import { api, ApiError, type BlogPost } from "@/lib/api";
-import { useRequireRole } from "@/lib/AuthProvider";
+import { useRequirePermission } from "@/lib/AuthProvider";
 
 export default function BlogPostsList() {
-  const { user, ready } = useRequireRole(["admin"]);
+  const { user, ready } = useRequirePermission("blog");
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

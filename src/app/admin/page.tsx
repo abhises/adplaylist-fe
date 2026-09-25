@@ -5,10 +5,75 @@ import AppHeader from "@/components/AppHeader";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Modal from "@/components/Modal";
 import Spinner from "@/components/Spinner";
-import { api, ApiError, type AdminUser, type Role } from "@/lib/api";
+import { api, ApiError, type AdminUser, type NewUserInput, type Role } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
 
-const ROLES: Role[] = ["client", "designer", "admin"];
+const ROLES: Role[] = ["client", "designer", "editor", "admin"];
+
+const inputClass =
+  "w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70";
+
+const EMPTY_NEW_USER: NewUserInput = {
+  fullName: "",
+  email: "",
+  password: "",
+  role: "editor",
+  canManageBlog: false,
+  canManageBrandPages: false,
+};
+
+// Blog / Brand pages checkboxes for editors, shared by the add and edit
+// dialogs. Other roles don't get this access (admins always have it), so
+// they just see a note.
+function AccessCheckboxes({
+  role,
+  blog,
+  brandPages,
+  onChange,
+}: {
+  role: Role;
+  blog: boolean;
+  brandPages: boolean;
+  onChange: (next: { canManageBlog?: boolean; canManageBrandPages?: boolean }) => void;
+}) {
+  if (role !== "editor") {
+    return (
+      <p className="mt-3 text-xs text-ink-muted">
+        {role === "admin"
+          ? "Admins can manage the blog and brand pages."
+          : "Only editors can be given blog or brand page access."}
+      </p>
+    );
+  }
+  return (
+    <fieldset className="mt-3">
+      <legend className="mb-[5px] text-xs text-ink/70">Can manage</legend>
+      <div className="flex gap-6">
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={blog}
+            onChange={(e) => onChange({ canManageBlog: e.target.checked })}
+            className="h-4 w-4 accent-brand"
+          />
+          Blog
+        </label>
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={brandPages}
+            onChange={(e) => onChange({ canManageBrandPages: e.target.checked })}
+            className="h-4 w-4 accent-brand"
+          />
+          Brand pages
+        </label>
+      </div>
+      <p className="mt-1 text-xs text-ink-muted">
+        What this editor can write, publish and delete.
+      </p>
+    </fieldset>
+  );
+}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -34,8 +99,15 @@ export default function AdminUsersPage() {
   const [editTarget, setEditTarget] = useState<AdminUser | null>(null);
   const [editFullName, setEditFullName] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editBlog, setEditBlog] = useState(false);
+  const [editBrandPages, setEditBrandPages] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [newUser, setNewUser] = useState<NewUserInput>(EMPTY_NEW_USER);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addSaving, setAddSaving] = useState(false);
 
   useEffect(() => {
     if (!authUser) return;
@@ -52,7 +124,9 @@ export default function AdminUsersPage() {
     setUsers((list) => list.map((u) => (u.id === id ? { ...u, role } : u)));
     setSavingId(id);
     try {
-      await api.updateUserRole(id, role);
+      // Leaving the editor role clears blog / brand page access on the server.
+      const { user: updated } = await api.updateUserRole(id, role);
+      setUsers((list) => list.map((u) => (u.id === id ? updated : u)));
     } catch (err) {
       setUsers(previous);
       setRowError({
@@ -68,7 +142,38 @@ export default function AdminUsersPage() {
     setEditTarget(u);
     setEditFullName(u.fullName);
     setEditEmail(u.email);
+    setEditBlog(u.canManageBlog);
+    setEditBrandPages(u.canManageBrandPages);
     setEditError(null);
+  }
+
+  function openAdd() {
+    setNewUser(EMPTY_NEW_USER);
+    setAddError(null);
+    setAddOpen(true);
+  }
+
+  async function handleAddSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (
+      newUser.role === "editor" &&
+      !newUser.canManageBlog &&
+      !newUser.canManageBrandPages
+    ) {
+      setAddError("Tick Blog, Brand pages or both for an editor.");
+      return;
+    }
+    setAddError(null);
+    setAddSaving(true);
+    try {
+      const { user: created } = await api.createUser(newUser);
+      setUsers((list) => [...list, created]);
+      setAddOpen(false);
+    } catch (err) {
+      setAddError(err instanceof ApiError ? err.message : "Couldn't create user.");
+    } finally {
+      setAddSaving(false);
+    }
   }
 
   async function handleEditSubmit(e: FormEvent<HTMLFormElement>) {
@@ -80,6 +185,8 @@ export default function AdminUsersPage() {
       const { user: updated } = await api.updateUser(editTarget.id, {
         fullName: editFullName,
         email: editEmail,
+        canManageBlog: editBlog,
+        canManageBrandPages: editBrandPages,
       });
       setUsers((list) => list.map((u) => (u.id === updated.id ? updated : u)));
       setEditTarget(null);
@@ -120,11 +227,23 @@ export default function AdminUsersPage() {
         <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
           Admin
         </p>
-        <h1 className="text-3xl font-extrabold text-ink">Users</h1>
-        <p className="mt-2 text-sm text-ink-muted">
-          Manage who can publish ads and fulfil requests (designer), and who has
-          full admin access.
-        </p>
+        <div className="flex max-w-5xl flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-ink">Users</h1>
+            <p className="mt-2 text-sm text-ink-muted">
+              Manage who can publish ads and fulfil requests (designer), who
+              writes the blog and brand pages (editor), and who has full admin
+              access.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openAdd}
+            className="bg-brand px-5 py-2.5 text-sm font-bold text-brand-foreground"
+          >
+            + Add user
+          </button>
+        </div>
 
         {loading && (
           <div className="mt-8 flex items-center gap-2 text-sm text-ink-muted">
@@ -135,10 +254,10 @@ export default function AdminUsersPage() {
         {error && <p className="mt-8 text-sm text-brand">{error}</p>}
 
         {!loading && !error && (
-          <table className="mt-6 w-full max-w-4xl border-collapse text-sm">
+          <table className="mt-6 w-full max-w-5xl border-collapse text-sm">
             <thead>
               <tr>
-                {["User", "Email", "Joined", "Role", ""].map((h) => (
+                {["User", "Email", "Joined", "Role", "Access", ""].map((h) => (
                   <th
                     key={h}
                     className="border-b-2 border-border p-2 text-left text-[11px] tracking-[0.08em] text-ink-muted uppercase"
@@ -186,6 +305,38 @@ export default function AdminUsersPage() {
                       {rowError && rowError.id === u.id && (
                         <p className="mt-1 text-xs text-brand">{rowError.message}</p>
                       )}
+                    </td>
+                    <td className="border-b border-border p-2">
+                      <div className="flex flex-wrap gap-1">
+                        {isAdmin ? (
+                          <span className="bg-ink/10 px-2 py-0.5 text-xs text-ink-muted">
+                            Everything
+                          </span>
+                        ) : u.role !== "editor" ? (
+                          <span className="text-xs text-ink-muted">—</span>
+                        ) : !u.canManageBlog && !u.canManageBrandPages ? (
+                          <button
+                            type="button"
+                            onClick={() => openEdit(u)}
+                            className="text-xs text-brand hover:underline"
+                          >
+                            No access yet: set it
+                          </button>
+                        ) : (
+                          <>
+                            {u.canManageBlog && (
+                              <span className="bg-brand/10 px-2 py-0.5 text-xs text-brand">
+                                Blog
+                              </span>
+                            )}
+                            {u.canManageBrandPages && (
+                              <span className="bg-brand/10 px-2 py-0.5 text-xs text-brand">
+                                Brand pages
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </td>
                     <td className="border-b border-border p-2 text-right whitespace-nowrap">
                       <button
@@ -255,6 +406,16 @@ export default function AdminUsersPage() {
               className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
             />
           </div>
+          <AccessCheckboxes
+            role={editTarget?.role ?? "client"}
+            blog={editBlog}
+            brandPages={editBrandPages}
+            onChange={(next) => {
+              if (next.canManageBlog !== undefined) setEditBlog(next.canManageBlog);
+              if (next.canManageBrandPages !== undefined)
+                setEditBrandPages(next.canManageBrandPages);
+            }}
+          />
           {editError && (
             <p className="mt-3 text-sm text-brand" role="alert">
               {editError}
@@ -274,6 +435,88 @@ export default function AdminUsersPage() {
               className="bg-brand px-4 py-2 text-sm font-bold text-brand-foreground disabled:opacity-60"
             >
               {editSaving ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)}>
+        <h2 className="text-lg font-extrabold text-ink">Add user</h2>
+        <form onSubmit={handleAddSubmit} className="mt-4">
+          <div>
+            <label className="mb-[5px] block text-xs text-ink/70">Full name</label>
+            <input
+              type="text"
+              required
+              value={newUser.fullName}
+              onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div className="mt-3">
+            <label className="mb-[5px] block text-xs text-ink/70">Email</label>
+            <input
+              type="email"
+              required
+              value={newUser.email}
+              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div className="mt-3">
+            <label className="mb-[5px] block text-xs text-ink/70">Password</label>
+            <input
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={newUser.password}
+              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-ink-muted">
+              At least 8 characters. Share it with them so they can sign in.
+            </p>
+          </div>
+          <div className="mt-3">
+            <label className="mb-[5px] block text-xs text-ink/70">Role</label>
+            <select
+              value={newUser.role}
+              onChange={(e) => setNewUser({ ...newUser, role: e.target.value as Role })}
+              className={inputClass}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <AccessCheckboxes
+            role={newUser.role}
+            blog={newUser.canManageBlog}
+            brandPages={newUser.canManageBrandPages}
+            onChange={(next) => setNewUser({ ...newUser, ...next })}
+          />
+          {addError && (
+            <p className="mt-3 text-sm text-brand" role="alert">
+              {addError}
+            </p>
+          )}
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setAddOpen(false)}
+              className="border border-border px-4 py-2 text-sm font-bold text-ink hover:bg-surface-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={addSaving}
+              className="bg-brand px-4 py-2 text-sm font-bold text-brand-foreground disabled:opacity-60"
+            >
+              {addSaving ? "Creating…" : "Create user"}
             </button>
           </div>
         </form>

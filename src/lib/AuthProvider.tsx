@@ -8,7 +8,15 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { api, clearToken, getToken, setToken, type Role, type User } from "@/lib/api";
+import {
+  api,
+  clearToken,
+  getToken,
+  setToken,
+  type Permission,
+  type Role,
+  type User,
+} from "@/lib/api";
 
 type AuthContextValue = {
   user: User | null;
@@ -127,5 +135,21 @@ export function useRequireRole(roles: Role[]) {
   }, [ready, user, router, rolesKey]);
 
   const allowed = !!user && rolesKey.split(",").includes(user.role);
+  return { user, ready: ready && allowed };
+}
+
+// Like useRequireRole, for the blog and brand page admin screens: admins, or
+// users an admin has granted that permission to. Also enforced server-side.
+export function useRequirePermission(permission: Permission) {
+  const { user, ready } = useAuth();
+  const router = useRouter();
+  const allowed = !!user?.permissions?.[permission];
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!user) router.replace("/login");
+    else if (!allowed) router.replace("/library");
+  }, [ready, user, allowed, router]);
+
   return { user, ready: ready && allowed };
 }

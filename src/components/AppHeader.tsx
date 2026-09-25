@@ -22,8 +22,10 @@ export default function AppHeader() {
     ...(canPublish
       ? [{ href: "/admin/requests", label: "Requests queue" }]
       : []),
-    ...(isAdmin ? [{ href: "/admin/brand-pages", label: "Brand pages" }] : []),
-    ...(isAdmin ? [{ href: "/admin/blog", label: "Blog" }] : []),
+    ...(user?.permissions?.brandPages
+      ? [{ href: "/admin/brand-pages", label: "Brand pages" }]
+      : []),
+    ...(user?.permissions?.blog ? [{ href: "/admin/blog", label: "Blog" }] : []),
     ...(isAdmin ? [{ href: "/admin/tags", label: "Tags" }] : []),
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];

@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import BlogPostEditor from "@/components/BlogPostEditor";
 import { api } from "@/lib/api";
-import { useRequireRole } from "@/lib/AuthProvider";
+import { useRequirePermission } from "@/lib/AuthProvider";
 
 export default function NewBlogPost() {
-  const { user, ready } = useRequireRole(["admin"]);
+  const { user, ready } = useRequirePermission("blog");
   const router = useRouter();
 
   if (!ready || !user) return null;

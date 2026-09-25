@@ -31,13 +31,19 @@ export type Ad = {
   createdAt: string;
 };
 
-export type Role = "client" | "designer" | "admin";
+export type Role = "client" | "designer" | "editor" | "admin";
 
 export type User = {
   id: number;
   email: string;
   fullName: string;
   role: Role;
+  // Blog / brand page access: always both for admins; for editors, what an
+  // admin granted; never for clients or designers.
+  permissions: {
+    blog: boolean;
+    brandPages: boolean;
+  };
   defaultLanguage: string;
   gridDensity: string;
   memberSince: string;
@@ -55,7 +61,20 @@ export type AdminUser = {
   email: string;
   fullName: string;
   role: Role;
+  canManageBlog: boolean;
+  canManageBrandPages: boolean;
   createdAt: string;
+};
+
+export type Permission = keyof User["permissions"];
+
+export type NewUserInput = {
+  fullName: string;
+  email: string;
+  password: string;
+  role: Role;
+  canManageBlog: boolean;
+  canManageBrandPages: boolean;
 };
 
 export type CreativeRequest = {
@@ -291,7 +310,21 @@ export const api = {
 
   getUsers: () => request<{ users: AdminUser[] }>("/api/admin/users"),
 
-  updateUser: (id: number, data: { fullName: string; email: string }) =>
+  createUser: (data: NewUserInput) =>
+    request<{ user: AdminUser }>("/api/admin/users", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateUser: (
+    id: number,
+    data: {
+      fullName: string;
+      email: string;
+      canManageBlog: boolean;
+      canManageBrandPages: boolean;
+    }
+  ) =>
     request<{ user: AdminUser }>(`/api/admin/users/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),

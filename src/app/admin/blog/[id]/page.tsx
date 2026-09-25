@@ -8,13 +8,13 @@ import BlogPostEditor from "@/components/BlogPostEditor";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type BlogPost } from "@/lib/api";
-import { useRequireRole } from "@/lib/AuthProvider";
+import { useRequirePermission } from "@/lib/AuthProvider";
 
 export default function EditBlogPost({
   params,
 }: PageProps<"/admin/blog/[id]">) {
   const { id } = use(params);
-  const { user, ready } = useRequireRole(["admin"]);
+  const { user, ready } = useRequirePermission("blog");
   const router = useRouter();
 
   const [post, setPost] = useState<BlogPost | null>(null);

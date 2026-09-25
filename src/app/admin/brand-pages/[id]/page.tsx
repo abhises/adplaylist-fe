@@ -8,13 +8,13 @@ import BrandPageEditor from "@/components/BrandPageEditor";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type BrandPage } from "@/lib/api";
-import { useRequireRole } from "@/lib/AuthProvider";
+import { useRequirePermission } from "@/lib/AuthProvider";
 
 export default function EditBrandPage({
   params,
 }: PageProps<"/admin/brand-pages/[id]">) {
   const { id } = use(params);
-  const { user, ready } = useRequireRole(["admin"]);
+  const { user, ready } = useRequirePermission("brandPages");
   const router = useRouter();
 
   const [page, setPage] = useState<BrandPage | null>(null);

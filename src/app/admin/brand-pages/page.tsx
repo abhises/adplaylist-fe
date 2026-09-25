@@ -5,10 +5,10 @@ import Link from "@/components/Link";
 import AppHeader from "@/components/AppHeader";
 import Spinner from "@/components/Spinner";
 import { api, type BrandPage } from "@/lib/api";
-import { useRequireRole } from "@/lib/AuthProvider";
+import { useRequirePermission } from "@/lib/AuthProvider";
 
 export default function BrandPagesList() {
-  const { user, ready } = useRequireRole(["admin"]);
+  const { user, ready } = useRequirePermission("brandPages");
   const [pages, setPages] = useState<BrandPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
