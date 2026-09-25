@@ -59,6 +59,12 @@ export default function LandingPage() {
             Adplaylist
           </span>
           <nav className="flex items-center gap-4">
+            <Link
+              href="/blog"
+              className="text-sm font-medium text-brand-foreground"
+            >
+              Blog
+            </Link>
             {ready && user ? (
               <Link
                 href="/library"

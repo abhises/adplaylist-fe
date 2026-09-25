@@ -74,6 +74,29 @@ export type CreativeRequest = {
   createdAt: string;
 };
 
+export type BlogPost = {
+  id: number;
+  slug: string;
+  title: string;
+  excerpt?: string;
+  coverImageUrl?: string;
+  // Left out of list responses.
+  bodyHtml?: string;
+  published: boolean;
+  publishedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BlogPostInput = {
+  title: string;
+  slug?: string;
+  excerpt?: string;
+  coverImageUrl?: string;
+  bodyHtml?: string;
+  published?: boolean;
+};
+
 export type Tag = {
   id: number;
   name: string;
@@ -324,6 +347,34 @@ export const api = {
 
   deleteBrandPage: (id: number) =>
     request<void>(`/api/brand-pages/${id}`, { method: "DELETE" }),
+
+  getPublicBlogPosts: () =>
+    request<{ posts: BlogPost[] }>("/api/blog-posts/public"),
+
+  getPublicBlogPost: (slug: string) =>
+    request<{ post: BlogPost }>(
+      `/api/blog-posts/public/${encodeURIComponent(slug)}`
+    ),
+
+  getBlogPosts: () => request<{ posts: BlogPost[] }>("/api/blog-posts"),
+
+  getBlogPost: (id: number) =>
+    request<{ post: BlogPost }>(`/api/blog-posts/${id}`),
+
+  createBlogPost: (data: BlogPostInput) =>
+    request<{ post: BlogPost }>("/api/blog-posts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateBlogPost: (id: number, data: BlogPostInput) =>
+    request<{ post: BlogPost }>(`/api/blog-posts/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteBlogPost: (id: number) =>
+    request<void>(`/api/blog-posts/${id}`, { method: "DELETE" }),
 };
 
 export { ApiError };

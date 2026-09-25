@@ -23,6 +23,7 @@ export default function AppHeader() {
       ? [{ href: "/admin/requests", label: "Requests queue" }]
       : []),
     ...(isAdmin ? [{ href: "/admin/brand-pages", label: "Brand pages" }] : []),
+    ...(isAdmin ? [{ href: "/admin/blog", label: "Blog" }] : []),
     ...(isAdmin ? [{ href: "/admin/tags", label: "Tags" }] : []),
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
