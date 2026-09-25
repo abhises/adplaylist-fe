@@ -4,7 +4,15 @@ import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "rea
 import { useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
-import { SIZE_OPTIONS } from "@/lib/ads";
+import TagPicker from "@/components/TagPicker";
+import {
+  CATEGORY_OPTIONS,
+  DOMINANT_COLORS,
+  LANGUAGE_OPTIONS,
+  MARKET_OPTIONS,
+  PLATFORM_OPTIONS,
+  SIZE_OPTIONS,
+} from "@/lib/ads";
 import {
   applyCsvToDraft,
   draftToAd,
@@ -19,6 +27,22 @@ import {
   validateImageFile,
 } from "@/lib/upload";
 import { useRequireRole } from "@/lib/AuthProvider";
+
+const inputClass =
+  "w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="py-3">
+      <p className="mb-[5px] text-xs text-ink/70">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+function toggleIn(list: string[], value: string) {
+  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
 
 export default function AddAdPage() {
   const { user, ready } = useRequireRole(["designer", "admin"]);
@@ -142,6 +166,10 @@ export default function AddAdPage() {
     if (csvInputRef.current) csvInputRef.current.value = "";
   }
 
+  function updateFields(patch: Partial<AdDraft>) {
+    setCsvDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+  }
+
   function currentDraft(): AdDraft | null {
     if (!csvDraft) return null;
     return {
@@ -175,32 +203,6 @@ export default function AddAdPage() {
         createdAt: new Date().toISOString(),
       }
     : null;
-  const fieldRows: [string, string][] = draft
-    ? [
-        ["Ad name", draft.adName],
-        ["Media type", draft.mediaType === "image" ? "Image" : "Video"],
-        ["Kicker", draft.kicker],
-        ["Headline", draft.headline],
-        ["Supporting line", draft.sub],
-        ["Call to action", draft.cta],
-        ["Description", draft.description],
-        ["Category", draft.category],
-        ["Market", draft.market],
-        ["Language", draft.language],
-        ["Platforms", draft.platforms.join(", ")],
-        ["Dominant colour", draft.dominantColor],
-        [
-          "Placement sizes",
-          draft.sizes
-            .map((name) => {
-              const size = SIZE_OPTIONS.find((s) => s.name === name);
-              return size ? `${size.name} (${size.dims})` : name;
-            })
-            .join(", "),
-        ],
-        ["Canva template", draft.canvaUrl],
-      ]
-    : [];
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -268,12 +270,13 @@ export default function AddAdPage() {
                 <p className="mt-1 text-xs text-brand">{csvError}</p>
               )}
               <p className="mt-1 text-xs text-ink-muted">
-                Accepts a header row of fields (adName, mediaType, kicker,
-                headline, sub, cta, description, category, market,
-                language, platforms, sizes, dominantColor, canvaUrl) or a
+                Accepts a header row of fields (adName, mediaType,
+                primaryText, brandName, headline, description, cta, category, market,
+                language, platforms, dominantColor, sizes,
+                creativeDescription, tags, canvaUrl) or a
                 two-column &quot;Field,Answer&quot; export with one row per
-                field. Separate multiple platforms/sizes with
-                &quot;;&quot;.
+                field. Separate multiple platforms, sizes or tags with
+                commas.
               </p>
             </div>
 
@@ -363,17 +366,181 @@ export default function AddAdPage() {
                   <AdCard ad={previewAd} disableLink />
                 </div>
                 <div className="mt-6 divide-y divide-ink/10 border-t border-ink/10">
-                  {fieldRows.map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="flex justify-between gap-4 py-2.5 text-sm"
+                  <Field label="Ad name">
+                    <input
+                      type="text"
+                      value={draft.adName}
+                      onChange={(e) => updateFields({ adName: e.target.value })}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Media type">
+                    <select
+                      value={draft.mediaType}
+                      onChange={(e) =>
+                        updateFields({
+                          mediaType: e.target.value as AdDraft["mediaType"],
+                        })
+                      }
+                      className={inputClass}
                     >
-                      <span className="shrink-0 text-ink-muted">{label}</span>
-                      <span className="min-w-0 text-right break-words text-ink">
-                        {value || <span className="text-ink/30">&mdash;</span>}
-                      </span>
+                      <option value="image">Image</option>
+                      <option value="video">Video</option>
+                    </select>
+                  </Field>
+                  <Field label="Primary text">
+                    <textarea
+                      value={draft.primaryText}
+                      onChange={(e) => updateFields({ primaryText: e.target.value })}
+                      rows={3}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Brand name">
+                    <input
+                      type="text"
+                      value={draft.brandName}
+                      onChange={(e) => updateFields({ brandName: e.target.value })}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Headline">
+                    <input
+                      type="text"
+                      value={draft.headline}
+                      onChange={(e) => updateFields({ headline: e.target.value })}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Description">
+                    <textarea
+                      value={draft.description}
+                      onChange={(e) => updateFields({ description: e.target.value })}
+                      rows={3}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Call to action">
+                    <input
+                      type="text"
+                      value={draft.cta}
+                      onChange={(e) => updateFields({ cta: e.target.value })}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Category">
+                    <select
+                      value={draft.category}
+                      onChange={(e) => updateFields({ category: e.target.value })}
+                      className={inputClass}
+                    >
+                      {CATEGORY_OPTIONS.map((c) => (
+                        <option key={c}>{c}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Market">
+                    <select
+                      value={draft.market}
+                      onChange={(e) => updateFields({ market: e.target.value })}
+                      className={inputClass}
+                    >
+                      {MARKET_OPTIONS.map((m) => (
+                        <option key={m}>{m}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Language">
+                    <select
+                      value={draft.language}
+                      onChange={(e) => updateFields({ language: e.target.value })}
+                      className={inputClass}
+                    >
+                      {LANGUAGE_OPTIONS.map((l) => (
+                        <option key={l}>{l}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Platforms">
+                    <div className="flex flex-wrap gap-4">
+                      {PLATFORM_OPTIONS.map((platform) => (
+                        <label
+                          key={platform}
+                          className="flex items-center gap-2 text-sm text-ink"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={draft.platforms.includes(platform)}
+                            onChange={() =>
+                              updateFields({
+                                platforms: toggleIn(draft.platforms, platform),
+                              })
+                            }
+                            className="h-4 w-4 accent-brand"
+                          />
+                          {platform}
+                        </label>
+                      ))}
                     </div>
-                  ))}
+                  </Field>
+                  <Field label="Dominant colour">
+                    <div className="flex flex-wrap gap-1.5">
+                      {DOMINANT_COLORS.map((c) => (
+                        <button
+                          key={c.name}
+                          type="button"
+                          title={c.name}
+                          aria-label={c.name}
+                          onClick={() => updateFields({ dominantColor: c.name })}
+                          style={{ backgroundColor: c.hex }}
+                          className={`h-6 w-6 border ${
+                            draft.dominantColor === c.name
+                              ? "outline outline-2 outline-offset-2 outline-brand"
+                              : "border-ink/15"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </Field>
+                  <Field label="Placement sizes">
+                    <div className="grid grid-cols-1 border border-border sm:grid-cols-2">
+                      {SIZE_OPTIONS.map((size) => (
+                        <label
+                          key={size.name}
+                          className="flex items-center gap-2 border-b border-border px-2.5 py-1.5 text-sm text-ink"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={draft.sizes.includes(size.name)}
+                            onChange={() =>
+                              updateFields({ sizes: toggleIn(draft.sizes, size.name) })
+                            }
+                            className="h-[15px] w-[15px] shrink-0 accent-brand"
+                          />
+                          <span className="min-w-0 flex-1 truncate">{size.name}</span>
+                          <span className="text-xs text-ink-muted tabular-nums">
+                            {size.dims}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </Field>
+                  <Field label="Description of the creative">
+                    <textarea
+                      value={draft.creativeDescription}
+                      onChange={(e) =>
+                        updateFields({ creativeDescription: e.target.value })
+                      }
+                      rows={5}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Tags">
+                    <TagPicker
+                      value={draft.tags}
+                      onChange={(tags) => updateFields({ tags })}
+                    />
+                  </Field>
                 </div>
               </>
             ) : (

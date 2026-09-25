@@ -5,6 +5,7 @@ import {
   MARKET_OPTIONS,
   PLATFORM_OPTIONS,
   SIZE_OPTIONS,
+  TAG_OPTIONS,
   type Ad,
 } from "@/lib/ads";
 
@@ -14,6 +15,8 @@ import {
 export type AdDraft = {
   adName: string;
   mediaType: "image" | "video";
+  primaryText: string;
+  brandName: string;
   kicker: string;
   headline: string;
   sub: string;
@@ -25,6 +28,8 @@ export type AdDraft = {
   platforms: string[];
   dominantColor: string;
   sizes: string[];
+  creativeDescription: string;
+  tags: string[];
   canvaUrl: string;
   photoUrl?: string;
   photoDims?: { width: number; height: number };
@@ -48,6 +53,8 @@ export function emptyDraft(): AdDraft {
   return {
     adName: "",
     mediaType: "image",
+    primaryText: "",
+    brandName: "",
     kicker: "",
     headline: "",
     sub: "",
@@ -59,6 +66,8 @@ export function emptyDraft(): AdDraft {
     platforms: ["META"],
     dominantColor: DOMINANT_COLORS[0].name,
     sizes: [],
+    creativeDescription: "",
+    tags: [],
     canvaUrl: "",
   };
 }
@@ -95,6 +104,10 @@ export function draftToAd(draft: AdDraft): Omit<Ad, "id" | "createdAt"> {
     sub: draft.sub || undefined,
     cta: draft.cta || undefined,
     description: draft.description || undefined,
+    primaryText: draft.primaryText || undefined,
+    brandName: draft.brandName || undefined,
+    creativeDescription: draft.creativeDescription || undefined,
+    tags: draft.tags,
     mediaType: draft.mediaType,
     swatch: swatch.bg,
     light: swatch.light,
@@ -120,6 +133,8 @@ export function adToDraft(ad: Ad): AdDraft {
   return {
     adName: ad.title,
     mediaType: ad.mediaType,
+    primaryText: ad.primaryText ?? "",
+    brandName: ad.brandName ?? "",
     kicker: ad.eyebrow ?? "",
     headline: ad.headline,
     sub: ad.sub ?? "",
@@ -131,6 +146,8 @@ export function adToDraft(ad: Ad): AdDraft {
     platforms: ad.platforms,
     dominantColor,
     sizes: SIZE_OPTIONS.some((s) => s.name === ad.format) ? [ad.format] : [],
+    creativeDescription: ad.creativeDescription ?? "",
+    tags: ad.tags ?? [],
     canvaUrl: ad.canvaUrl ?? "",
     photoUrl: ad.photo,
   };
@@ -183,6 +200,9 @@ function normalizeKey(s: string): string {
 const FIELD_ALIASES: Record<string, string> = {
   adname: "adname",
   mediatype: "mediatype",
+  primarytext: "primarytext",
+  brandname: "brandname",
+  brand: "brandname",
   kicker: "kicker",
   headline: "headline",
   sub: "sub",
@@ -201,6 +221,11 @@ const FIELD_ALIASES: Record<string, string> = {
   placementsizes: "sizes",
   dominantcolor: "dominantcolor",
   dominantcolour: "dominantcolor",
+  descriptionofthecreative: "creativedescription",
+  descriptionofthecreativein250words: "creativedescription",
+  creativedescription: "creativedescription",
+  tags: "tags",
+  tag: "tags",
   canvaurl: "canvaurl",
   canvalink: "canvaurl",
   canvatemplatelink: "canvaurl",
@@ -291,6 +316,29 @@ export function applyCsvToDraft(
       matched++;
     }
   }
+  if (row.primarytext) {
+    draft.primaryText = row.primarytext;
+    matched++;
+  }
+  if (row.brandname) {
+    draft.brandName = row.brandname;
+    matched++;
+  }
+  if (row.creativedescription) {
+    draft.creativeDescription = row.creativedescription;
+    matched++;
+  }
+  if (row.tags) {
+    const list = row.tags
+      .split(/[,;|]/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .map((t) => findOption(TAG_OPTIONS, t) ?? t);
+    if (list.length) {
+      draft.tags = list;
+      matched++;
+    }
+  }
   const categoryVal = row.category ? findOption(CATEGORY_OPTIONS, row.category) : undefined;
   if (categoryVal) {
     draft.category = categoryVal;
@@ -308,7 +356,7 @@ export function applyCsvToDraft(
   }
   if (row.platforms) {
     const list = row.platforms
-      .split(/[;|]/)
+      .split(/[,;|]/)
       .map((v) => findOption(PLATFORM_OPTIONS, v))
       .filter((v): v is string => !!v);
     if (list.length) {
@@ -318,7 +366,7 @@ export function applyCsvToDraft(
   }
   if (row.sizes) {
     const list = row.sizes
-      .split(/[;|]/)
+      .split(/[,;|]/)
       .map((v) => matchSizeOption(v))
       .filter((v): v is string => !!v);
     if (list.length) {

@@ -295,30 +295,33 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
             </div>
           </div>
 
-          {(ad.eyebrow || ad.headline || ad.sub || ad.cta) && (
+          {ad.primaryText && (
+            <div className="mt-8">
+              <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+                Primary text
+              </p>
+              <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-ink">
+                {ad.primaryText}
+              </p>
+            </div>
+          )}
+
+          {(ad.brandName || ad.headline || ad.cta) && (
             <div className="mt-8">
               <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
                 Ad copy
               </p>
               <div className="mt-2 divide-y divide-ink/10 border-t border-ink/10">
-                {ad.eyebrow && (
+                {ad.brandName && (
                   <div className="flex justify-between gap-4 py-3 text-sm">
-                    <span className="shrink-0 text-ink-muted">Kicker</span>
-                    <span className="text-right text-ink">{ad.eyebrow}</span>
+                    <span className="shrink-0 text-ink-muted">Brand name</span>
+                    <span className="text-right text-ink">{ad.brandName}</span>
                   </div>
                 )}
                 <div className="flex justify-between gap-4 py-3 text-sm">
                   <span className="shrink-0 text-ink-muted">Headline</span>
                   <span className="text-right text-ink">{ad.headline}</span>
                 </div>
-                {ad.sub && (
-                  <div className="flex justify-between gap-4 py-3 text-sm">
-                    <span className="shrink-0 text-ink-muted">
-                      Supporting line
-                    </span>
-                    <span className="text-right text-ink">{ad.sub}</span>
-                  </div>
-                )}
                 {ad.cta && (
                   <div className="flex justify-between gap-4 py-3 text-sm">
                     <span className="shrink-0 text-ink-muted">
@@ -339,6 +342,35 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
               <p className="mt-2 text-sm leading-relaxed text-ink">
                 {ad.description}
               </p>
+            </div>
+          )}
+
+          {ad.creativeDescription && (
+            <div className="mt-8">
+              <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+                Description of the creative
+              </p>
+              <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-ink">
+                {ad.creativeDescription}
+              </p>
+            </div>
+          )}
+
+          {ad.tags && ad.tags.length > 0 && (
+            <div className="mt-8">
+              <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+                Tags
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {ad.tags.map((tag, i) => (
+                  <span
+                    key={i}
+                    className="border border-border px-2 py-0.5 text-xs text-ink"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>

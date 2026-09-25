@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "@/components/Link";
 import AppHeader from "@/components/AppHeader";
+import TagPicker from "@/components/TagPicker";
 import {
   CATEGORY_OPTIONS,
   DOMINANT_COLORS,
@@ -48,6 +49,41 @@ function Row({
         <div className="min-w-0 flex-1">{edit}</div>
       ) : (
         <span className="text-right text-ink">{value}</span>
+      )}
+    </div>
+  );
+}
+
+// A labelled block of longer copy (description, primary text…). In edit mode
+// it becomes a textarea; in view mode it's hidden when empty.
+function TextSection({
+  label,
+  value,
+  editing,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  editing: boolean;
+  onChange: (value: string) => void;
+}) {
+  if (!editing && !value) return null;
+  return (
+    <div className="mt-8">
+      <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+        {label}
+      </p>
+      {editing ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={4}
+          className={`mt-2 ${inputClass}`}
+        />
+      ) : (
+        <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-ink">
+          {value}
+        </p>
       )}
     </div>
   );
@@ -136,7 +172,7 @@ export default function AdEditor({
   }
 
   const ad = draftToAd(draft);
-  const hasCopy = !!(draft.kicker || draft.headline || draft.sub || draft.cta);
+  const hasCopy = !!(draft.brandName || draft.headline || draft.cta);
   const submitButton = (
     <button
       type="button"
@@ -451,6 +487,13 @@ export default function AdEditor({
             </div>
           </div>
 
+          <TextSection
+            label="Primary text"
+            value={draft.primaryText}
+            editing={editing}
+            onChange={(primaryText) => update({ primaryText })}
+          />
+
           {(editing || hasCopy) && (
             <div className="mt-8">
               <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
@@ -459,9 +502,8 @@ export default function AdEditor({
               <div className="mt-2 divide-y divide-ink/10 border-t border-ink/10">
                 {(
                   [
-                    ["Kicker", "kicker"],
+                    ["Brand name", "brandName"],
                     ["Headline", "headline"],
-                    ["Supporting line", "sub"],
                     ["Call to action", "cta"],
                   ] as const
                 ).map(([label, key]) => (
@@ -484,22 +526,43 @@ export default function AdEditor({
             </div>
           )}
 
-          {(editing || draft.description) && (
+          <TextSection
+            label="Description"
+            value={draft.description}
+            editing={editing}
+            onChange={(description) => update({ description })}
+          />
+
+          <TextSection
+            label="Description of the creative"
+            value={draft.creativeDescription}
+            editing={editing}
+            onChange={(creativeDescription) => update({ creativeDescription })}
+          />
+
+          {(editing || draft.tags.length > 0) && (
             <div className="mt-8">
               <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
-                Description
+                Tags
               </p>
               {editing ? (
-                <textarea
-                  value={draft.description}
-                  onChange={(e) => update({ description: e.target.value })}
-                  rows={4}
-                  className={`mt-2 ${inputClass}`}
-                />
+                <div className="mt-2">
+                  <TagPicker
+                    value={draft.tags}
+                    onChange={(tags) => update({ tags })}
+                  />
+                </div>
               ) : (
-                <p className="mt-2 text-sm leading-relaxed text-ink">
-                  {draft.description}
-                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {draft.tags.map((tag, i) => (
+                    <span
+                      key={i}
+                      className="border border-border px-2 py-0.5 text-xs text-ink"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           )}
