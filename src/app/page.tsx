@@ -83,6 +83,8 @@ type LibraryCard = {
   photo?: string;
   video: boolean;
   platforms: string[];
+  featured: boolean;
+  inHero: boolean;
   // Text drawn over the card; left empty for photo creatives, which already
   // carry their own copy.
   tag?: string;
@@ -105,6 +107,8 @@ function fromLibraryAd(ad: LibraryAd, href: string): LibraryCard {
     photo: ad.photo,
     video: ad.mediaType === "video",
     platforms: ad.platforms,
+    featured: !!ad.featured,
+    inHero: !!ad.showInHero,
     tag: ad.eyebrow?.toUpperCase(),
     headline: ad.headline,
     cta: ad.cta?.toUpperCase(),
@@ -123,6 +127,8 @@ function fromSample(ad: Ad, href: string): LibraryCard {
     href,
     video: false,
     platforms: [ad.platform],
+    featured: false,
+    inHero: false,
     tag: ad.tag,
     headline: ad.headline,
     cta: ad.cta,
@@ -213,10 +219,18 @@ export default function LandingPage() {
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
           .map((ad) => fromLibraryAd(ad, signedIn ? `/ads/${ad.id}` : "#signup"))
       : ADS.map((ad) => fromSample(ad, signedIn ? "/library" : "#signup"));
-  const platforms = allPlatforms(libraryCards);
-  const heroAds = libraryCards.filter((c) => platform === "All" || c.platforms.includes(platform)).slice(0, 6);
-  const categories = topCategories(libraryCards);
-  const libraryAds = libraryCards.filter((c) => category === "All" || c.category === category).slice(0, 4);
+  // The hero panel shows the ads an admin picked for it in Admin → Home
+  // section (up to six); until they pick some, it shows the newest.
+  const heroPicked = libraryCards.filter((c) => c.inHero);
+  const heroCards = heroPicked.length > 0 ? heroPicked : libraryCards;
+  const platforms = allPlatforms(heroCards);
+  const heroAds = heroCards.filter((c) => platform === "All" || c.platforms.includes(platform)).slice(0, 6);
+  // The library section shows every ad an admin picked in Admin → Home
+  // section; until they pick some, it shows the four newest.
+  const featuredCards = libraryCards.filter((c) => c.featured);
+  const sectionCards = featuredCards.length > 0 ? featuredCards : libraryCards.slice(0, 4);
+  const categories = topCategories(sectionCards);
+  const libraryAds = sectionCards.filter((c) => category === "All" || c.category === category);
 
   function handleSignup(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

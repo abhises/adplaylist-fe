@@ -28,6 +28,10 @@ export type Ad = {
   canvaUrl?: string;
   dominantColor?: string;
   videoLength?: string;
+  // Picked by an admin to show on the landing page: `featured` in the
+  // library section, `showInHero` in the hero's product panel.
+  featured?: boolean;
+  showInHero?: boolean;
   createdAt: string;
 };
 
@@ -225,6 +229,15 @@ export const api = {
   updateAd: (id: string, data: Partial<Ad>) =>
     request<{ ad: Ad }>(`/api/ads/${id}`, {
       method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  setAdHomeSection: (
+    id: string,
+    data: { featured?: boolean; showInHero?: boolean }
+  ) =>
+    request<{ ad: Ad }>(`/api/ads/${id}/home-section`, {
+      method: "PATCH",
       body: JSON.stringify(data),
     }),
 
