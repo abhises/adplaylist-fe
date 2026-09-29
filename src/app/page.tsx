@@ -293,7 +293,7 @@ export default function LandingPage() {
       </header>
 
       {/* HERO */}
-      <section id="top" className="flex min-h-[calc(100svh-72px)] flex-col overflow-hidden bg-[#EC3016] text-white">
+      <section id="top" className="scroll-mt-[72px] flex min-h-[calc(100svh-72px)] flex-col overflow-hidden bg-[#EC3016] text-white">
         <div
           className={`${container} grid w-full flex-1 content-center items-center gap-10 py-[clamp(40px,7vw,64px)]`}
           style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,460px),1fr))" }}
@@ -419,7 +419,7 @@ export default function LandingPage() {
       {/* HOW IT WORKS */}
       <section
         id="how"
-        className={`${container} pt-[clamp(100px,12vw,140px)] pb-[clamp(64px,9vw,100px)]`}
+        className={`scroll-mt-[72px] ${container} pt-[clamp(100px,12vw,140px)] pb-[clamp(64px,9vw,100px)]`}
       >
         <div className={`${mono} text-[#EC3016]`}>HOW IT WORKS</div>
         <h2 className={`${h2} mt-[14px] max-w-[720px] text-balance`}>
@@ -440,7 +440,7 @@ export default function LandingPage() {
       </section>
 
       {/* LIBRARY */}
-      <section id="library" className="bg-[#161514] text-white">
+      <section id="library" className="scroll-mt-[72px] bg-[#161514] text-white">
         <div className={`${container} py-[clamp(64px,9vw,100px)]`}>
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
@@ -533,7 +533,7 @@ export default function LandingPage() {
       </section>
 
       {/* REQUEST */}
-      <section id="request" className={`${container} py-[clamp(64px,10vw,110px)]`}>
+      <section id="request" className={`scroll-mt-[72px] ${container} py-[clamp(64px,10vw,110px)]`}>
         <div
           className="grid items-center gap-16"
           style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))" }}
@@ -592,7 +592,7 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="border-t border-[#dcd9d5]">
+      <section id="faq" className="scroll-mt-[72px] border-t border-[#dcd9d5]">
         <div className="mx-auto max-w-[960px] px-[clamp(20px,4vw,32px)] py-[clamp(64px,9vw,100px)]">
           <h2 className="mb-8 text-[clamp(32px,4vw,48px)] font-extrabold tracking-[-0.03em]">Questions</h2>
           {FAQS.map((f, i) => {
