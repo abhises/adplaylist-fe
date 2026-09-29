@@ -30,14 +30,24 @@ export default function AdCard({
           } ${ad.photo ? "bg-ink/5" : ""}`}
         >
           {ad.photo ? (
-            // Creatives come in many shapes, so fit the whole image in the
-            // card rather than cropping it to fill.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={ad.photo}
-              alt=""
-              className="absolute inset-0 h-full w-full object-contain"
-            />
+            // Show the whole creative (never crop it), and fill the space
+            // around it with a blurred, cropped copy of the same image so the
+            // card has no empty bands. Both zoom together on hover.
+            <div className="absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-110">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ad.photo}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 h-full w-full scale-110 object-cover blur-xl brightness-90"
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ad.photo}
+                alt=""
+                className="absolute inset-0 h-full w-full object-contain"
+              />
+            </div>
           ) : (
             <div
               className={`absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-110 ${ad.swatch}`}
