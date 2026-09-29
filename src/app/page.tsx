@@ -64,6 +64,8 @@ const NAV_LINKS = [
 
 const mono = "font-mono text-[12px] tracking-[0.08em]";
 const container = "mx-auto max-w-[1320px] px-[clamp(20px,4vw,32px)]";
+// The nav bar has a fixed height so the hero can fill exactly the rest of the screen.
+const NAV_HEIGHT = "h-[72px]";
 const h2 = "text-[clamp(36px,4.5vw,56px)] leading-none font-extrabold tracking-[-0.03em]";
 // On phones, chip rows scroll sideways instead of wrapping onto extra lines.
 const chipRow =
@@ -225,7 +227,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#F3F2F0] leading-[normal] text-[#161514]">
       {/* NAV */}
       <header className="sticky top-0 z-20 bg-[#EC3016] text-white">
-        <div className={`${container} flex items-center justify-between gap-6 py-[14px]`}>
+        <div className={`${container} flex ${NAV_HEIGHT} items-center justify-between gap-6`}>
           <a href="#top" className="text-[14px] font-extrabold tracking-[0.18em]">
             ADPLAYLIST
           </a>
@@ -291,12 +293,12 @@ export default function LandingPage() {
       </header>
 
       {/* HERO */}
-      <section id="top" className="overflow-hidden bg-[#EC3016] text-white">
+      <section id="top" className="flex min-h-[calc(100svh-72px)] flex-col overflow-hidden bg-[#EC3016] text-white">
         <div
-          className={`${container} grid items-end gap-10 pt-[clamp(40px,7vw,64px)]`}
+          className={`${container} grid w-full flex-1 content-center items-center gap-10 py-[clamp(40px,7vw,64px)]`}
           style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,460px),1fr))" }}
         >
-          <div className="pb-8">
+          <div>
             <div className={`${mono} flex items-center gap-[10px] uppercase`}>
               <span className="h-2 w-2 rounded-full bg-white" />
               <span>The ad library for your whole team</span>
@@ -343,7 +345,7 @@ export default function LandingPage() {
           </div>
 
           {/* Product mock */}
-          <div className="mb-[-40px] self-end bg-white text-[#161514] shadow-[0_30px_80px_rgba(60,10,0,0.35)]">
+          <div className="bg-white text-[#161514] shadow-[0_30px_80px_rgba(60,10,0,0.35)]">
             <div className="flex items-center gap-3 border-b border-[#e7e5e2] px-[18px] py-[14px]">
               <div className="flex min-w-0 flex-1 items-center gap-[10px] bg-[#F3F2F0] px-[14px] py-[10px] text-[14px] text-[#6b6864]">
                 <span className="h-3 w-3 shrink-0 rounded-full border-2 border-[#6b6864]" />
