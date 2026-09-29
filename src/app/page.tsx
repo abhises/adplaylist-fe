@@ -160,6 +160,24 @@ function ctaColors(ad: Ad) {
   return ad.bg === RED ? { background: "#fff", color: RED } : { background: RED, color: "#fff" };
 }
 
+// A card's creative (or colour swatch) filling its square, zooming in on
+// hover. Non-square photos are cropped to fit, like the library's AdCard.
+function CardBackground({ ad }: { ad: LibraryCard }) {
+  return (
+    <div
+      className={`absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-110 ${
+        ad.photo ? "bg-[#eeece9]" : (ad.bgClass ?? "")
+      }`}
+      style={ad.photo ? undefined : ad.bgStyle}
+    >
+      {ad.photo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={ad.photo} alt={ad.name} className="h-full w-full object-cover" />
+      )}
+    </div>
+  );
+}
+
 function Chip({
   label,
   active,
@@ -387,27 +405,23 @@ export default function LandingPage() {
                     <div
                       key={i}
                       aria-hidden
-                      className={`aspect-[4/5] animate-pulse bg-[#eeece9] ${i >= 4 ? "max-[479px]:hidden" : ""}`}
+                      className={`aspect-square animate-pulse bg-[#eeece9] ${i >= 4 ? "max-[479px]:hidden" : ""}`}
                     />
                   ))
                 : heroAds.map((ad, i) => (
                     <Link
                       key={ad.key}
                       href={ad.href}
-                      className={`relative flex aspect-[4/5] flex-col justify-between overflow-hidden p-[10px] ${
-                        ad.photo ? "bg-[#eeece9]" : (ad.bgClass ?? "")
-                      } ${i >= 4 ? "max-[479px]:hidden" : ""}`}
-                      style={{ ...ad.bgStyle, color: ad.fg }}
+                      className={`group relative flex aspect-square flex-col justify-between overflow-hidden p-[10px] ${
+                        i >= 4 ? "max-[479px]:hidden" : ""
+                      }`}
+                      style={{ color: ad.fg }}
                     >
-                      {ad.photo ? (
-                        // Tiles here are tiny thumbnails, so fill them; the
-                        // library section below shows each creative whole.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={ad.photo} alt={ad.name} className="absolute inset-0 h-full w-full object-cover" />
-                      ) : (
+                      <CardBackground ad={ad} />
+                      {!ad.photo && (
                         <>
-                          <div className="truncate text-[9px] font-bold tracking-[0.1em]">{ad.tag}</div>
-                          <div>
+                          <div className="relative truncate text-[9px] font-bold tracking-[0.1em]">{ad.tag}</div>
+                          <div className="relative">
                             <div className="text-[clamp(11px,2.6vw,13px)] leading-[1.1] font-extrabold">{ad.headline}</div>
                             {ad.cta && (
                               <div className="mt-[6px] inline-block px-[6px] py-[3px] text-[8px] font-extrabold" style={ad.ctaStyle}>
@@ -480,7 +494,7 @@ export default function LandingPage() {
             {liveAds === null
               ? Array.from({ length: 4 }, (_, i) => (
                   <div key={i} className="flex flex-col gap-[14px]" aria-hidden>
-                    <div className="aspect-[4/5] animate-pulse bg-white/10" />
+                    <div className="aspect-square animate-pulse bg-white/10" />
                     <div className="h-[38px] animate-pulse bg-white/5" />
                   </div>
                 ))
@@ -488,20 +502,14 @@ export default function LandingPage() {
                   <div key={ad.key} className="flex min-w-0 flex-col gap-[14px]">
                     <Link
                       href={ad.href}
-                      className={`relative flex aspect-[4/5] flex-col justify-between overflow-hidden p-[18px] ${
-                        ad.photo ? "bg-[#232120]" : (ad.bgClass ?? "")
-                      }`}
-                      style={{ ...ad.bgStyle, color: ad.fg }}
+                      className="group relative flex aspect-square flex-col justify-between overflow-hidden p-[18px]"
+                      style={{ color: ad.fg }}
                     >
-                      {ad.photo ? (
-                        // Creatives come in many shapes, so show the whole
-                        // image rather than cropping it (as AdCard does).
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={ad.photo} alt={ad.name} className="absolute inset-0 h-full w-full object-contain" />
-                      ) : (
+                      <CardBackground ad={ad} />
+                      {!ad.photo && (
                         <>
-                          <div className="text-[11px] font-bold tracking-[0.12em]">{ad.tag}</div>
-                          <div>
+                          <div className="relative text-[11px] font-bold tracking-[0.12em]">{ad.tag}</div>
+                          <div className="relative">
                             <div className="text-[24px] leading-[1.1] font-extrabold tracking-[-0.01em]">{ad.headline}</div>
                             {ad.cta && (
                               <div className="mt-3 inline-block px-[11px] py-[7px] text-[11px] font-extrabold" style={ad.ctaStyle}>
