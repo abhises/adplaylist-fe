@@ -1,190 +1,654 @@
 "use client";
 
+import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import Link from "@/components/Link";
 import { useAuth } from "@/lib/AuthProvider";
+import { api, type Ad as LibraryAd } from "@/lib/api";
 
-const FEATURES = [
-  {
-    title: "Browse the library",
-    desc: "Every ad the team has ever shipped, filterable by platform, category, market, and language.",
-  },
-  {
-    title: "Save what you like",
-    desc: "Bookmark creatives for this quarter's campaigns. Saving never locks an ad — anyone on the team can still use it.",
-  },
-  {
-    title: "Request new creatives",
-    desc: "Ask the creative team for a new size, a market, or a brand-new ad. Average turnaround 3 working days.",
-  },
+// The landing page keeps its own fixed light palette (it doesn't follow the
+// app's dark theme), so colors here are literal rather than theme tokens.
+const RED = "#EC3016";
+const INK = "#161514";
+
+type Ad = {
+  name: string;
+  tag: string;
+  headline: string;
+  cta: string;
+  bg: string;
+  fg: string;
+  platform: string;
+  cat: string;
+  meta: string;
+};
+
+const ADS: Ad[] = [
+  { name: "Spring drop — hero", tag: "SPRING DROP", headline: "Built for the long walk home.", cta: "SHOP NOW", bg: "linear-gradient(180deg,#444 0%,#000 75%)", fg: "#fff", platform: "Meta", cat: "Retail", meta: "Meta · 4:5 · EN-US" },
+  { name: "Members sale", tag: "MEMBERS", headline: "30% off. Ends Sunday.", cta: "JOIN NOW", bg: RED, fg: "#fff", platform: "Google", cat: "Retail", meta: "Google · 1:1 · EN-GB" },
+  { name: "New formula launch", tag: "NEW FORMULA", headline: "Ten drops. One week.", cta: "TRY IT", bg: "linear-gradient(160deg,#ffa6cf,#ff6b8a)", fg: "#fff", platform: "TikTok", cat: "Beauty", meta: "TikTok · 9:16 · EN-US" },
+  { name: "Season nine", tag: "SEASON NINE", headline: "The rift opens tonight.", cta: "PLAY FREE", bg: "radial-gradient(120% 90% at 100% 100%,#000 20%,#5b1a9a 60%,#6a1aa6)", fg: "#fff", platform: "YouTube", cat: "Gaming", meta: "YouTube · 16:9 · DE-DE" },
+  { name: "Weekend brunch", tag: "THIS WEEKEND", headline: "Pancakes on us.", cta: "ORDER", bg: "#F5D547", fg: INK, platform: "Meta", cat: "Food", meta: "Meta · 1:1 · FR-FR" },
+  { name: "Cloud tier", tag: "FOR TEAMS", headline: "Ship faster, together.", cta: "START FREE", bg: "linear-gradient(200deg,#1f4dff,#0a1a66)", fg: "#fff", platform: "Google", cat: "Software", meta: "Google · 1.91:1 · EN-US" },
+  { name: "Glow serum", tag: "BEST SELLER", headline: "Your skin, but louder.", cta: "SHOP", bg: "#F2E6DA", fg: INK, platform: "Meta", cat: "Beauty", meta: "Meta · 4:5 · ES-ES" },
+  { name: "Ranked season", tag: "RANKED", headline: "Climb or be climbed.", cta: "PLAY NOW", bg: "linear-gradient(180deg,#0e3b2e,#000)", fg: "#fff", platform: "TikTok", cat: "Gaming", meta: "TikTok · 9:16 · EN-US" },
 ];
 
-const PREVIEW_CARDS = [
-  {
-    id: "preview-1",
-    eyebrow: "Spring drop",
-    headline: "Built for the long walk home.",
-    cta: "Shop now",
-    swatch: "bg-gradient-to-b from-neutral-700 via-neutral-800 to-black",
-  },
-  {
-    id: "preview-2",
-    headline: "30% off",
-    sub: "Ends Sunday. Members only.",
-    swatch: "bg-brand",
-  },
-  {
-    id: "preview-3",
-    eyebrow: "New formula",
-    headline: "Ten drops. One week.",
-    cta: "Try it",
-    swatch: "bg-gradient-to-br from-pink-300 to-rose-400",
-  },
-  {
-    id: "preview-4",
-    eyebrow: "Season nine",
-    headline: "The rift opens tonight.",
-    cta: "Play free",
-    swatch: "bg-gradient-to-br from-purple-800 via-purple-900 to-black",
-  },
+const REQUEST_TYPES = ["New size", "New market", "Brand-new ad"];
+
+const REQUEST_NOTES: Record<string, string> = {
+  "New size": "Need a 9:16 version for Stories, same copy.",
+  "New market": "Localise for DE-DE. Keep the offer, swap the price to €.",
+  "Brand-new ad": "Launch ad for the autumn range. Same tone as this one.",
+};
+
+const STEPS = [
+  { n: "01", title: "Browse the library", desc: "Every ad the team has ever shipped, filterable by platform, category, market, and language." },
+  { n: "02", title: "Open an editable copy", desc: "Swap the headline, offer, or market. The original stays untouched, so anyone on the team can still use it." },
+  { n: "03", title: "Save and ship", desc: "Bookmark creatives for this quarter's campaigns. Saving never locks an ad." },
 ];
+
+const FAQS = [
+  { q: "Who can use adplaylist?", a: "Anyone on your team. Marketers, regional leads, and agencies can browse, save, and open editable copies without waiting on design." },
+  { q: "Does editing a copy change the original?", a: "No. Opening an ad creates your own editable copy. The original stays in the library for everyone else." },
+  { q: "How long do new creative requests take?", a: "Average turnaround is 3 working days, whether you need a new size, a new market, or a brand-new ad." },
+  { q: "What can I filter by?", a: "Platform, category, market, and language." },
+];
+
+const NAV_LINKS = [
+  { href: "#how", label: "How it works" },
+  { href: "#library", label: "Library" },
+  { href: "#request", label: "Request" },
+  { href: "#faq", label: "FAQ" },
+];
+
+const mono = "font-mono text-[12px] tracking-[0.08em]";
+const container = "mx-auto max-w-[1320px] px-[clamp(20px,4vw,32px)]";
+const h2 = "text-[clamp(36px,4.5vw,56px)] leading-none font-extrabold tracking-[-0.03em]";
+// On phones, chip rows scroll sideways instead of wrapping onto extra lines.
+const chipRow =
+  "flex gap-2 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:[scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden";
+
+// One card in the "What's in the library" section. Live ads from the API and
+// the design's sample ads (the fallback when the API is unreachable or the
+// library is empty) are both mapped to this shape.
+type LibraryCard = {
+  key: string;
+  name: string;
+  meta: string;
+  category: string;
+  href: string;
+  photo?: string;
+  video: boolean;
+  platforms: string[];
+  // Text drawn over the card; left empty for photo creatives, which already
+  // carry their own copy.
+  tag?: string;
+  headline?: string;
+  cta?: string;
+  bgClass?: string;
+  bgStyle?: CSSProperties;
+  fg: string;
+  ctaStyle: CSSProperties;
+};
+
+function fromLibraryAd(ad: LibraryAd, href: string): LibraryCard {
+  const light = ad.light && !ad.photo;
+  return {
+    key: ad.id,
+    name: ad.title,
+    meta: [ad.platforms[0], ad.format, ad.market].filter(Boolean).join(" · "),
+    category: ad.category,
+    href,
+    photo: ad.photo,
+    video: ad.mediaType === "video",
+    platforms: ad.platforms,
+    tag: ad.eyebrow?.toUpperCase(),
+    headline: ad.headline,
+    cta: ad.cta?.toUpperCase(),
+    bgClass: ad.swatch,
+    fg: light ? INK : "#fff",
+    ctaStyle: { background: RED, color: "#fff" },
+  };
+}
+
+function fromSample(ad: Ad, href: string): LibraryCard {
+  return {
+    key: ad.name,
+    name: ad.name,
+    meta: ad.meta,
+    category: ad.cat,
+    href,
+    video: false,
+    platforms: [ad.platform],
+    tag: ad.tag,
+    headline: ad.headline,
+    cta: ad.cta,
+    bgStyle: { background: ad.bg },
+    fg: ad.fg,
+    ctaStyle: ctaColors(ad),
+  };
+}
+
+// "All" plus every platform the cards run on, in first-seen order.
+function allPlatforms(cards: LibraryCard[]) {
+  return ["All", ...new Set(cards.flatMap((c) => c.platforms))];
+}
+
+// The API stores Meta as "META"; show it the way the design does.
+function platformLabel(platform: string) {
+  return platform === "META" ? "Meta" : platform;
+}
+
+// "All" plus the library's three biggest categories.
+function topCategories(cards: LibraryCard[]) {
+  const counts = new Map<string, number>();
+  for (const c of cards) counts.set(c.category, (counts.get(c.category) ?? 0) + 1);
+  const top = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name]) => name);
+  return ["All", ...top];
+}
+
+function ctaColors(ad: Ad) {
+  return ad.bg === RED ? { background: "#fff", color: RED } : { background: RED, color: "#fff" };
+}
+
+function Chip({
+  label,
+  active,
+  onClick,
+  dark = false,
+  className = "",
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  dark?: boolean;
+  className?: string;
+}) {
+  const style = active
+    ? { background: dark ? "#fff" : INK, color: dark ? INK : "#fff", borderColor: dark ? "#fff" : INK }
+    : { background: "transparent", color: dark ? "#fff" : INK, borderColor: dark ? "#4a4744" : "#d9d6d2" };
+  return (
+    <button type="button" onClick={onClick} style={style} className={`shrink-0 border font-semibold whitespace-nowrap ${className}`}>
+      {label}
+    </button>
+  );
+}
 
 export default function LandingPage() {
+  const router = useRouter();
   const { user, ready } = useAuth();
+  const signedIn = ready && !!user;
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [platform, setPlatform] = useState("All");
+  const [category, setCategory] = useState("All");
+  const [requestType, setRequestType] = useState("New market");
+  const [openFaq, setOpenFaq] = useState(0);
+  // null while the first fetch is in flight; [] if it failed.
+  const [liveAds, setLiveAds] = useState<LibraryAd[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getAds()
+      .then(({ ads }) => {
+        if (!cancelled) setLiveAds(ads);
+      })
+      .catch(() => {
+        if (!cancelled) setLiveAds([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Logged-out visitors can't open an ad yet, so cards send them to sign up.
+  const libraryCards: LibraryCard[] =
+    liveAds && liveAds.length > 0
+      ? [...liveAds]
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+          .map((ad) => fromLibraryAd(ad, signedIn ? `/ads/${ad.id}` : "#signup"))
+      : ADS.map((ad) => fromSample(ad, signedIn ? "/library" : "#signup"));
+  const platforms = allPlatforms(libraryCards);
+  const heroAds = libraryCards.filter((c) => platform === "All" || c.platforms.includes(platform)).slice(0, 6);
+  const categories = topCategories(libraryCards);
+  const libraryAds = libraryCards.filter((c) => category === "All" || c.category === category).slice(0, 4);
+
+  function handleSignup(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    router.push(`/signup?email=${encodeURIComponent(email)}`);
+  }
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface">
-      <header className="bg-brand">
-        <div className="flex items-center justify-between px-10 py-6">
-          <span className="text-sm font-extrabold tracking-[2px] text-brand-foreground uppercase">
-            Adplaylist
-          </span>
-          <nav className="flex items-center gap-4">
-            <Link
-              href="/blog"
-              className="text-sm font-medium text-brand-foreground"
-            >
-              Blog
-            </Link>
-            {ready && user ? (
-              <Link
-                href="/library"
-                className="bg-brand-foreground px-4 py-2 text-sm font-bold text-brand"
-              >
+    <div className="min-h-screen bg-[#F3F2F0] leading-[normal] text-[#161514]">
+      {/* NAV */}
+      <header className="sticky top-0 z-20 bg-[#EC3016] text-white">
+        <div className={`${container} flex items-center justify-between gap-6 py-[14px]`}>
+          <a href="#top" className="text-[14px] font-extrabold tracking-[0.18em]">
+            ADPLAYLIST
+          </a>
+          <nav className="hidden flex-wrap items-center gap-7 text-[15px] font-medium min-[820px]:flex">
+            {NAV_LINKS.map((l) => (
+              <a key={l.href} href={l.href}>
+                {l.label}
+              </a>
+            ))}
+            {signedIn ? (
+              <Link href="/library" className="bg-white px-[18px] py-[10px] font-bold text-[#EC3016]">
                 Go to Library
               </Link>
             ) : (
               <>
-                <Link
-                  href="/login"
-                  className="text-sm font-medium text-brand-foreground"
-                >
-                  Sign in
-                </Link>
-                <Link
-                  href="/signup"
-                  className="border border-brand-foreground px-4 py-2 text-sm font-bold text-brand-foreground"
-                >
-                  Sign up
-                </Link>
+                <Link href="/login">Sign in</Link>
+                <a href="#signup" className="bg-white px-[18px] py-[10px] font-bold text-[#EC3016]">
+                  Sign up free
+                </a>
               </>
             )}
           </nav>
-        </div>
-
-        <div className="px-10 pt-8 pb-20">
-          <h1 className="max-w-2xl text-[56px] leading-[0.98] font-extrabold text-brand-foreground">
-            Your next ad is here.
-          </h1>
-          <div className="mt-6 h-px w-full max-w-2xl bg-brand-foreground/30" />
-          <p className="mt-6 max-w-xl text-base text-brand-foreground">
-            Browse the creatives in adplaylist, then open any one as an
-            editable copy. One library for every ad your team has ever
-            shipped.
-          </p>
-          <div className="mt-8 flex items-center gap-4">
-            <Link
-              href="/signup"
-              className="bg-brand-foreground px-5 py-2.5 text-sm font-bold text-brand"
+          <div className="flex items-center gap-[10px] min-[820px]:hidden">
+            {signedIn ? (
+              <Link href="/library" className="bg-white px-[14px] py-[10px] text-[14px] font-bold whitespace-nowrap text-[#EC3016]">
+                Go to Library
+              </Link>
+            ) : (
+              <a href="#signup" className="bg-white px-[14px] py-[10px] text-[14px] font-bold whitespace-nowrap text-[#EC3016]">
+                Sign up free
+              </a>
+            )}
+            <button
+              type="button"
+              aria-label="Menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((o) => !o)}
+              className="flex h-11 w-11 items-center justify-center border-[1.5px] border-white bg-transparent text-[20px] text-white"
             >
-              Sign up free
-            </Link>
-            <Link
-              href="/login"
-              className="border border-brand-foreground px-5 py-2.5 text-sm font-bold text-brand-foreground"
-            >
-              Sign in
-            </Link>
+              {menuOpen ? "✕" : "☰"}
+            </button>
           </div>
         </div>
+        {menuOpen && (
+          <nav className="flex flex-col border-t border-white/35 px-[clamp(20px,4vw,32px)] pb-4 min-[820px]:hidden">
+            {NAV_LINKS.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                onClick={() => setMenuOpen(false)}
+                className="border-b border-white/25 py-4 text-[18px] font-semibold"
+              >
+                {l.label}
+              </a>
+            ))}
+            {!signedIn && (
+              <Link href="/login" onClick={() => setMenuOpen(false)} className="py-4 text-[18px] font-semibold">
+                Sign in
+              </Link>
+            )}
+          </nav>
+        )}
       </header>
 
-      <main className="flex-1 px-10 py-16">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="border border-ink/15 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-ink/40 hover:shadow-lg"
-            >
-              <h2 className="text-lg font-extrabold text-ink">{f.title}</h2>
-              <p className="mt-2 text-sm text-ink-muted">{f.desc}</p>
+      {/* HERO */}
+      <section id="top" className="overflow-hidden bg-[#EC3016] text-white">
+        <div
+          className={`${container} grid items-end gap-10 pt-[clamp(40px,7vw,64px)]`}
+          style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,460px),1fr))" }}
+        >
+          <div className="pb-8">
+            <div className={`${mono} flex items-center gap-[10px] uppercase`}>
+              <span className="h-2 w-2 rounded-full bg-white" />
+              <span>The ad library for your whole team</span>
+            </div>
+            <h1 className="mt-6 text-[clamp(48px,7vw,96px)] leading-[0.95] font-extrabold tracking-[-0.035em] text-balance">
+              Your next ad is already made.
+            </h1>
+            <p className="mt-6 max-w-[520px] text-[clamp(17px,2.2vw,20px)] leading-[1.5] text-pretty">
+              Find any creative your team has ever shipped, open it as an editable copy, and launch in minutes. Need
+              something new? Request it from the creative team.
+            </p>
+
+            {signedIn ? (
+              <div id="signup" className="mt-9 flex flex-wrap gap-3">
+                <Link href="/library" className="shrink-0 bg-white px-7 py-4 text-[17px] font-bold whitespace-nowrap text-[#EC3016]">
+                  Go to Library
+                </Link>
+                <Link href="/requests" className="shrink-0 border-[1.5px] border-white px-7 py-4 text-[17px] font-bold whitespace-nowrap">
+                  Request a creative
+                </Link>
+              </div>
+            ) : (
+              <form id="signup" onSubmit={handleSignup} className="mt-9 flex max-w-[520px] flex-wrap bg-white p-[6px]">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  aria-label="Work email"
+                  className="min-w-0 flex-[1_1_220px] border-0 bg-transparent p-[14px] text-[17px] text-[#161514] outline-0 placeholder:text-[#8a8783]"
+                />
+                <button type="submit" className="grow border-0 sm:grow-0 bg-[#161514] px-6 py-[14px] text-[16px] font-bold text-white hover:bg-black">
+                  Sign up free
+                </button>
+              </form>
+            )}
+
+            <div className="mt-4 flex flex-wrap gap-5 text-[14px] opacity-95">
+              <span>✓ Free to join</span>
+              <span>✓ Set up in under a minute</span>
+              <span>✓ No design skills needed</span>
+            </div>
+          </div>
+
+          {/* Product mock */}
+          <div className="mb-[-40px] self-end bg-white text-[#161514] shadow-[0_30px_80px_rgba(60,10,0,0.35)]">
+            <div className="flex items-center gap-3 border-b border-[#e7e5e2] px-[18px] py-[14px]">
+              <div className="flex min-w-0 flex-1 items-center gap-[10px] bg-[#F3F2F0] px-[14px] py-[10px] text-[14px] text-[#6b6864]">
+                <span className="h-3 w-3 shrink-0 rounded-full border-2 border-[#6b6864]" />
+                <span className="truncate">
+                  {liveAds?.length ? `Search ${liveAds.length.toLocaleString()} creatives…` : "Search creatives…"}
+                </span>
+              </div>
+              <span className="bg-[#EC3016] px-[14px] py-[9px] text-[13px] font-bold whitespace-nowrap text-white">+ Request</span>
+            </div>
+            <div className={`${chipRow} px-[18px] py-[14px]`}>
+              {platforms.map((p) => (
+                <Chip
+                  key={p}
+                  label={platformLabel(p)}
+                  active={platform === p}
+                  onClick={() => setPlatform(p)}
+                  className="px-3 py-[7px] text-[13px]"
+                />
+              ))}
+            </div>
+            {/* Two columns (four tiles) on narrow phones, three columns (six tiles) above. */}
+            <div className="grid grid-cols-2 gap-[clamp(6px,1.5vw,10px)] px-[clamp(12px,3vw,18px)] pb-[clamp(12px,3vw,18px)] min-[480px]:grid-cols-3">
+              {liveAds === null
+                ? Array.from({ length: 6 }, (_, i) => (
+                    <div
+                      key={i}
+                      aria-hidden
+                      className={`aspect-[4/5] animate-pulse bg-[#eeece9] ${i >= 4 ? "max-[479px]:hidden" : ""}`}
+                    />
+                  ))
+                : heroAds.map((ad, i) => (
+                    <Link
+                      key={ad.key}
+                      href={ad.href}
+                      className={`relative flex aspect-[4/5] flex-col justify-between overflow-hidden p-[10px] ${
+                        ad.photo ? "bg-[#eeece9]" : (ad.bgClass ?? "")
+                      } ${i >= 4 ? "max-[479px]:hidden" : ""}`}
+                      style={{ ...ad.bgStyle, color: ad.fg }}
+                    >
+                      {ad.photo ? (
+                        // Tiles here are tiny thumbnails, so fill them; the
+                        // library section below shows each creative whole.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={ad.photo} alt={ad.name} className="absolute inset-0 h-full w-full object-cover" />
+                      ) : (
+                        <>
+                          <div className="truncate text-[9px] font-bold tracking-[0.1em]">{ad.tag}</div>
+                          <div>
+                            <div className="text-[clamp(11px,2.6vw,13px)] leading-[1.1] font-extrabold">{ad.headline}</div>
+                            {ad.cta && (
+                              <div className="mt-[6px] inline-block px-[6px] py-[3px] text-[8px] font-extrabold" style={ad.ctaStyle}>
+                                {ad.cta}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                      {ad.platforms.length > 0 && (
+                        <div className="absolute top-2 right-2 bg-white/92 px-[5px] py-[2px] font-mono text-[9px] text-[#161514]">
+                          {ad.video && "▶ "}
+                          {platformLabel(platform === "All" ? ad.platforms[0] : platform)}
+                        </div>
+                      )}
+                    </Link>
+                  ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section
+        id="how"
+        className={`${container} pt-[clamp(100px,12vw,140px)] pb-[clamp(64px,9vw,100px)]`}
+      >
+        <div className={`${mono} text-[#EC3016]`}>HOW IT WORKS</div>
+        <h2 className={`${h2} mt-[14px] max-w-[720px] text-balance`}>
+          From brief to live ad without starting from scratch.
+        </h2>
+        <div
+          className="mt-14 grid gap-[clamp(8px,3vw,40px)]"
+          style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,280px),1fr))" }}
+        >
+          {STEPS.map((s) => (
+            <div key={s.n} className="border-t-2 border-[#161514] py-7">
+              <div className="text-[48px] leading-none sm:text-[64px] font-extrabold tracking-[-0.04em] text-[#EC3016]">{s.n}</div>
+              <h3 className="mt-6 mb-[10px] text-[24px] font-bold">{s.title}</h3>
+              <p className="text-[16px] leading-[1.55] text-pretty text-[#55524e]">{s.desc}</p>
             </div>
           ))}
         </div>
+      </section>
 
-        <div className="mt-16">
-          <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
-            A peek inside
-          </p>
-          <h2 className="mt-1 text-2xl font-extrabold text-ink">
-            What&rsquo;s in the library
-          </h2>
-
-          <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
-            {PREVIEW_CARDS.map((card) => (
-              <div key={card.id} className="group">
-                <div className="relative aspect-[4/5] overflow-hidden shadow-none transition-shadow duration-200 group-hover:shadow-xl">
-                  <div
-                    className={`absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-110 ${card.swatch}`}
-                  />
-                  {card.eyebrow && (
-                    <span className="absolute top-3 left-3 text-[11px] font-medium tracking-[1px] text-white/90 uppercase">
-                      {card.eyebrow}
-                    </span>
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 p-4">
-                    <p className="text-xl leading-tight font-extrabold text-white">
-                      {card.headline}
-                    </p>
-                    {card.sub && (
-                      <p className="mt-1 text-xs text-white/80">{card.sub}</p>
-                    )}
-                    {card.cta && (
-                      <span className="mt-3 inline-block bg-brand px-3 py-1.5 text-[11px] font-bold text-brand-foreground uppercase transition-transform duration-200 group-hover:scale-105">
-                        {card.cta}
-                      </span>
-                    )}
+      {/* LIBRARY */}
+      <section id="library" className="bg-[#161514] text-white">
+        <div className={`${container} py-[clamp(64px,9vw,100px)]`}>
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <div className={`${mono} text-[#ff7a5c]`}>A PEEK INSIDE</div>
+              <h2 className={`${h2} mt-[14px]`}>What&rsquo;s in the library</h2>
+            </div>
+            <div className={`${chipRow} max-sm:w-full`}>
+              {categories.map((c) => (
+                <Chip
+                  key={c}
+                  label={c}
+                  active={category === c}
+                  onClick={() => setCategory(c)}
+                  dark
+                  className="px-4 py-[9px] text-[14px]"
+                />
+              ))}
+            </div>
+          </div>
+          <div
+            className="mt-8 grid grid-cols-1 gap-8 min-[700px]:mt-12 min-[700px]:[grid-template-columns:repeat(auto-fill,minmax(260px,1fr))] min-[700px]:gap-5"
+          >
+            {liveAds === null
+              ? Array.from({ length: 4 }, (_, i) => (
+                  <div key={i} className="flex flex-col gap-[14px]" aria-hidden>
+                    <div className="aspect-[4/5] animate-pulse bg-white/10" />
+                    <div className="h-[38px] animate-pulse bg-white/5" />
                   </div>
-                </div>
-              </div>
-            ))}
+                ))
+              : libraryAds.map((ad) => (
+                  <div key={ad.key} className="flex min-w-0 flex-col gap-[14px]">
+                    <Link
+                      href={ad.href}
+                      className={`relative flex aspect-[4/5] flex-col justify-between overflow-hidden p-[18px] ${
+                        ad.photo ? "bg-[#232120]" : (ad.bgClass ?? "")
+                      }`}
+                      style={{ ...ad.bgStyle, color: ad.fg }}
+                    >
+                      {ad.photo ? (
+                        // Creatives come in many shapes, so show the whole
+                        // image rather than cropping it (as AdCard does).
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={ad.photo} alt={ad.name} className="absolute inset-0 h-full w-full object-contain" />
+                      ) : (
+                        <>
+                          <div className="text-[11px] font-bold tracking-[0.12em]">{ad.tag}</div>
+                          <div>
+                            <div className="text-[24px] leading-[1.1] font-extrabold tracking-[-0.01em]">{ad.headline}</div>
+                            {ad.cta && (
+                              <div className="mt-3 inline-block px-[11px] py-[7px] text-[11px] font-extrabold" style={ad.ctaStyle}>
+                                {ad.cta}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                      {ad.video && (
+                        <span className="absolute top-3 right-3 bg-white/92 px-[6px] py-[3px] font-mono text-[10px] text-[#161514]">
+                          &#9654; VIDEO
+                        </span>
+                      )}
+                    </Link>
+                    <div className="flex items-center justify-between gap-3 text-[14px]">
+                      <div className="flex min-w-0 flex-col gap-[3px]">
+                        <span className="truncate font-semibold">{ad.name}</span>
+                        <span className="truncate font-mono text-[12px] text-[#a19d98]">{ad.meta}</span>
+                      </div>
+                      <Link
+                        href={ad.href}
+                        className="border border-[#4a4744] px-3 py-2 text-center text-[13px] font-semibold whitespace-nowrap hover:border-[#EC3016] hover:bg-[#EC3016]"
+                      >
+                        Edit copy →
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+          </div>
+          <div className="mt-14 flex justify-center">
+            {signedIn ? (
+              <Link href="/library" className="shrink-0 bg-[#EC3016] px-7 py-4 text-[17px] font-bold whitespace-nowrap">
+                Open the full library
+              </Link>
+            ) : (
+              <a href="#signup" className="shrink-0 bg-[#EC3016] px-7 py-4 text-[17px] font-bold whitespace-nowrap">
+                Sign up to see the full library
+              </a>
+            )}
           </div>
         </div>
+      </section>
 
-        <div className="mt-16 border border-ink/15 p-10 text-center">
-          <h2 className="text-2xl font-extrabold text-ink">
-            Ready to get started?
-          </h2>
-          <p className="mt-2 text-sm text-ink-muted">
-            Create an account and start browsing in under a minute.
-          </p>
-          <Link
-            href="/signup"
-            className="mt-6 inline-block bg-brand px-6 py-3 text-sm font-bold text-brand-foreground"
-          >
-            Sign up free
-          </Link>
+      {/* REQUEST */}
+      <section id="request" className={`${container} py-[clamp(64px,10vw,110px)]`}>
+        <div
+          className="grid items-center gap-16"
+          style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))" }}
+        >
+          <div>
+            <div className={`${mono} text-[#EC3016]`}>CAN&rsquo;T FIND IT?</div>
+            <h2 className={`${h2} mt-[14px] text-balance`}>Request a new creative. Get it in about 3 days.</h2>
+            <p className="mt-6 max-w-[500px] text-[18px] leading-[1.55] text-pretty text-[#55524e]">
+              Ask the creative team for a new size, a market, or a brand-new ad. Average turnaround is 3 working days.
+            </p>
+            <div className="mt-8">
+              <div className="text-[48px] font-extrabold tracking-[-0.03em]">3</div>
+              <div className="text-[14px] text-[#55524e]">working days, on average</div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-5 border border-[#e0ddd9] bg-white p-[clamp(20px,5vw,32px)]">
+            <div className="text-[20px] font-bold">New request</div>
+            <div className="flex flex-col gap-2">
+              <span className="text-[13px] font-semibold text-[#55524e]">What do you need?</span>
+              <div className="flex flex-wrap gap-2">
+                {REQUEST_TYPES.map((r) => (
+                  <Chip
+                    key={r}
+                    label={r}
+                    active={requestType === r}
+                    onClick={() => setRequestType(r)}
+                    className="px-[14px] py-[10px] text-[14px]"
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-[13px] font-semibold text-[#55524e]">Based on</span>
+              <div className="flex items-center gap-3 border border-[#e0ddd9] p-[10px]">
+                <div className="h-[50px] w-10 bg-[linear-gradient(160deg,#ffa6cf,#ff6b8a)]" />
+                <div className="flex flex-col gap-[2px]">
+                  <span className="text-[15px] font-semibold">Ten drops. One week.</span>
+                  <span className="font-mono text-[12px] text-[#8a8783]">Meta · 4:5 · EN-US</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-[13px] font-semibold text-[#55524e]">Notes for the creative team</span>
+              <div className="min-h-[72px] border border-[#e0ddd9] p-3 text-[15px] text-[#55524e]">
+                {REQUEST_NOTES[requestType]}
+              </div>
+            </div>
+            <a
+              href={signedIn ? "/requests" : "#signup"}
+              className="bg-[#161514] px-5 py-[15px] text-center text-[16px] font-bold text-white hover:bg-[#EC3016]"
+            >
+              Send request
+            </a>
+          </div>
         </div>
-      </main>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="border-t border-[#dcd9d5]">
+        <div className="mx-auto max-w-[960px] px-[clamp(20px,4vw,32px)] py-[clamp(64px,9vw,100px)]">
+          <h2 className="mb-8 text-[clamp(32px,4vw,48px)] font-extrabold tracking-[-0.03em]">Questions</h2>
+          {FAQS.map((f, i) => {
+            const open = openFaq === i;
+            return (
+              <div key={f.q} className="border-t border-[#cfccc7]">
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() => setOpenFaq(open ? -1 : i)}
+                  className="flex w-full items-center justify-between gap-6 border-0 bg-transparent py-6 text-left text-[clamp(17px,2.4vw,20px)] font-bold text-[#161514]"
+                >
+                  <span>{f.q}</span>
+                  <span className="text-[26px] font-normal text-[#EC3016]">{open ? "–" : "+"}</span>
+                </button>
+                {open && <p className="mb-6 max-w-[720px] text-[17px] leading-[1.6] text-[#55524e]">{f.a}</p>}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* FINAL CTA */}
+      <section className="bg-[#EC3016] text-white">
+        <div className={`${container} flex flex-wrap items-center justify-between gap-10 py-[clamp(64px,9vw,100px)]`}>
+          <div>
+            <h2 className="max-w-[760px] text-[clamp(40px,6vw,80px)] leading-[0.95] font-extrabold tracking-[-0.035em] text-balance">
+              Stop rebuilding ads you already have.
+            </h2>
+            <p className="mt-5 text-[19px]">Create an account and start browsing in under a minute.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {signedIn ? (
+              <Link href="/library" className="shrink-0 bg-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap text-[#EC3016]">
+                Go to Library
+              </Link>
+            ) : (
+              <>
+                <a href="#top" className="shrink-0 bg-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap text-[#EC3016]">
+                  Sign up free
+                </a>
+                <Link href="/login" className="shrink-0 border-[1.5px] border-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap">
+                  Sign in
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <footer className={`${container} flex flex-wrap justify-between gap-4 py-8 text-[14px] text-[#6b6864]`}>
+        <span className="font-extrabold tracking-[0.18em] text-[#161514]">ADPLAYLIST</span>
+        <div className="flex gap-6">
+          <Link href="/blog" className="hover:text-[#EC3016]">Blog</Link>
+          <Link href="/library" className="hover:text-[#EC3016]">Go to Library</Link>
+          {!signedIn && <Link href="/login" className="hover:text-[#EC3016]">Sign in</Link>}
+        </div>
+      </footer>
     </div>
   );
 }

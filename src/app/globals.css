@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Ad swatches are stored in the database as Tailwind classes. Ones built in
+   the editor come from COLOR_SWATCH (src/lib/adDraft.ts) and are picked up
+   automatically; the backend's seed ads (adplaylist-be/src/db/seed.ts) use
+   these, which appear nowhere in this repo, so generate them explicitly. */
+@source inline("bg-gradient-to-b bg-gradient-to-br bg-neutral-200 bg-neutral-300 from-emerald-500 from-fuchsia-300 from-neutral-400 from-neutral-700 from-neutral-800 from-pink-300 from-purple-800 from-sky-700 from-slate-700 from-teal-600 from-violet-400 via-neutral-800 via-purple-900 to-black to-blue-950 to-cyan-800 to-green-700 to-indigo-600 to-neutral-500 to-pink-500 to-rose-400 to-slate-900");
+
 :root {
   --color-brand: #ec3013;
   --color-brand-foreground: #f3f2f2;
@@ -27,6 +33,7 @@
   --color-ink-muted: var(--color-ink-muted);
   --color-border: var(--color-border);
   --font-sans: var(--font-archivo);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
 body {
