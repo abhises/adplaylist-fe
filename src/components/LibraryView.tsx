@@ -22,6 +22,22 @@ const ADDED_OPTIONS = [
   { label: "Last 6 months", days: 182 },
 ] as const;
 
+const PAGE_SIZE = 25;
+
+// Page numbers to show around the current page, with null marking a gap,
+// e.g. 1 … 4 5 6 … 12.
+function pageItems(current: number, total: number): (number | null)[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = new Set([1, total, current - 1, current, current + 1]);
+  const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const items: (number | null)[] = [];
+  sorted.forEach((p, i) => {
+    if (i > 0 && p - sorted[i - 1] > 1) items.push(null);
+    items.push(p);
+  });
+  return items;
+}
+
 export default function LibraryView({
   heading,
   user,
@@ -66,6 +82,7 @@ export default function LibraryView({
         : [initialTags]
   );
   const [moreOpen, setMoreOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   // Keep ?tag= in step with the ticked tags so a filtered view can be
   // bookmarked or shared.
@@ -267,6 +284,39 @@ export default function LibraryView({
     selectedColors,
     selectedTags,
   ]);
+
+  // Any filter change goes back to the first page. Adjusted during render
+  // (not in an effect) so the stale page never flashes.
+  const filterKey = JSON.stringify([
+    keyword,
+    mediaTypes,
+    platforms,
+    selectedCategories,
+    country,
+    language,
+    addedCutoff,
+    selectedFormats,
+    editableOnly,
+    selectedLengths,
+    selectedColors,
+    selectedTags,
+  ]);
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setPage(1);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // Clamped so deleting the last ad on the last page doesn't strand us.
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageAds = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+
+  function goToPage(p: number) {
+    setPage(p);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   const activeCount =
     mediaTypes.length +
@@ -692,7 +742,7 @@ export default function LibraryView({
           {!loading && !error && (
             <>
               <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {filtered.map((ad) => (
+                {pageAds.map((ad) => (
                   <AdCard
                     key={ad.id}
                     ad={ad}
@@ -707,6 +757,57 @@ export default function LibraryView({
                   />
                 ))}
               </div>
+
+              {totalPages > 1 && (
+                <nav
+                  aria-label="Pagination"
+                  className="mt-12 flex flex-wrap items-center gap-3 border-t border-ink/15 pt-6 text-sm"
+                >
+                  <span className="text-ink-muted">
+                    Showing {pageStart + 1}–{pageStart + pageAds.length} of{" "}
+                    {filtered.length}
+                  </span>
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="border border-border px-2.5 py-1 text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                      ← Prev
+                    </button>
+                    {pageItems(currentPage, totalPages).map((p, i) =>
+                      p === null ? (
+                        <span key={`gap-${i}`} className="px-1 text-ink-muted">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => goToPage(p)}
+                          aria-current={p === currentPage ? "page" : undefined}
+                          className={`min-w-[32px] border px-2.5 py-1 ${
+                            p === currentPage
+                              ? "border-brand/30 bg-brand/10 font-bold text-brand"
+                              : "border-border text-ink hover:bg-surface-2"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="border border-border px-2.5 py-1 text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </nav>
+              )}
 
               {filtered.length === 0 && (
                 <p className="mt-10 text-sm text-ink-muted">
