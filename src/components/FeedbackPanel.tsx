@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type User } from "@/lib/api";
 
@@ -19,8 +19,15 @@ export default function FeedbackPanel({ user }: { user: User }) {
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState(user.email);
   const [file, setFile] = useState<File | null>(null);
+  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Free the preview's blob URL once it's replaced or the panel unmounts.
+  useEffect(() => {
+    if (!previewUrl) return;
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   const cantSend = !message.trim() || sending;
 
@@ -144,7 +151,15 @@ export default function FeedbackPanel({ user }: { user: User }) {
                   <span className="tracking-normal normal-case">(optional)</span>
                 </span>
                 <label className="flex cursor-pointer items-center justify-between gap-3 border border-dashed border-border p-4 text-sm hover:border-ink">
-                  <span className="min-w-0 truncate text-ink-muted">
+                  {previewUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={previewUrl}
+                      alt="Screenshot preview"
+                      className="h-12 w-12 shrink-0 border border-border object-cover"
+                    />
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-ink-muted">
                     {file?.name ?? "Attach an image"}
                   </span>
                   {file ? (
