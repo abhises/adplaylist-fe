@@ -97,6 +97,18 @@ export type CreativeRequest = {
   createdAt: string;
 };
 
+export type Feedback = {
+  id: number;
+  message: string;
+  email?: string;
+  screenshotUrl?: string;
+  screenshotName?: string;
+  pageUrl?: string;
+  resolved: boolean;
+  sender?: { fullName: string; email: string; role: Role };
+  createdAt: string;
+};
+
 export type BlogPost = {
   id: number;
   slug: string;
@@ -312,6 +324,29 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ reason }),
     }),
+
+  sendFeedback: (data: {
+    message: string;
+    email?: string;
+    screenshotUrl?: string;
+    screenshotName?: string;
+    pageUrl?: string;
+  }) =>
+    request<{ feedback: Feedback }>("/api/feedback", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getFeedback: () => request<{ feedback: Feedback[] }>("/api/feedback"),
+
+  setFeedbackResolved: (id: number, resolved: boolean) =>
+    request<{ feedback: Feedback }>(`/api/feedback/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ resolved }),
+    }),
+
+  deleteFeedback: (id: number) =>
+    request<void>(`/api/feedback/${id}`, { method: "DELETE" }),
 
   getProfile: () => request<{ user: User }>("/api/profile"),
 

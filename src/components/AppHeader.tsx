@@ -28,6 +28,7 @@ export default function AppHeader() {
     ...(user?.permissions?.blog ? [{ href: "/admin/blog", label: "Blog" }] : []),
     ...(isAdmin ? [{ href: "/admin/tags", label: "Tags" }] : []),
     ...(isAdmin ? [{ href: "/admin/home-section", label: "Home section" }] : []),
+    ...(isAdmin ? [{ href: "/admin/feedback", label: "Feedback" }] : []),
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
   // "/admin" is a prefix of the other admin links, so only the longest

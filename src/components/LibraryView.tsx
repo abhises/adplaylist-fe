@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import FeedbackPanel from "@/components/FeedbackPanel";
 import Spinner from "@/components/Spinner";
 import {
   DOMINANT_COLORS,
@@ -769,6 +770,8 @@ export default function LibraryView({
         onConfirm={handleConfirmDeleteAd}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      <FeedbackPanel user={user} />
     </div>
   );
 }
