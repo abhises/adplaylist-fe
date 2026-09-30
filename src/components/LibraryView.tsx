@@ -167,23 +167,6 @@ export default function LibraryView({
     }));
   }, [ads]);
 
-  // Tags in use, most-used first. Matching ignores case so an older ad
-  // tagged "Lead Gen" counts toward "lead gen".
-  const tagOptions = useMemo(() => {
-    const counts = new Map<string, { name: string; count: number }>();
-    for (const ad of ads) {
-      for (const tag of ad.tags ?? []) {
-        const key = tag.toLowerCase();
-        const entry = counts.get(key) ?? { name: tag, count: 0 };
-        entry.count++;
-        counts.set(key, entry);
-      }
-    }
-    return [...counts.values()].sort(
-      (a, b) => b.count - a.count || a.name.localeCompare(b.name)
-    );
-  }, [ads]);
-
   const formatOptions = useMemo(() => {
     const names = [...new Set(ads.map((ad) => ad.format))].sort();
     return names.map((name) => ({
@@ -484,55 +467,6 @@ export default function LibraryView({
               )}
             </div>
           </div>
-
-          {tagOptions.length > 0 && (
-            <div className="mt-6">
-              <div className="mb-3 flex items-baseline gap-2">
-                <p className="text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
-                  Tags
-                </p>
-                {selectedTags.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTags([])}
-                    className="ml-auto text-xs text-brand hover:underline"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <div className="flex max-h-56 flex-col gap-2.5 overflow-y-auto">
-                {tagOptions.map((tag) => {
-                  const checked = selectedTags.some(
-                    (t) => t.toLowerCase() === tag.name.toLowerCase()
-                  );
-                  return (
-                    <label
-                      key={tag.name}
-                      className="flex items-center gap-2 text-sm text-ink"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() =>
-                          setSelectedTags((list) =>
-                            checked
-                              ? list.filter(
-                                  (t) => t.toLowerCase() !== tag.name.toLowerCase()
-                                )
-                              : [...list, tag.name]
-                          )
-                        }
-                        className="h-[15px] w-[15px] shrink-0 accent-brand"
-                      />
-                      <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-                      <span className="text-xs text-ink-muted">{tag.count}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           <div className="mt-6">
             <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
