@@ -3,6 +3,9 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "@/components/Link";
+import LandingFooter from "@/components/LandingFooter";
+import LandingHeader from "@/components/LandingHeader";
+import PricingSection from "@/components/PricingSection";
 import { useAuth } from "@/lib/AuthProvider";
 import { api, type Ad as LibraryAd } from "@/lib/api";
 
@@ -55,17 +58,8 @@ const FAQS = [
   { q: "What can I filter by?", a: "Platform, category, market, and language." },
 ];
 
-const NAV_LINKS = [
-  { href: "#how", label: "How it works" },
-  { href: "#library", label: "Library" },
-  { href: "#request", label: "Request" },
-  { href: "#faq", label: "FAQ" },
-];
-
 const mono = "font-mono text-[12px] tracking-[0.08em]";
 const container = "mx-auto max-w-[1320px] px-[clamp(20px,4vw,32px)]";
-// The nav bar has a fixed height so the hero can fill exactly the rest of the screen.
-const NAV_HEIGHT = "h-[72px]";
 const h2 = "text-[clamp(36px,4.5vw,56px)] leading-none font-extrabold tracking-[-0.03em]";
 // On phones, chip rows scroll sideways instead of wrapping onto extra lines.
 const chipRow =
@@ -206,7 +200,6 @@ export default function LandingPage() {
   const { user, ready } = useAuth();
   const signedIn = ready && !!user;
 
-  const [menuOpen, setMenuOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [platform, setPlatform] = useState("All");
   const [category, setCategory] = useState("All");
@@ -257,72 +250,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#F3F2F0] leading-[normal] text-[#161514]">
-      {/* NAV */}
-      <header className="sticky top-0 z-20 bg-[#EC3016] text-white">
-        <div className={`${container} flex ${NAV_HEIGHT} items-center justify-between gap-6`}>
-          <a href="#top" className="text-[14px] font-extrabold tracking-[0.18em]">
-            ADPLAYLIST
-          </a>
-          <nav className="hidden flex-wrap items-center gap-7 text-[15px] font-medium min-[820px]:flex">
-            {NAV_LINKS.map((l) => (
-              <a key={l.href} href={l.href}>
-                {l.label}
-              </a>
-            ))}
-            {signedIn ? (
-              <Link href="/library" className="bg-white px-[18px] py-[10px] font-bold text-[#EC3016]">
-                Go to Library
-              </Link>
-            ) : (
-              <>
-                <Link href="/login">Sign in</Link>
-                <a href="#signup" className="bg-white px-[18px] py-[10px] font-bold text-[#EC3016]">
-                  Sign up free
-                </a>
-              </>
-            )}
-          </nav>
-          <div className="flex items-center gap-[10px] min-[820px]:hidden">
-            {signedIn ? (
-              <Link href="/library" className="bg-white px-[14px] py-[10px] text-[14px] font-bold whitespace-nowrap text-[#EC3016]">
-                Go to Library
-              </Link>
-            ) : (
-              <a href="#signup" className="bg-white px-[14px] py-[10px] text-[14px] font-bold whitespace-nowrap text-[#EC3016]">
-                Sign up free
-              </a>
-            )}
-            <button
-              type="button"
-              aria-label="Menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((o) => !o)}
-              className="flex h-11 w-11 items-center justify-center border-[1.5px] border-white bg-transparent text-[20px] text-white"
-            >
-              {menuOpen ? "✕" : "☰"}
-            </button>
-          </div>
-        </div>
-        {menuOpen && (
-          <nav className="flex flex-col border-t border-white/35 px-[clamp(20px,4vw,32px)] pb-4 min-[820px]:hidden">
-            {NAV_LINKS.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                onClick={() => setMenuOpen(false)}
-                className="border-b border-white/25 py-4 text-[18px] font-semibold"
-              >
-                {l.label}
-              </a>
-            ))}
-            {!signedIn && (
-              <Link href="/login" onClick={() => setMenuOpen(false)} className="py-4 text-[18px] font-semibold">
-                Sign in
-              </Link>
-            )}
-          </nav>
-        )}
-      </header>
+      <LandingHeader onLanding />
 
       {/* HERO */}
       <section id="top" className="scroll-mt-[72px] flex min-h-[calc(100svh-72px)] flex-col overflow-hidden bg-[#EC3016] text-white">
@@ -554,6 +482,8 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <PricingSection signedIn={signedIn} />
+
       {/* REQUEST */}
       <section id="request" className={`scroll-mt-[72px] ${container} py-[clamp(64px,10vw,110px)]`}>
         <div
@@ -665,14 +595,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className={`${container} flex flex-wrap justify-between gap-4 py-8 text-[14px] text-[#6b6864]`}>
-        <span className="font-extrabold tracking-[0.18em] text-[#161514]">ADPLAYLIST</span>
-        <div className="flex gap-6">
-          <Link href="/blog" className="hover:text-[#EC3016]">Blog</Link>
-          <Link href="/library" className="hover:text-[#EC3016]">Go to Library</Link>
-          {!signedIn && <Link href="/login" className="hover:text-[#EC3016]">Sign in</Link>}
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   );
 }
