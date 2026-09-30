@@ -35,7 +35,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const page = await getPage(slug);
   return {
-    title: page ? `${page.heading} · Adplaylist` : "Adplaylist",
+    title: page?.heading,
     robots: { index: false, follow: false },
   };
 }

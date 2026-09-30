@@ -3,7 +3,8 @@ import Link from "@/components/Link";
 import LegalPage, { Email, List, Section, SubHeading, Table, Term } from "@/components/LegalPage";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy · Adplaylist",
+  title: "Privacy Policy",
+  alternates: { canonical: "/privacy" },
   description: "How Adplaylist collects, uses and protects your personal data.",
 };
 

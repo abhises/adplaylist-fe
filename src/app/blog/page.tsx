@@ -5,7 +5,8 @@ import BlogLayout, { formatPostDate } from "@/components/BlogLayout";
 import { api } from "@/lib/api";
 
 export const metadata: Metadata = {
-  title: "Blog · Adplaylist",
+  title: "Blog",
+  alternates: { canonical: "/blog" },
   description: "Ideas, trends and examples from the world of ad creatives.",
 };
 

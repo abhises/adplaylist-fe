@@ -3,7 +3,8 @@ import Link from "@/components/Link";
 import LegalPage, { Email, List, Section, Term } from "@/components/LegalPage";
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions · Adplaylist",
+  title: "Terms & Conditions",
+  alternates: { canonical: "/terms" },
   description: "The terms that govern your use of Adplaylist.",
 };
 
