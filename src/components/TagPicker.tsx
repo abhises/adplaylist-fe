@@ -4,6 +4,9 @@ import { useState, type KeyboardEvent } from "react";
 import { ApiError } from "@/lib/api";
 import { addTag, useTags } from "@/lib/tags";
 
+// How many of the unpicked tags to offer as "+ tag" buttons.
+const MAX_SUGGESTIONS = 15;
+
 // The ad's tags as removable chips, then the rest of the tag list as
 // buttons to add, plus a way to add a brand-new tag to the list. Tags an ad
 // has that aren't in the list yet (e.g. from a CSV) show as chips like any
@@ -24,7 +27,9 @@ export default function TagPicker({
   const known = (tags ?? []).map((t) => t.name);
   const isSelected = (tag: string) =>
     value.some((t) => t.toLowerCase() === tag.toLowerCase());
-  const available = known.filter((t) => !isSelected(t));
+  const available = known
+    .filter((t) => !isSelected(t))
+    .slice(0, MAX_SUGGESTIONS);
 
   function remove(tag: string) {
     onChange(value.filter((t) => t.toLowerCase() !== tag.toLowerCase()));
