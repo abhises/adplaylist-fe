@@ -238,9 +238,12 @@ function canonicalKey(label: string): string | undefined {
 // Accepts either a "wide" CSV (one header row of field names, one data row
 // of values) or a "long" CSV with two columns (e.g. "Field,Answer") and one
 // row per field — the shape a lot of research/export tools produce.
-function parseAdCsv(text: string): Record<string, string> {
+function parseAdCsv(text: string): {
+  fields: Record<string, string>;
+  unrecognized: string[];
+} {
   const rows = parseCsvRows(text);
-  if (rows.length < 2) return {};
+  if (rows.length < 2) return { fields: {}, unrecognized: [] };
 
   const headerCells = rows[0].map(normalizeKey);
   const isLongFormat =
@@ -249,23 +252,27 @@ function parseAdCsv(text: string): Record<string, string> {
     headerCells[1] === "answer";
 
   const fields: Record<string, string> = {};
+  // Labels that carry a value but don't map to any field — reported back so
+  // a renamed column isn't dropped without anyone noticing.
+  const unrecognized: string[] = [];
+
+  function take(label: string, value: string | undefined) {
+    const key = canonicalKey(label);
+    const v = (value ?? "").trim();
+    if (key) fields[key] = v;
+    else if (v) unrecognized.push(label.trim());
+  }
 
   if (isLongFormat) {
-    for (const row of rows.slice(1)) {
-      const [label, value] = row;
-      if (!label) continue;
-      const key = canonicalKey(label);
-      if (key) fields[key] = (value ?? "").trim();
+    for (const [label, value] of rows.slice(1)) {
+      if (label) take(label, value);
     }
   } else {
     const values = rows[1] ?? [];
-    rows[0].forEach((label, i) => {
-      const key = canonicalKey(label);
-      if (key) fields[key] = (values[i] ?? "").trim();
-    });
+    rows[0].forEach((label, i) => take(label, values[i]));
   }
 
-  return fields;
+  return { fields, unrecognized };
 }
 
 function findOption(options: string[], value: string): string | undefined {
@@ -295,10 +302,16 @@ function matchSizeOption(token: string): string | undefined {
 export function applyCsvToDraft(
   text: string,
   base: AdDraft
-): { draft: AdDraft; matched: number; empty: boolean } {
-  const row = parseAdCsv(text);
+): {
+  draft: AdDraft;
+  matched: number;
+  empty: boolean;
+  unrecognized: string[];
+} {
+  const { fields: row, unrecognized } = parseAdCsv(text);
   const draft = { ...base };
-  if (Object.keys(row).length === 0) return { draft, matched: 0, empty: true };
+  if (Object.keys(row).length === 0 && unrecognized.length === 0)
+    return { draft, matched: 0, empty: true, unrecognized };
   let matched = 0;
 
   if (row.adname) {
@@ -388,5 +401,5 @@ export function applyCsvToDraft(
     matched++;
   }
 
-  return { draft, matched, empty: false };
+  return { draft, matched, empty: false, unrecognized };
 }

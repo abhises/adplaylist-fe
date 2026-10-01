@@ -65,6 +65,7 @@ export default function AddAdPage() {
 
   const [csvFileName, setCsvFileName] = useState<string | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
+  const [csvUnrecognized, setCsvUnrecognized] = useState<string[]>([]);
   const [csvDragOver, setCsvDragOver] = useState(false);
 
   // Coming back from the preview page ("Back to edit") restores what was
@@ -130,8 +131,9 @@ export default function AddAdPage() {
       return;
     }
     setCsvError(null);
+    setCsvUnrecognized([]);
     try {
-      const { draft, matched, empty } = applyCsvToDraft(
+      const { draft, matched, empty, unrecognized } = applyCsvToDraft(
         await file.text(),
         emptyDraft()
       );
@@ -147,6 +149,7 @@ export default function AddAdPage() {
       }
       setCsvDraft(draft);
       setCsvFileName(file.name);
+      setCsvUnrecognized(unrecognized);
       if (draft.canvaUrl) setCanvaUrl(draft.canvaUrl);
     } catch {
       setCsvError("Couldn't read that CSV.");
@@ -163,6 +166,7 @@ export default function AddAdPage() {
     setCsvDraft(null);
     setCsvFileName(null);
     setCsvError(null);
+    setCsvUnrecognized([]);
     if (csvInputRef.current) csvInputRef.current.value = "";
   }
 
@@ -268,6 +272,19 @@ export default function AddAdPage() {
               )}
               {csvError && (
                 <p className="mt-1 text-xs text-brand">{csvError}</p>
+              )}
+              {csvUnrecognized.length > 0 && (
+                <div className="mt-1 text-xs text-brand">
+                  <p>
+                    These CSV rows weren&apos;t recognized and were left out —
+                    rename them or fill the fields in by hand:
+                  </p>
+                  <ul className="mt-1 list-disc pl-4">
+                    {csvUnrecognized.map((label) => (
+                      <li key={label}>{label}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
               <p className="mt-1 text-xs text-ink-muted">
                 Accepts a header row of fields (adName, mediaType,
