@@ -221,7 +221,6 @@ const FIELD_ALIASES: Record<string, string> = {
   dominantcolor: "dominantcolor",
   dominantcolour: "dominantcolor",
   descriptionofthecreative: "creativedescription",
-  descriptionofthecreativein250words: "creativedescription",
   creativedescription: "creativedescription",
   tags: "tags",
   tag: "tags",
@@ -230,8 +229,10 @@ const FIELD_ALIASES: Record<string, string> = {
   canvatemplatelink: "canvaurl",
 };
 
+// Labels may carry a word-count hint ("... in 150 words"); it's dropped so
+// any count matches the same field.
 function canonicalKey(label: string): string | undefined {
-  return FIELD_ALIASES[normalizeKey(label)];
+  return FIELD_ALIASES[normalizeKey(label).replace(/in\d+words$/, "")];
 }
 
 // Accepts either a "wide" CSV (one header row of field names, one data row
