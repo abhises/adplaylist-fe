@@ -1,13 +1,24 @@
 import type { Account, AccountStatus, BillingCycle, Entitlements, PlanId, User } from "@/lib/api";
 
-// Mirrors adplaylist-be/src/lib/plans.ts — what customers are shown. Stripe
-// holds the prices actually charged.
+// Credit volume → price in USD, monthly and yearly. Admins edit these
+// (/admin/pricing); usePlanPrices() loads the live list from the API.
+export type PriceList = Record<PlanId, Record<number, { monthly: number; yearly: number }>>;
 
-// Custom ads (credits) per month → monthly price in USD.
-export const PLAN_TIERS: Record<PlanId, Record<number, number>> = {
-  starter: { 0: 15 },
-  pro: { 10: 49, 20: 95, 30: 139, 40: 179 },
-  agency: { 50: 215, 70: 289, 100: 399, 150: 499 },
+// What's shown until the live list loads: the backend's defaults.
+export const DEFAULT_PRICES: PriceList = {
+  starter: { 0: { monthly: 15, yearly: 144 } },
+  pro: {
+    10: { monthly: 49, yearly: 470.4 },
+    20: { monthly: 95, yearly: 912 },
+    30: { monthly: 139, yearly: 1334.4 },
+    40: { monthly: 179, yearly: 1718.4 },
+  },
+  agency: {
+    50: { monthly: 215, yearly: 2064 },
+    70: { monthly: 289, yearly: 2774.4 },
+    100: { monthly: 399, yearly: 3830.4 },
+    150: { monthly: 499, yearly: 4790.4 },
+  },
 };
 
 export const PLAN_NAMES: Record<PlanId, string> = {
@@ -16,32 +27,42 @@ export const PLAN_NAMES: Record<PlanId, string> = {
   agency: "Agency",
 };
 
-export const PLAN_IDS = Object.keys(PLAN_TIERS) as PlanId[];
-export const YEARLY_DISCOUNT = 0.2;
+export const PLAN_IDS = Object.keys(DEFAULT_PRICES) as PlanId[];
+
+export function volumesOf(prices: PriceList, plan: PlanId) {
+  return Object.keys(prices[plan]).map(Number).sort((a, b) => a - b);
+}
 
 export function defaultVolume(plan: PlanId) {
-  return Number(Object.keys(PLAN_TIERS[plan])[0]);
+  return volumesOf(DEFAULT_PRICES, plan)[0] ?? 0;
 }
 
 export function isPlanId(value: unknown): value is PlanId {
-  return typeof value === "string" && value in PLAN_TIERS;
+  return typeof value === "string" && value in DEFAULT_PRICES;
 }
 
 export function isValidVolume(plan: PlanId, volume: number) {
-  return volume in PLAN_TIERS[plan];
+  return volume in DEFAULT_PRICES[plan];
 }
 
-// Price per month at the given cycle (yearly is shown as its monthly
-// equivalent, 20% off).
-export function monthlyPrice(plan: PlanId, volume: number, cycle: BillingCycle) {
-  const monthly = PLAN_TIERS[plan][volume];
-  return cycle === "yearly"
-    ? Math.round(monthly * (1 - YEARLY_DISCOUNT) * 100) / 100
-    : monthly;
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+// Price per month at the given cycle; yearly is shown as its monthly
+// equivalent (the yearly price ÷ 12).
+export function monthlyPrice(prices: PriceList, plan: PlanId, volume: number, cycle: BillingCycle) {
+  const p = prices[plan][volume];
+  if (!p) return 0;
+  return cycle === "yearly" ? round2(p.yearly / 12) : p.monthly;
 }
 
-export function yearlyTotal(plan: PlanId, volume: number) {
-  return Math.round(PLAN_TIERS[plan][volume] * 12 * (1 - YEARLY_DISCOUNT) * 100) / 100;
+export function yearlyTotal(prices: PriceList, plan: PlanId, volume: number) {
+  return prices[plan][volume]?.yearly ?? 0;
+}
+
+// What paying yearly saves over twelve monthly payments.
+export function yearlySaving(prices: PriceList, plan: PlanId, volume: number) {
+  const p = prices[plan][volume];
+  return p ? round2(p.monthly * 12 - p.yearly) : 0;
 }
 
 export function fmtUsd(n: number) {
@@ -81,8 +102,8 @@ export function can(user: User | null, feature: keyof Entitlements) {
 }
 
 // What the account's plan costs per billing period, in USD (excl. tax).
-export function periodPrice(account: Account) {
-  return account.billingCycle === "yearly"
-    ? yearlyTotal(account.plan, account.creditVolume)
-    : (PLAN_TIERS[account.plan][account.creditVolume] ?? 0);
+export function periodPrice(prices: PriceList, account: Account) {
+  const p = prices[account.plan][account.creditVolume];
+  if (!p) return 0;
+  return account.billingCycle === "yearly" ? p.yearly : p.monthly;
 }

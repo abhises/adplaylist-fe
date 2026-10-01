@@ -40,6 +40,17 @@ export type Ad = {
 
 export type Role = "client" | "designer" | "editor" | "admin";
 
+// The public price list, in USD.
+export type PlanCatalog = {
+  id: PlanId;
+  name: string;
+  trialCredits: number;
+  maxBrands: number;
+  maxSeats: number;
+  turnaround: string | null;
+  tiers: { volume: number; monthly: number; yearly: number }[];
+}[];
+
 export type CreditTotals = {
   received: number;
   used: number;
@@ -307,6 +318,14 @@ export const api = {
     request<{ account: Account }>("/api/billing/checkout/return", {
       method: "POST",
       body: JSON.stringify({ sessionId }),
+    }),
+
+  getPlans: () => request<{ plans: PlanCatalog }>("/api/plans"),
+
+  updatePlanPrice: (plan: PlanId, volume: number, monthly: number, yearly: number) =>
+    request<{ plans: PlanCatalog }>(`/api/admin/plan-prices/${plan}/${volume}`, {
+      method: "PUT",
+      body: JSON.stringify({ monthly, yearly }),
     }),
 
   getCreditHistory: () =>

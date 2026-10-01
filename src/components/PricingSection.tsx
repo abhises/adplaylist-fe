@@ -3,15 +3,14 @@
 import { useState } from "react";
 import Link from "@/components/Link";
 import type { PlanId } from "@/lib/api";
-import { PLAN_TIERS, YEARLY_DISCOUNT, fmtUsd as fmt } from "@/lib/plans";
+import { fmtUsd as fmt, monthlyPrice, volumesOf, yearlySaving } from "@/lib/plans";
+import { usePlanPrices } from "@/lib/usePlanPrices";
 
 type Plan = {
   id: PlanId;
   name: string;
   desc: string;
   goodFor: string[];
-  // Custom ads per month → monthly price in USD.
-  tiers: Record<number, number>;
   popular?: boolean;
 };
 
@@ -21,14 +20,12 @@ const PLANS: Plan[] = [
     name: "Starter",
     desc: "For marketers who want to browse and save what the team has already made.",
     goodFor: ["Individuals", "Occasional campaigns"],
-    tiers: PLAN_TIERS.starter,
   },
   {
     id: "pro",
     name: "Pro",
     desc: "For marketers and in-house teams who need a steady flow of fresh creatives.",
     goodFor: ["Small businesses", "In-house ad teams"],
-    tiers: PLAN_TIERS.pro,
     popular: true,
   },
   {
@@ -36,7 +33,6 @@ const PLANS: Plan[] = [
     name: "Agency",
     desc: "For agencies producing ads for many clients at once.",
     goodFor: ["Agencies", "High-volume ad teams"],
-    tiers: PLAN_TIERS.agency,
   },
 ];
 
@@ -99,6 +95,8 @@ function Toggle<T extends string | boolean>({
 }
 
 export default function PricingSection({ signedIn }: { signedIn: boolean }) {
+  // Admins can change prices, so they come from the API.
+  const prices = usePlanPrices();
   const [yearly, setYearly] = useState(false);
   const [credits, setCredits] = useState<Record<PlanId, number>>({
     starter: 0,
@@ -145,9 +143,9 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
           <div className="hidden min-[820px]:block" />
           {PLANS.map((p) => {
             const c = credits[p.id];
-            const monthly = p.tiers[c];
-            const price = yearly ? Math.round(monthly * (1 - YEARLY_DISCOUNT) * 100) / 100 : monthly;
-            const tierKeys = Object.keys(p.tiers).map(Number);
+            const monthly = monthlyPrice(prices, p.id, c, "monthly");
+            const price = monthlyPrice(prices, p.id, c, yearly ? "yearly" : "monthly");
+            const tierKeys = volumesOf(prices, p.id);
             return (
               <div
                 key={p.id}
@@ -202,7 +200,7 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
                       <>
                         <span className="text-[#8a8783] line-through">{fmt(monthly)}</span>
                         <span className="font-bold text-[#EC3016]">
-                          Save {fmt(Math.round((monthly - price) * 1200) / 100)} a year
+                          Save {fmt(yearlySaving(prices, p.id, c))} a year
                         </span>
                       </>
                     ) : (

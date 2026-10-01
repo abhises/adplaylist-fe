@@ -10,7 +10,6 @@ import { api, ApiError, type Account, type BillingCycle, type PlanId } from "@/l
 import {
   PLAN_IDS,
   PLAN_NAMES,
-  PLAN_TIERS,
   STATUS_LABELS,
   defaultVolume,
   fmtDate,
@@ -18,8 +17,10 @@ import {
   isPlanId,
   isValidVolume,
   monthlyPrice,
+  volumesOf,
   yearlyTotal,
 } from "@/lib/plans";
+import { usePlanPrices } from "@/lib/usePlanPrices";
 
 export default function BillingPage() {
   return (
@@ -301,6 +302,7 @@ function PlanChooser({
   initial: { plan: string | null; volume: string | null; cycle: string | null };
   onCheckout: (plan: PlanId, volume: number, cycle: BillingCycle) => void;
 }) {
+  const prices = usePlanPrices();
   const initialPlan = isPlanId(initial.plan) ? initial.plan : account.plan;
   const initialVolume = Number(initial.volume);
   const [plan, setPlan] = useState<PlanId>(initialPlan);
@@ -346,7 +348,7 @@ function PlanChooser({
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         {PLAN_IDS.map((p) => {
-          const tiers = Object.keys(PLAN_TIERS[p]).map(Number);
+          const tiers = volumesOf(prices, p);
           const selected = p === plan;
           return (
             <div
@@ -362,12 +364,12 @@ function PlanChooser({
             >
               <p className="text-lg font-extrabold text-ink">{PLAN_NAMES[p]}</p>
               <p className="mt-2 text-2xl font-extrabold text-ink">
-                {fmtUsd(monthlyPrice(p, volumes[p], cycle))}
+                {fmtUsd(monthlyPrice(prices, p, volumes[p], cycle))}
                 <span className="text-sm font-normal text-ink-muted">/mo</span>
               </p>
               <p className="mt-1 text-xs text-ink-muted">
                 {cycle === "yearly"
-                  ? `${fmtUsd(yearlyTotal(p, volumes[p]))} billed yearly`
+                  ? `${fmtUsd(yearlyTotal(prices, p, volumes[p]))} billed yearly`
                   : "Billed monthly"}
               </p>
               {tiers.length > 1 ? (

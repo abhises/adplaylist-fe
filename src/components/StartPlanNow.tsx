@@ -5,6 +5,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { useAuth } from "@/lib/AuthProvider";
 import { api, ApiError, type Account } from "@/lib/api";
 import { fmtDate, fmtUsd, periodPrice } from "@/lib/plans";
+import { usePlanPrices } from "@/lib/usePlanPrices";
 
 // Ends the free trial early: charges the card today and grants the plan's
 // full credits. For a trial that's used its credits and wants to continue.
@@ -29,7 +30,8 @@ export default function StartPlanNow({
   // Stripe's own figure for the charge, which also covers anyone still on
   // an older price; the price list is only a fallback.
   const [quoted, setQuoted] = useState<number | null>(null);
-  const price = fmtUsd(quoted ?? periodPrice(account));
+  const prices = usePlanPrices();
+  const price = fmtUsd(quoted ?? periodPrice(prices, account));
 
   function openDialog() {
     setOpen(true);
