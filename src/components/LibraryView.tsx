@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
+import LandingHeader from "@/components/LandingHeader";
+import SignUpPrompt from "@/components/SignUpPrompt";
 import AdCard from "@/components/AdCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import FeedbackPanel from "@/components/FeedbackPanel";
@@ -45,17 +47,24 @@ export default function LibraryView({
   heading,
   user,
   initialTags,
+  initialAds,
 }: {
   heading: string;
-  user: User;
+  // Null for visitors on the public /library page: anyone can browse, but
+  // saving asks them to sign up and there are no filters or admin controls.
+  user: User | null;
+  // Ads rendered on the server (public page), so the grid is in the HTML
+  // search engines see rather than loaded afterwards.
+  initialAds?: Ad[];
   // The page's ?tag= value(s), so a tag clicked on an ad page opens the
   // library already filtered to it.
   initialTags?: string | string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [ads, setAds] = useState<Ad[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [ads, setAds] = useState<Ad[]>(initialAds ?? []);
+  const [loading, setLoading] = useState(!initialAds);
+  const [signUpPrompt, setSignUpPrompt] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [saveLocked, setSaveLocked] = useState(false);
@@ -103,20 +112,26 @@ export default function LibraryView({
     setAddedCutoff(days === null ? null : Date.now() - days * 24 * 60 * 60 * 1000);
   }
 
+  const signedIn = !!user;
   useEffect(() => {
-    api
-      .getAds()
-      .then(({ ads }) => setAds(ads))
-      .catch(() => setError("Couldn't load ads from the server."))
-      .finally(() => setLoading(false));
-    api
-      .getSaved()
-      .then(({ ads }) => setSavedIds(new Set(ads.map((ad) => ad.id))))
-      .catch(() => {});
-  }, []);
+    if (!initialAds) {
+      api
+        .getAds()
+        .then(({ ads }) => setAds(ads))
+        .catch(() => setError("Couldn't load ads from the server."))
+        .finally(() => setLoading(false));
+    }
+    if (signedIn) {
+      api
+        .getSaved()
+        .then(({ ads }) => setSavedIds(new Set(ads.map((ad) => ad.id))))
+        .catch(() => {});
+    }
+  }, [initialAds, signedIn]);
 
   async function toggleSave(id: string) {
     const wasSaved = savedIds.has(id);
+    if (!user) return setSignUpPrompt(true);
     if (!wasSaved && !can(user, "save")) return setSaveLocked(true);
     setSavedIds((prev) => {
       const next = new Set(prev);
@@ -330,8 +345,10 @@ export default function LibraryView({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <AppHeader />
+      {user ? <AppHeader /> : <LandingHeader />}
       <div className="flex flex-1">
+        {/* Filters are for signed-in users; the public page is a plain grid. */}
+        {user && (
         <aside className="w-[220px] shrink-0 border-r-2 border-ink/15 px-5 py-6">
           <div>
             <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
@@ -649,10 +666,35 @@ export default function LibraryView({
             Reset all filters
           </button>
         </aside>
+        )}
 
-        <main className="flex-1 px-10 py-8">
+        <main className="min-w-0 flex-1 px-4 py-8 sm:px-10">
           <h1 className="text-3xl font-extrabold text-ink">{heading}</h1>
 
+          {!user ? (
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-ink/15 pb-4 text-sm text-ink-muted">
+              {selectedTags.length > 0 ? (
+                <>
+                  <span>
+                    Ads tagged{" "}
+                    <span className="font-bold text-ink">{selectedTags.join(", ")}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTags([])}
+                    className="font-bold text-brand"
+                  >
+                    Show all ads
+                  </button>
+                </>
+              ) : (
+                <span>
+                  Ready-made ad creatives for Meta, TikTok, Google and more. Open any ad to
+                  see its copy and creative details.
+                </span>
+              )}
+            </div>
+          ) : (
           <div className="mt-4 flex items-center gap-3 border-b border-ink/15 pb-4 text-sm">
             <span className="text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
               Active
@@ -663,6 +705,7 @@ export default function LibraryView({
                 : `${activeCount} filter${activeCount > 1 ? "s" : ""} applied`}
             </span>
           </div>
+          )}
 
           {loading && (
             <div className="mt-10 flex items-center gap-2 text-sm text-ink-muted">
@@ -688,9 +731,9 @@ export default function LibraryView({
                     ad={ad}
                     saved={savedIds.has(ad.id)}
                     onToggleSave={toggleSave}
-                    onDelete={user.role === "admin" ? handleDeleteAd : undefined}
+                    onDelete={user?.role === "admin" ? handleDeleteAd : undefined}
                     onEdit={
-                      user.role === "admin"
+                      user?.role === "admin"
                         ? (id) => router.push(`/ads/${id}/edit`)
                         : undefined
                     }
@@ -776,8 +819,9 @@ export default function LibraryView({
         onCancel={() => setDeleteTarget(null)}
       />
 
-      <FeedbackPanel user={user} />
+      {user && <FeedbackPanel user={user} />}
       <UpgradePrompt reason={saveLocked ? "save" : null} onClose={() => setSaveLocked(false)} />
+      <SignUpPrompt reason={signUpPrompt ? "save" : null} onClose={() => setSignUpPrompt(false)} />
     </div>
   );
 }

@@ -1,25 +1,59 @@
-"use client";
+import type { Metadata } from "next";
+import { connection } from "next/server";
+import PublicLibraryView from "@/components/PublicLibraryView";
+import { api, type Ad } from "@/lib/api";
+import { jsonLd, SITE_NAME, SITE_URL } from "@/lib/site";
 
-import { use, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import LibraryView from "@/components/LibraryView";
-import { useRequireAuth } from "@/lib/AuthProvider";
-import { slugify } from "@/lib/slug";
+const DESCRIPTION =
+  "Browse ready-made ad creatives for Meta, TikTok, Google and more — filter by platform, category, market and language, and see each ad's copy and creative details.";
 
-export default function LibraryPage({ searchParams }: PageProps<"/library">) {
-  const { tag } = use(searchParams);
-  const { user, ready } = useRequireAuth();
-  const router = useRouter();
+export const metadata: Metadata = {
+  title: "Ads – ready-made ad creatives",
+  description: DESCRIPTION,
+  alternates: { canonical: "/library" },
+  openGraph: {
+    title: `Ads – ready-made ad creatives · ${SITE_NAME}`,
+    description: DESCRIPTION,
+    url: "/library",
+    siteName: SITE_NAME,
+    type: "website",
+  },
+};
 
-  // Clients get a dedicated, name-branded URL instead of the bare /library
-  // designers and admins use.
-  useEffect(() => {
-    if (ready && user?.role === "client") {
-      router.replace(`/library/${slugify(user.fullName)}`);
-    }
-  }, [ready, user, router]);
+// Public: anyone can browse the library and open any ad, without signing in.
+// Signed-in clients are sent on to their own /library/<name> (see
+// PublicLibraryView).
+export default async function LibraryPage({ searchParams }: PageProps<"/library">) {
+  // Per request, so newly published ads are listed straight away.
+  await connection();
+  const { tag } = await searchParams;
+  const ads: Ad[] = await api
+    .getAds()
+    .then((res) => res.ads)
+    .catch(() => []);
 
-  if (!ready || !user || user.role === "client") return null;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Ads",
+    description: DESCRIPTION,
+    url: `${SITE_URL}/library`,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: ads.length,
+      itemListElement: ads.map((ad, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${SITE_URL}/ads/${ad.id}`,
+        name: ad.title,
+      })),
+    },
+  };
 
-  return <LibraryView heading="Explore Ads" user={user} initialTags={tag} />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(structuredData)} />
+      <PublicLibraryView ads={ads} initialTags={tag} />
+    </>
+  );
 }

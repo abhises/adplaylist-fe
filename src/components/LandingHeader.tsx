@@ -5,10 +5,11 @@ import Link from "@/components/Link";
 import { useAuth } from "@/lib/AuthProvider";
 
 // Links to the landing page's sections. On the landing page itself they're
-// in-page anchors; elsewhere (e.g. /terms) they lead back to it.
+// in-page anchors; elsewhere (e.g. /terms) they lead back to it. "Ads" is
+// the public library page (/library).
 const NAV_LINKS = [
   { hash: "#how", label: "How it works" },
-  { hash: "#library", label: "Library" },
+  { href: "/library", label: "Ads" },
   { hash: "#request", label: "Request" },
   { hash: "#pricing", label: "Pricing" },
   { hash: "#faq", label: "FAQ" },
@@ -27,6 +28,8 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
   const base = onLanding ? "" : "/";
   // The landing page's sign-up form is in its hero; elsewhere, go to /signup.
   const signupHref = onLanding ? "#signup" : "/signup";
+  const linkHref = (l: (typeof NAV_LINKS)[number]) =>
+    "href" in l ? l.href : `${base}${l.hash}`;
 
   return (
     <header className="sticky top-0 z-20 bg-[#EC3016] text-white">
@@ -36,7 +39,7 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
         </a>
         <nav className="hidden flex-wrap items-center gap-7 text-[15px] font-medium min-[820px]:flex">
           {NAV_LINKS.map((l) => (
-            <a key={l.hash} href={`${base}${l.hash}`}>
+            <a key={l.label} href={linkHref(l)}>
               {l.label}
             </a>
           ))}
@@ -78,8 +81,8 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
         <nav className="flex flex-col border-t border-white/35 px-[clamp(20px,4vw,32px)] pb-4 min-[820px]:hidden">
           {NAV_LINKS.map((l) => (
             <a
-              key={l.hash}
-              href={`${base}${l.hash}`}
+              key={l.label}
+              href={linkHref(l)}
               onClick={() => setMenuOpen(false)}
               className="border-b border-white/25 py-4 text-[18px] font-semibold"
             >

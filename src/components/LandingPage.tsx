@@ -223,13 +223,14 @@ export default function LandingPage() {
     };
   }, []);
 
-  // Logged-out visitors can't open an ad yet, so cards send them to sign up.
+  // Ad pages are public, so every card opens its ad (internal links that
+  // also help search engines find them).
   const libraryCards: LibraryCard[] =
     liveAds && liveAds.length > 0
       ? [...liveAds]
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-          .map((ad) => fromLibraryAd(ad, signedIn ? `/ads/${ad.id}` : "#signup"))
-      : ADS.map((ad) => fromSample(ad, signedIn ? "/library" : "#signup"));
+          .map((ad) => fromLibraryAd(ad, `/ads/${ad.id}`))
+      : ADS.map((ad) => fromSample(ad, "/library"));
   // The hero panel shows the ads an admin picked for it in Admin → Home
   // section (up to six); until they pick some, it shows the newest.
   const heroPicked = libraryCards.filter((c) => c.inHero);
@@ -474,9 +475,9 @@ export default function LandingPage() {
                 Open the full library
               </Link>
             ) : (
-              <a href="#signup" className="shrink-0 bg-[#EC3016] px-7 py-4 text-[17px] font-bold whitespace-nowrap">
-                Sign up to see the full library
-              </a>
+              <Link href="/library" className="shrink-0 bg-[#EC3016] px-7 py-4 text-[17px] font-bold whitespace-nowrap">
+                Explore the full library
+              </Link>
             )}
           </div>
         </div>
