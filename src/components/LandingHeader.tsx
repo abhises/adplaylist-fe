@@ -5,10 +5,12 @@ import Link from "@/components/Link";
 import { useAuth } from "@/lib/AuthProvider";
 
 // Links to the landing page's sections. On the landing page itself they're
-// in-page anchors; elsewhere (e.g. /terms) they lead back to it. "Ads" is
-// the public library page (/library).
+// in-page anchors; elsewhere (e.g. /terms) they lead back to it. "Library"
+// is the landing page's preview of the library; "Ads" is the full public
+// library page (/library).
 const NAV_LINKS = [
   { hash: "#how", label: "How it works" },
+  { hash: "#library", label: "Library" },
   { href: "/library", label: "Ads" },
   { hash: "#request", label: "Request" },
   { hash: "#pricing", label: "Pricing" },
