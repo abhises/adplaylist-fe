@@ -22,6 +22,16 @@ function SignupForm() {
   // The landing page's hero form sends visitors here with ?email= prefilled.
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
+  // A plan picked on the pricing section (?plan=&volume=&cycle=) goes on to
+  // the billing page to add a card for it; otherwise straight to the library.
+  const plan = searchParams.get("plan");
+  const next = plan
+    ? `/billing?${new URLSearchParams({
+        plan,
+        volume: searchParams.get("volume") ?? "",
+        cycle: searchParams.get("cycle") ?? "monthly",
+      })}`
+    : "/library";
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +53,7 @@ function SignupForm() {
     setSubmitting(true);
     try {
       await register(fullName, email, password, "client");
-      router.push("/library");
+      router.push(next);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Something went wrong."
@@ -57,7 +67,7 @@ function SignupForm() {
     setError(null);
     try {
       await loginWithGoogle(credential);
-      router.push("/library");
+      router.push(next);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Something went wrong."

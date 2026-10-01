@@ -7,6 +7,8 @@ import AdCard from "@/components/AdCard";
 import Spinner from "@/components/Spinner";
 import { SIZE_OPTIONS } from "@/lib/ads";
 import { slugify } from "@/lib/slug";
+import UpgradePrompt, { type UpgradeReason } from "@/components/UpgradePrompt";
+import { can } from "@/lib/plans";
 
 const SQUARE_SIZE = { name: "Square", dims: "1200 × 1200" };
 const SQUARE_INDEX = Math.max(
@@ -47,6 +49,7 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [activeSize, setActiveSize] = useState(SQUARE_INDEX);
+  const [upgrade, setUpgrade] = useState<UpgradeReason | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -71,12 +74,14 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
   async function toggleSaved() {
     if (!ad) return;
     const next = !saved;
+    if (next && !can(user, "save")) return setUpgrade("save");
     setSaved(next);
     try {
       if (next) await api.saveAd(ad.id);
       else await api.unsaveAd(ad.id);
-    } catch {
+    } catch (err) {
       setSaved(!next);
+      if (err instanceof ApiError && err.upgrade) setUpgrade("save");
     }
   }
 
@@ -314,17 +319,28 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
                   <span className="text-right text-ink">{ad.dominantColor}</span>
                 </div>
               )}
-              {ad.canvaUrl && (
+              {(ad.canvaUrl || ad.hasEditableCopy) && (
                 <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                   <span className="text-ink-muted">Canva template</span>
-                  <a
-                    href={ad.canvaUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-brand"
-                  >
-                    Open link
-                  </a>
+                  {ad.canvaUrl ? (
+                    <a
+                      href={ad.canvaUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-brand"
+                    >
+                      Open link
+                    </a>
+                  ) : (
+                    // Not on this plan: keep it visible, locked.
+                    <button
+                      type="button"
+                      onClick={() => setUpgrade("editableCopies")}
+                      className="text-brand"
+                    >
+                      &#128274; Open link
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -432,6 +448,7 @@ export default function AdDetailPage({ params }: PageProps<"/ads/[id]">) {
           </div>
         </section>
       )}
+      <UpgradePrompt reason={upgrade} onClose={() => setUpgrade(null)} />
     </div>
   );
 }

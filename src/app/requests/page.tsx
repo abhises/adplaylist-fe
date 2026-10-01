@@ -12,7 +12,9 @@ import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type CreativeRequest } from "@/lib/api";
-import { useRequireAuth } from "@/lib/AuthProvider";
+import { useAuth, useRequireAuth } from "@/lib/AuthProvider";
+import UpgradePrompt, { type UpgradeReason } from "@/components/UpgradePrompt";
+import { can } from "@/lib/plans";
 
 // Kept in sync with the backend's multer fileFilter in adplaylist-be/src/routes/uploads.ts
 const SUPPORTED_ATTACHMENT_TYPES =
@@ -117,6 +119,8 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
 
 export default function RequestsPage() {
   const { user, ready } = useRequireAuth();
+  const { refresh } = useAuth();
+  const [upgrade, setUpgrade] = useState<UpgradeReason | null>(null);
   const [tab, setTab] = useState<(typeof TABS)[number]>("Open");
   const [requests, setRequests] = useState<CreativeRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -208,6 +212,9 @@ export default function RequestsPage() {
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Locked on Starter or an expired plan, and when the credits run out.
+    if (!can(user, "requests")) return setUpgrade("requests");
+    if (user?.account && user.account.credits < 1) return setUpgrade("outOfCredits");
     const formEl = e.currentTarget;
     const form = new FormData(formEl);
     setSubmitting(true);
@@ -224,13 +231,20 @@ export default function RequestsPage() {
       });
       setRequests((prev) => [request, ...prev]);
       setSubmitted(true);
+      // One credit was spent; update the balance shown.
+      if (user?.account) refresh();
       formEl.reset();
       clearAttachment();
       setTab("Open");
     } catch (err) {
-      setSubmitError(
-        err instanceof ApiError ? err.message : "Something went wrong."
-      );
+      if (err instanceof ApiError && err.upgrade) {
+        setUpgrade(err.outOfCredits ? "outOfCredits" : "requests");
+        refresh();
+      } else {
+        setSubmitError(
+          err instanceof ApiError ? err.message : "Something went wrong."
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -462,6 +476,13 @@ export default function RequestsPage() {
           <h2 className="mt-1.5 text-xl leading-tight font-extrabold tracking-[-0.01em] text-ink">
             Tell us what you need
           </h2>
+          {user.account && (
+            <p className="mt-1.5 text-xs text-ink-muted">
+              {can(user, "requests")
+                ? `Uses 1 credit · ${user.account.credits} left`
+                : "Requests are included on Pro and Agency."}
+            </p>
+          )}
 
           <form onSubmit={handleSubmit} className="mt-5 space-y-4">
             <div>
@@ -636,6 +657,7 @@ export default function RequestsPage() {
               lands in your library automatically.
             </p>
           </form>
+          <UpgradePrompt reason={upgrade} onClose={() => setUpgrade(null)} />
         </aside>
       </main>
 

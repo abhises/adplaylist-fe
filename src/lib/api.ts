@@ -25,7 +25,10 @@ export type Ad = {
   photo?: string;
   platforms: string[];
   editable: boolean;
+  // Only sent when the viewer's plan includes editable copies;
+  // hasEditableCopy says whether one exists either way.
   canvaUrl?: string;
+  hasEditableCopy?: boolean;
   dominantColor?: string;
   videoLength?: string;
   // Picked by an admin to show on the landing page: `featured` in the
@@ -36,6 +39,86 @@ export type Ad = {
 };
 
 export type Role = "client" | "designer" | "editor" | "admin";
+
+export type CreditTotals = {
+  received: number;
+  used: number;
+  expired: number;
+  available: number;
+};
+
+export type CreditEntry = {
+  id: number;
+  reason: "trial" | "refill" | "upgrade" | "spent" | "refunded" | "expired" | "adjustment";
+  delta: number;
+  balance: number;
+  note: string | null;
+  createdAt: string;
+};
+
+// The subscription's next charge (e.g. when a trial ends).
+export type UpcomingPayment = {
+  date: string | null;
+  amount: number;
+  currency: string;
+  description: string;
+};
+
+export type Payment = {
+  id: string;
+  number: string | null;
+  date: string;
+  description: string;
+  reason: string | null;
+  amount: number;
+  amountPaid: number;
+  currency: string;
+  status: string | null;
+  receiptUrl: string | null;
+  pdfUrl: string | null;
+  // Credits this payment granted (trial start, refill or upgrade).
+  credits: number;
+};
+
+export type PlanId = "starter" | "pro" | "agency";
+export type BillingCycle = "monthly" | "yearly";
+export type AccountStatus = "trial" | "active" | "past_due" | "cancelled" | "expired";
+
+export type Entitlements = {
+  save: boolean;
+  editableCopies: boolean;
+  requests: boolean;
+  videoRequests: boolean;
+  brandKit: boolean;
+};
+
+// The customer account (company) a client belongs to. Plan, status and
+// credits are shared by everyone on it.
+export type Account = {
+  id: number;
+  name: string;
+  plan: PlanId;
+  planName: string;
+  creditVolume: number;
+  billingCycle: BillingCycle;
+  status: AccountStatus;
+  trialEndsAt: string | null;
+  currentPeriodEnd: string | null;
+  pastDueSince: string | null;
+  graceEndsAt: string | null;
+  credits: number;
+  // The allowance this period's credits started from (trial or monthly).
+  creditTotal: number;
+  nextRefillAt: string | null;
+  hasSubscription: boolean;
+  // Cancelled during the free trial: ends at the trial's end, never charged.
+  cancelledInTrial: boolean;
+  maxBrands: number;
+  maxSeats: number;
+  turnaround: string | null;
+  role: "owner" | "member";
+  entitlements: Entitlements;
+};
 
 export type User = {
   id: number;
@@ -58,6 +141,8 @@ export type User = {
     brand: boolean;
     newsletter: boolean;
   };
+  // Null for Adplaylist staff.
+  account: Account | null;
 };
 
 export type AdminUser = {
@@ -173,9 +258,19 @@ export function clearToken() {
 
 class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  // Set on a 402 when the plan doesn't allow the action, so callers can show
+  // the upgrade prompt.
+  upgrade: boolean;
+  outOfCredits: boolean;
+  constructor(
+    status: number,
+    message: string,
+    flags: { upgrade?: boolean; outOfCredits?: boolean } = {}
+  ) {
     super(message);
     this.status = status;
+    this.upgrade = !!flags.upgrade;
+    this.outOfCredits = !!flags.outOfCredits;
   }
 }
 
@@ -194,12 +289,41 @@ async function request<T>(
   const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new ApiError(res.status, body.error ?? "Request failed");
+    throw new ApiError(res.status, body.error ?? "Request failed", body);
   }
   return body as T;
 }
 
 export const api = {
+  getBilling: () => request<{ account: Account | null }>("/api/billing"),
+
+  startCheckout: (plan: PlanId, volume: number, cycle: BillingCycle) =>
+    request<{ url: string }>("/api/billing/checkout", {
+      method: "POST",
+      body: JSON.stringify({ plan, volume, cycle }),
+    }),
+
+  completeCheckout: (sessionId: string) =>
+    request<{ account: Account }>("/api/billing/checkout/return", {
+      method: "POST",
+      body: JSON.stringify({ sessionId }),
+    }),
+
+  getCreditHistory: () =>
+    request<{ totals: CreditTotals | null; entries: CreditEntry[] }>("/api/billing/credits"),
+
+  getPayments: () =>
+    request<{ upcoming: UpcomingPayment | null; payments: Payment[] }>("/api/billing/payments"),
+
+  startPlanNow: () =>
+    request<{ account: Account }>("/api/billing/start-now", { method: "POST" }),
+
+  syncBilling: () =>
+    request<{ account: Account | null }>("/api/billing/sync", { method: "POST" }),
+
+  openBillingPortal: () =>
+    request<{ url: string }>("/api/billing/portal", { method: "POST" }),
+
   login: (email: string, password: string) =>
     request<{ token: string; user: User }>("/api/auth/login", {
       method: "POST",

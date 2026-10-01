@@ -3,6 +3,7 @@
 import Link from "@/components/Link";
 import { usePathname } from "next/navigation";
 import AccountMenu from "@/components/AccountMenu";
+import AccountBanner from "@/components/AccountBanner";
 import { useAuth } from "@/lib/AuthProvider";
 import { slugify } from "@/lib/slug";
 
@@ -77,6 +78,7 @@ export default function AppHeader() {
           <AccountMenu />
         </div>
       </div>
+      <AccountBanner />
     </header>
   );
 }

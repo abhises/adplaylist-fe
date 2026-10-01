@@ -7,6 +7,8 @@ import AdCard from "@/components/AdCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import FeedbackPanel from "@/components/FeedbackPanel";
 import Spinner from "@/components/Spinner";
+import UpgradePrompt from "@/components/UpgradePrompt";
+import { can } from "@/lib/plans";
 import {
   DOMINANT_COLORS,
   LANGUAGE_OPTIONS,
@@ -56,6 +58,7 @@ export default function LibraryView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [saveLocked, setSaveLocked] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Ad | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -114,6 +117,7 @@ export default function LibraryView({
 
   async function toggleSave(id: string) {
     const wasSaved = savedIds.has(id);
+    if (!wasSaved && !can(user, "save")) return setSaveLocked(true);
     setSavedIds((prev) => {
       const next = new Set(prev);
       if (wasSaved) next.delete(id);
@@ -123,7 +127,8 @@ export default function LibraryView({
     try {
       if (wasSaved) await api.unsaveAd(id);
       else await api.saveAd(id);
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError && err.upgrade) setSaveLocked(true);
       setSavedIds((prev) => {
         const next = new Set(prev);
         if (wasSaved) next.add(id);
@@ -772,6 +777,7 @@ export default function LibraryView({
       />
 
       <FeedbackPanel user={user} />
+      <UpgradePrompt reason={saveLocked ? "save" : null} onClose={() => setSaveLocked(false)} />
     </div>
   );
 }

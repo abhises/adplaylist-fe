@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "@/components/Link";
-
-type PlanId = "starter" | "pro" | "agency";
+import type { PlanId } from "@/lib/api";
+import { PLAN_TIERS, YEARLY_DISCOUNT, fmtUsd as fmt } from "@/lib/plans";
 
 type Plan = {
   id: PlanId;
@@ -19,16 +19,16 @@ const PLANS: Plan[] = [
   {
     id: "starter",
     name: "Starter",
-    desc: "For marketers who want to reuse and edit what the team has already made.",
+    desc: "For marketers who want to browse and save what the team has already made.",
     goodFor: ["Individuals", "Occasional campaigns"],
-    tiers: { 0: 15 },
+    tiers: PLAN_TIERS.starter,
   },
   {
     id: "pro",
     name: "Pro",
     desc: "For marketers and in-house teams who need a steady flow of fresh creatives.",
     goodFor: ["Small businesses", "In-house ad teams"],
-    tiers: { 10: 49, 20: 79, 30: 99, 40: 119 },
+    tiers: PLAN_TIERS.pro,
     popular: true,
   },
   {
@@ -36,7 +36,7 @@ const PLANS: Plan[] = [
     name: "Agency",
     desc: "For agencies producing ads for many clients at once.",
     goodFor: ["Agencies", "High-volume ad teams"],
-    tiers: { 50: 149, 70: 169, 100: 199, 150: 269 },
+    tiers: PLAN_TIERS.agency,
   },
 ];
 
@@ -48,7 +48,7 @@ const FEATURES: [string, "credits" | string[] | boolean[]][] = [
   ["Team seats", ["1", "2", "5"]],
   ["Turnaround", ["—", "3 days", "48 hours"]],
   ["Full ad library access", [true, true, true]],
-  ["Editable copies", [true, true, true]],
+  ["Editable copies", [false, true, true]],
   ["All platform sizes", [true, true, true]],
   ["Localisation into new markets", [false, true, true]],
   ["Brand kit and templates", [false, false, true]],
@@ -58,23 +58,12 @@ const FEATURES: [string, "credits" | string[] | boolean[]][] = [
 
 // Rows up to here are the headline numbers, set in bold.
 const BOLD_ROWS = 4;
-const YEARLY_DISCOUNT = 0.2;
 
 const mono = "font-mono text-[12px] tracking-[0.08em]";
 const h2 = "text-[clamp(36px,4.5vw,56px)] leading-none font-extrabold tracking-[-0.03em]";
 // Below 820px only one plan column shows, picked with the Compare tabs.
 const gridCols =
   "grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] min-[820px]:grid-cols-[minmax(200px,1.1fr)_repeat(3,minmax(0,1fr))]";
-
-function fmt(n: number) {
-  return (
-    "$" +
-    n.toLocaleString(
-      "en-US",
-      Number.isInteger(n) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-    )
-  );
-}
 
 function Toggle<T extends string | boolean>({
   options,
@@ -119,7 +108,12 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
   // The plan shown in the comparison table on phones.
   const [compare, setCompare] = useState(1);
 
-  const ctaHref = signedIn ? "/billing" : "#signup";
+  // Carries the chosen plan through signup to the billing page, which
+  // starts checkout for it.
+  function ctaHref(plan: PlanId) {
+    const q = `plan=${plan}&volume=${credits[plan]}&cycle=${yearly ? "yearly" : "monthly"}`;
+    return signedIn ? `/billing?${q}` : `/signup?${q}`;
+  }
 
   return (
     <section id="pricing" className="scroll-mt-[72px] border-t border-[#dcd9d5]">
@@ -217,7 +211,7 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
                   </div>
                 </div>
                 <Link
-                  href={ctaHref}
+                  href={ctaHref(p.id)}
                   className={`border-[1.5px] px-5 py-[15px] text-center text-[16px] font-bold hover:border-[#EC3016] hover:bg-[#EC3016] hover:text-white ${
                     p.popular
                       ? "border-[#EC3016] bg-[#EC3016] text-white"
