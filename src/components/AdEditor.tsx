@@ -15,6 +15,7 @@ import {
 } from "@/lib/ads";
 import { draftToAd, type AdDraft } from "@/lib/adDraft";
 import { ApiError } from "@/lib/api";
+import { useToast } from "@/lib/ToastProvider";
 import {
   SUPPORTED_IMAGE_ACCEPT,
   uploadImage,
@@ -127,6 +128,9 @@ export default function AdEditor({
   const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // On a taken URL slug: the ad that already has it, linked in the error.
+  const [conflictAd, setConflictAd] = useState<{ id: string; title: string } | null>(null);
+  const toast = useToast();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -170,10 +174,18 @@ export default function AdEditor({
     }
     setSubmitting(true);
     setError(null);
+    setConflictAd(null);
     try {
       await onSubmit(draft);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+      const message = err instanceof ApiError ? err.message : "Something went wrong.";
+      setError(message);
+      setConflictAd(err instanceof ApiError ? (err.existingAd ?? null) : null);
+      toast.error(
+        err instanceof ApiError && err.existingAd
+          ? "Not published: that URL slug is already used."
+          : `Not saved: ${message}`
+      );
       setSubmitting(false);
     }
   }
@@ -213,6 +225,24 @@ export default function AdEditor({
           {submitButton}
         </div>
       </div>
+
+      {/* Errors right under the buttons that cause them, not only at the
+          bottom of this long page. */}
+      {error && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-brand/40 bg-brand/10 px-10 py-3 text-sm text-ink"
+        >
+          <span>
+            <span className="font-bold text-brand">Not saved.</span> {error}
+          </span>
+          {conflictAd && (
+            <Link href={`/ads/${conflictAd.id}`} target="_blank" className="font-bold text-brand underline">
+              Open &ldquo;{conflictAd.title}&rdquo; &#8599;
+            </Link>
+          )}
+        </div>
+      )}
 
       <main className="grid flex-1 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="min-w-0 border-r border-ink/15 px-10 py-8">

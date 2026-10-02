@@ -1,3 +1,4 @@
+import { WATERMARK } from "@/lib/watermark";
 import Link from "@/components/Link";
 import type { ReactNode } from "react";
 import type { Ad } from "@/lib/ads";
@@ -29,6 +30,15 @@ export default function AdCard({
             ad.photo ? "bg-ink/5" : ""
           }`}
         >
+          {ad.photo && !ad.watermarked && (
+            // Same faint ADPLAYLIST pattern as the ad page, smaller tiles,
+            // for images that don't have it in the file yet.
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -inset-1/2 z-[1] bg-[length:150px_60px]"
+              style={{ backgroundImage: WATERMARK, transform: "rotate(-30deg)" }}
+            />
+          )}
           {ad.photo ? (
             // Fill the square card (cropping edges of non-square creatives)
             // and zoom in on hover, matching the swatch cards.

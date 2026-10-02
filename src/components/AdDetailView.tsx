@@ -21,6 +21,7 @@ import {
 } from "@/lib/adPage";
 import { api, ApiError, type Ad, type Author } from "@/lib/api";
 import { useAuth } from "@/lib/AuthProvider";
+import { WATERMARK } from "@/lib/watermark";
 import { can } from "@/lib/plans";
 import { SITE_URL } from "@/lib/site";
 import { slugify } from "@/lib/slug";
@@ -68,13 +69,16 @@ function relatedAds(ad: Ad, allAds: Ad[]) {
 const libraryQuery = (key: "q" | "category" | "tag", value: string) =>
   `/library?${key}=${encodeURIComponent(value)}`;
 
-// A Supabase public URL serves the file as a download with ?download=<name>.
+// Signed-in downloads get the clean original (sent only to them), under the
+// ad's keyword file name: a Supabase public URL serves the file as a
+// download with ?download=<name>.
 function downloadHref(ad: Ad) {
-  if (!ad.photo) return undefined;
-  const name = ad.imageFileName || ad.photo.split("/").pop() || "ad.png";
-  return ad.photo.includes("/storage/v1/object/public/")
-    ? `${ad.photo}?download=${encodeURIComponent(name)}`
-    : ad.photo;
+  const file = ad.originalPhoto ?? ad.photo;
+  if (!file) return undefined;
+  const name = ad.imageFileName || (ad.photo ?? file).split("/").pop() || "ad.png";
+  return file.includes("/storage/v1/object/public/")
+    ? `${file}?download=${encodeURIComponent(name)}`
+    : file;
 }
 
 function initials(name: string) {
@@ -110,11 +114,6 @@ function Avatar({ author, size }: { author: Author; size: "sm" | "lg" }) {
 }
 
 const eyebrow = "text-[13px] font-semibold tracking-[0.13em] text-ink-muted uppercase lg:text-sm";
-
-// The prototype's faint "ADPLAYLIST" pattern laid over the creative.
-const WATERMARK = `url("data:image/svg+xml,${encodeURIComponent(
-  "<svg xmlns='http://www.w3.org/2000/svg' width='200' height='80'><text x='100' y='45' text-anchor='middle' font-family='Archivo,Helvetica,sans-serif' font-weight='800' font-size='14' letter-spacing='3' fill='rgb(128,128,128)' fill-opacity='0.2'>ADPLAYLIST</text></svg>"
-)}")`;
 
 // The two actions under the ad's title. Labels never wrap: the buttons stack
 // instead (see where they're rendered).
@@ -388,12 +387,15 @@ export default function AdDetailView({
                   className="absolute inset-0 h-full w-full object-contain"
                 />
               )}
-              {/* Faint repeating ADPLAYLIST mark over the creative. */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -inset-1/2 bg-[length:200px_80px]"
-                style={{ backgroundImage: WATERMARK, transform: "rotate(-30deg)" }}
-              />
+              {/* Faint repeating ADPLAYLIST mark over the creative, for images
+                  that don't have it in the file yet. */}
+              {!ad.watermarked && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-1/2 bg-[length:200px_80px]"
+                  style={{ backgroundImage: WATERMARK, transform: "rotate(-30deg)" }}
+                />
+              )}
             </div>
             {ad.imageCaption && (
               <figcaption className="mt-3 text-center text-sm text-pretty text-ink-muted">

@@ -23,6 +23,12 @@ export type Ad = {
   market: string;
   language: string;
   photo?: string;
+  // True when `photo` has the ADPLAYLIST watermark in the file itself, so
+  // pages don't draw it again on top.
+  watermarked?: boolean;
+  // The clean upload, without the watermark: only sent to signed-in users,
+  // for Download.
+  originalPhoto?: string;
   platforms: string[];
   editable: boolean;
   // Only sent when the viewer's plan includes editable copies;
@@ -347,15 +353,22 @@ class ApiError extends Error {
   // the upgrade prompt.
   upgrade: boolean;
   outOfCredits: boolean;
+  // On a 409 for a taken ad slug: the ad that already has it.
+  existingAd?: { id: string; title: string };
   constructor(
     status: number,
     message: string,
-    flags: { upgrade?: boolean; outOfCredits?: boolean } = {}
+    flags: {
+      upgrade?: boolean;
+      outOfCredits?: boolean;
+      existingAd?: { id: string; title: string };
+    } = {}
   ) {
     super(message);
     this.status = status;
     this.upgrade = !!flags.upgrade;
     this.outOfCredits = !!flags.outOfCredits;
+    this.existingAd = flags.existingAd;
   }
 }
 
