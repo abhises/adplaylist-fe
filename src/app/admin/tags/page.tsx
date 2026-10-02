@@ -9,6 +9,7 @@ import Spinner from "@/components/Spinner";
 import { api, ApiError, type Ad, type Tag } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
 import { reloadTags, useTags } from "@/lib/tags";
+import { useToast } from "@/lib/ToastProvider";
 
 const inputClass =
   "border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70";
@@ -16,6 +17,7 @@ const inputClass =
 export default function AdminTagsPage() {
   const { user, ready } = useRequireRole(["admin"]);
   const tags = useTags();
+  const toast = useToast();
   const [ads, setAds] = useState<Ad[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,6 +75,7 @@ export default function AdminTagsPage() {
       await api.createTag(name);
       await reloadTags();
       setNewName("");
+      toast.success(`Tag “${name}” added.`);
     } catch (err) {
       setError(message(err, "Couldn't add that tag."));
     } finally {

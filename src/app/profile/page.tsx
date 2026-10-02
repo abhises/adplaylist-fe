@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import { api, ApiError, type User } from "@/lib/api";
 import { useAuth, useRequireAuth } from "@/lib/AuthProvider";
+import { useToast } from "@/lib/ToastProvider";
 
 const EMAIL_PREFS: {
   id: keyof User["emailPreferences"];
@@ -93,6 +94,7 @@ function formFromUser(user: User) {
 export default function ProfilePage() {
   const { user: authUser, ready } = useRequireAuth();
   const { refresh } = useAuth();
+  const toast = useToast();
   const [form, setForm] = useState<ReturnType<typeof formFromUser> | null>(
     null
   );
@@ -116,6 +118,7 @@ export default function ProfilePage() {
       await api.updateProfile(form);
       await refresh();
       setSavedMessage("Changes saved.");
+      toast.success("Settings saved.");
     } catch (err) {
       setSaveFailed(true);
       setSavedMessage(

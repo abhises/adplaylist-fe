@@ -14,6 +14,7 @@ import {
 } from "@/lib/adDraft";
 import { api } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
+import { useToast } from "@/lib/ToastProvider";
 
 // Step B for a new ad: nothing is saved to the backend until
 // "Publish to library" is pressed. Edits are kept in sessionStorage so
@@ -21,6 +22,7 @@ import { useRequireRole } from "@/lib/AuthProvider";
 export default function AdPreviewPage() {
   const { user, ready } = useRequireRole(["designer", "admin"]);
   const router = useRouter();
+  const toast = useToast();
 
   const [draft, setDraft] = useState<AdDraft | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -53,6 +55,7 @@ export default function AdPreviewPage() {
       onDraftChange={saveDraft}
       onSubmit={async (d) => {
         const { ad } = await api.createAd(draftToAd(d));
+        toast.success("Ad published to the library.");
         clearDraft();
         router.push(`/ads/${ad.id}`);
       }}

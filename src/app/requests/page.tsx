@@ -15,6 +15,7 @@ import { api, ApiError, type CreativeRequest } from "@/lib/api";
 import { useAuth, useRequireAuth } from "@/lib/AuthProvider";
 import UpgradePrompt, { type UpgradeReason } from "@/components/UpgradePrompt";
 import { can } from "@/lib/plans";
+import { useToast } from "@/lib/ToastProvider";
 
 // Kept in sync with the backend's multer fileFilter in adplaylist-be/src/routes/uploads.ts
 const SUPPORTED_ATTACHMENT_TYPES =
@@ -120,6 +121,7 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
 export default function RequestsPage() {
   const { user, ready } = useRequireAuth();
   const { refresh } = useAuth();
+  const toast = useToast();
   const [upgrade, setUpgrade] = useState<UpgradeReason | null>(null);
   const [tab, setTab] = useState<(typeof TABS)[number]>("Open");
   const [requests, setRequests] = useState<CreativeRequest[]>([]);
@@ -231,6 +233,7 @@ export default function RequestsPage() {
       });
       setRequests((prev) => [request, ...prev]);
       setSubmitted(true);
+      toast.success("Request submitted. Our team will pick it up shortly.");
       // One credit was spent; update the balance shown.
       if (user?.account) refresh();
       formEl.reset();

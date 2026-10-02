@@ -8,6 +8,7 @@ import Pagination, { usePagination } from "@/components/Pagination";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type AdminUser, type NewUserInput, type Role } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
+import { useToast } from "@/lib/ToastProvider";
 
 const ROLES: Role[] = ["client", "designer", "editor", "admin"];
 
@@ -86,6 +87,7 @@ function formatDate(iso: string) {
 
 export default function AdminUsersPage() {
   const { user: authUser, ready } = useRequireRole(["admin"]);
+  const toast = useToast();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -172,6 +174,7 @@ export default function AdminUsersPage() {
       const { user: created } = await api.createUser(newUser);
       setUsers((list) => [...list, created]);
       setAddOpen(false);
+      toast.success(`${created.fullName} was added.`);
     } catch (err) {
       setAddError(err instanceof ApiError ? err.message : "Couldn't create user.");
     } finally {
@@ -193,6 +196,7 @@ export default function AdminUsersPage() {
       });
       setUsers((list) => list.map((u) => (u.id === updated.id ? updated : u)));
       setEditTarget(null);
+      toast.success("User updated.");
     } catch (err) {
       setEditError(
         err instanceof ApiError ? err.message : "Couldn't save changes."

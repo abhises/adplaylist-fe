@@ -9,6 +9,7 @@ import Spinner from "@/components/Spinner";
 import { adToDraft, draftToAd, type AdDraft } from "@/lib/adDraft";
 import { api, ApiError } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
+import { useToast } from "@/lib/ToastProvider";
 
 // Step B for an ad that's already in the library: admins edit it in the same
 // layout used to preview new ads, and "Save changes" updates it in place.
@@ -16,6 +17,7 @@ export default function EditAdPage({ params }: PageProps<"/ads/[id]/edit">) {
   const { id } = use(params);
   const { user, ready } = useRequireRole(["admin"]);
   const router = useRouter();
+  const toast = useToast();
 
   const [draft, setDraft] = useState<AdDraft | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,8 +68,10 @@ export default function EditAdPage({ params }: PageProps<"/ads/[id]/edit">) {
     <AdEditor
       initialDraft={draft}
       onSubmit={async (d) => {
-        await api.updateAd(id, draftToAd(d));
-        router.push(`/ads/${id}`);
+        const { ad } = await api.updateAd(id, draftToAd(d));
+        toast.success("Ad saved.");
+        // The slug may have changed; the old one would only redirect.
+        router.push(`/ads/${ad.id}`);
       }}
       submitLabel="Save changes"
       submittingLabel="Saving…"

@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthProvider";
 import { ApiError } from "@/lib/api";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { useToast } from "@/lib/ToastProvider";
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, loginWithGoogle } = useAuth();
+  const toast = useToast();
   const [email, setEmail] = useState("anna.smith@atlasmedia.co");
   const [password, setPassword] = useState("");
   const [keepSignedIn, setKeepSignedIn] = useState(true);
@@ -22,6 +24,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await login(email, password);
+      toast.success("Signed in. Welcome back!");
       router.push("/library");
     } catch (err) {
       setError(
@@ -36,6 +39,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await loginWithGoogle(credential);
+      toast.success("Signed in with Google. Welcome back!");
       router.push("/library");
     } catch (err) {
       setError(

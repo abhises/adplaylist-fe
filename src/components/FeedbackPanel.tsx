@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type User } from "@/lib/api";
+import { useToast } from "@/lib/ToastProvider";
 
 const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024;
 const SCREENSHOT_MIME = /^image\/(png|jpe?g|webp|gif)$/;
@@ -15,6 +16,7 @@ const inputClass =
 // it slides out. What's sent lands in the admin's /admin/feedback inbox.
 export default function FeedbackPanel({ user }: { user: User }) {
   const [open, setOpen] = useState(false);
+  const toast = useToast();
   const [sent, setSent] = useState(false);
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState(user.email);
@@ -81,6 +83,7 @@ export default function FeedbackPanel({ user }: { user: User }) {
         pageUrl: window.location.href,
       });
       setSent(true);
+      toast.success("Thanks! Your feedback was sent.");
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Couldn't send your feedback."

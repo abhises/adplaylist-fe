@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthProvider";
 import { ApiError } from "@/lib/api";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { useToast } from "@/lib/ToastProvider";
 
 export default function SignupPage() {
   return (
@@ -18,6 +19,7 @@ export default function SignupPage() {
 function SignupForm() {
   const router = useRouter();
   const { register, loginWithGoogle } = useAuth();
+  const toast = useToast();
   const [fullName, setFullName] = useState("");
   // The landing page's hero form sends visitors here with ?email= prefilled.
   const searchParams = useSearchParams();
@@ -53,6 +55,7 @@ function SignupForm() {
     setSubmitting(true);
     try {
       await register(fullName, email, password, "client");
+      toast.success("Account created. Welcome to Adplaylist!");
       router.push(next);
     } catch (err) {
       setError(
@@ -67,6 +70,7 @@ function SignupForm() {
     setError(null);
     try {
       await loginWithGoogle(credential);
+      toast.success("Signed in with Google. Welcome!");
       router.push(next);
     } catch (err) {
       setError(

@@ -10,6 +10,7 @@ import Spinner from "@/components/Spinner";
 import { api, ApiError, type Author, type AuthorInput } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
 import { SUPPORTED_IMAGE_ACCEPT, uploadImage, validateImageFile } from "@/lib/upload";
+import { useToast } from "@/lib/ToastProvider";
 
 const inputClass =
   "w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70";
@@ -53,6 +54,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 // names its curator, which must match one of these by name.
 export default function AdminAuthorsPage() {
   const { user, ready } = useRequireRole(["admin"]);
+  const toast = useToast();
   const [authors, setAuthors] = useState<Author[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,6 +118,7 @@ export default function AdminAuthorsPage() {
       else await api.updateAuthor(editing.id, form);
       await load();
       setEditing(null);
+      toast.success(editing === "new" ? `${form.name} was added.` : "Author saved.");
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Couldn't save that author.");
     } finally {

@@ -109,7 +109,19 @@ function Avatar({ author, size }: { author: Author; size: "sm" | "lg" }) {
   );
 }
 
-const eyebrow = "text-xs font-medium tracking-[1px] text-ink-muted uppercase";
+const eyebrow = "text-[13px] font-semibold tracking-[0.13em] text-ink-muted uppercase lg:text-sm";
+
+// The prototype's faint "ADPLAYLIST" pattern laid over the creative.
+const WATERMARK = `url("data:image/svg+xml,${encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='200' height='80'><text x='100' y='45' text-anchor='middle' font-family='Archivo,Helvetica,sans-serif' font-weight='800' font-size='14' letter-spacing='3' fill='rgb(128,128,128)' fill-opacity='0.2'>ADPLAYLIST</text></svg>"
+)}")`;
+
+// The two actions under the ad's title. Labels never wrap: the buttons stack
+// instead (see where they're rendered).
+const canvaButton =
+  "flex w-full items-center justify-center gap-1.5 whitespace-nowrap bg-brand px-3 py-3 text-base font-bold text-brand-foreground lg:py-4 lg:text-[17px]";
+const downloadButton =
+  "flex w-full items-center justify-center gap-2 whitespace-nowrap border border-ink/25 bg-card px-4 py-3 text-base font-bold text-ink hover:border-ink/60 lg:justify-between lg:py-4 lg:text-[17px]";
 
 function DetailRow({
   label,
@@ -121,7 +133,7 @@ function DetailRow({
   href?: string;
 }) {
   return (
-    <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
+    <div className="flex justify-between gap-4 border-b border-ink/10 py-3.5 text-base">
       <span className="shrink-0 text-ink-muted">{label}</span>
       {href ? (
         <Link href={href} className="text-right text-ink hover:text-brand">
@@ -155,6 +167,7 @@ export default function AdDetailView({
   const allAds = initialAds;
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
   const [upgrade, setUpgrade] = useState<UpgradeReason | null>(null);
   const [signUp, setSignUp] = useState<SignUpReason | null>(null);
 
@@ -240,16 +253,68 @@ export default function AdDetailView({
     { label: "X", href: `https://x.com/intent/post?url=${shareUrl}&text=${shareText}` },
   ];
 
+  const canvaAction =
+    ad.canvaUrl ? (
+      <a suppressHydrationWarning
+        href={ad.canvaUrl}
+        target="_blank"
+        rel="noreferrer"
+        className={canvaButton}
+      >
+        &#9998; Edit in Canva
+      </a>
+    ) : ad.hasEditableCopy ? (
+      // Not on this plan: keep it visible, locked.
+      <button
+        type="button"
+        onClick={() =>
+          user ? setUpgrade("editableCopies") : setSignUp("editableCopies")
+        }
+        className={canvaButton}
+      >
+        &#128274; Edit in Canva
+      </button>
+    ) : (
+      <span className={`${canvaButton} opacity-60`}>&#9998; Edit in Canva</span>
+    );
+  // Downloading needs an account; visitors only see the image.
+  const downloadAction =
+    !user ? (
+      <button
+        type="button"
+        onClick={() => setSignUp("download")}
+        title="PNG · 1200 × 1200"
+        className={downloadButton}
+      >
+        <span>&#8595; Download</span>
+        <span aria-hidden className="hidden text-[11px] lg:inline">&#9660;</span>
+      </button>
+    ) : download ? (
+      <a suppressHydrationWarning
+        href={download}
+        download={ad.imageFileName || true}
+        title="PNG · 1200 × 1200"
+        className={downloadButton}
+      >
+        <span>&#8595; Download</span>
+        <span aria-hidden className="hidden text-[11px] lg:inline">&#9660;</span>
+      </a>
+    ) : (
+      <span className={`${downloadButton} text-ink/40`}>&#8595; Download</span>
+    );
+
   return (
     <div className="flex min-h-screen flex-col">
       {user ? <AppHeader /> : <LandingHeader />}
 
       {/* 1 · Breadcrumbs (BreadcrumbList data is on the server page). */}
-      <div className="flex items-center justify-between gap-4 border-b border-ink/15 px-10 py-4">
-        <nav aria-label="Breadcrumb" className="min-w-0 text-sm">
-          <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      {/* One line on phones, ending in "…"; wraps from sm, where the
+          prev/next arrows also appear. */}
+      <div className="flex items-center justify-between gap-4 border-b border-ink/15 px-4 py-3 sm:px-10 lg:px-12 sm:py-4">
+        <nav aria-label="Breadcrumb" className="min-w-0 flex-1 text-xs text-ink-muted sm:text-[15px]">
+          <ol className="flex items-center gap-x-2 gap-y-1 whitespace-nowrap *:shrink-0 sm:flex-wrap sm:whitespace-normal">
             <li>
-              <Link href={libraryHref} className="font-medium text-brand">
+              <Link href={libraryHref} className="text-brand">
                 Ad library
               </Link>
             </li>
@@ -270,12 +335,12 @@ export default function AdDetailView({
               </>
             )}
             <li aria-hidden className="text-ink-muted">/</li>
-            <li aria-current="page" className="truncate text-ink">
+            <li aria-current="page" className="min-w-0 !shrink truncate text-ink">
               {headline}
             </li>
           </ol>
         </nav>
-        <div className="flex shrink-0 gap-2">
+        <div className="hidden shrink-0 gap-2 sm:flex">
           <Link
             href={prevAd ? `/ads/${prevAd.id}` : "#"}
             aria-disabled={!prevAd}
@@ -299,11 +364,15 @@ export default function AdDetailView({
         </div>
       </div>
 
-      <main className="grid flex-1 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      {/* Two columns from lg. Below that the columns use display:contents,
+          so their sections become one list and `order-*` puts them in the
+          mobile prototype's order: title, creative, byline, share, details,
+          copy, sizes, then the editorial sections. */}
+      <main className="flex flex-1 flex-col px-4 py-6 break-words sm:px-10 lg:grid lg:grid-cols-[minmax(0,8fr)_minmax(0,7fr)] lg:p-0">
         {/* Left: the creative and the editorial content. */}
-        <div className="min-w-0 border-r border-ink/15 px-10 py-8">
+        <div className="contents lg:block lg:min-w-0 lg:border-r lg:border-ink/15 lg:px-12 lg:py-10">
           {/* 2 · The creative with alt text, size and caption. */}
-          <figure className="mx-auto" style={{ width: "min(75%, 60vh)" }}>
+          <figure className="order-2 mx-auto mt-5 w-full lg:order-none lg:mt-0 lg:w-full lg:max-w-[592px]">
             <div
               style={{ aspectRatio: "1 / 1" }}
               className={`relative overflow-hidden ${ad.photo ? "" : ad.swatch}`}
@@ -319,9 +388,15 @@ export default function AdDetailView({
                   className="absolute inset-0 h-full w-full object-contain"
                 />
               )}
+              {/* Faint repeating ADPLAYLIST mark over the creative. */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -inset-1/2 bg-[length:200px_80px]"
+                style={{ backgroundImage: WATERMARK, transform: "rotate(-30deg)" }}
+              />
             </div>
             {ad.imageCaption && (
-              <figcaption className="mt-2 text-center text-xs text-ink-muted">
+              <figcaption className="mt-3 text-center text-sm text-pretty text-ink-muted">
                 {ad.imageCaption}
               </figcaption>
             )}
@@ -329,9 +404,9 @@ export default function AdDetailView({
 
           {/* 17 · Key takeaways. */}
           {hasTakeaways && (
-            <div className="mt-8 border border-ink/15 bg-surface-2 p-5">
+            <div className="order-[8] mt-10 border border-ink/15 bg-card p-5 lg:order-none lg:p-6">
               <p className={eyebrow}>Key takeaways</p>
-              <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-ink">
+              <ul className="mt-3 list-disc space-y-1.5 pl-5 text-base leading-relaxed text-ink">
                 {(
                   [
                     ["format", "Format"],
@@ -351,21 +426,21 @@ export default function AdDetailView({
             </div>
           )}
 
-          <div className="mt-8">
+          <div className="order-[7] mt-10 lg:order-none">
             <p className={eyebrow}>Available sizes</p>
             <div className="mt-2 flex flex-wrap items-center gap-3">
-              <div className="border border-ink/15 border-b-2 border-b-brand px-3 py-3 text-left text-sm font-bold text-ink">
+              <div className="border border-ink/15 border-b-2 border-b-brand bg-card px-4 py-3 text-left text-base font-bold text-ink">
                 <span className="block">
                   {mainPlatform} {SIZE_OPTIONS[SQUARE_INDEX]?.name}
                 </span>
-                <span className="block text-xs font-normal text-ink-muted">
+                <span className="block text-sm font-semibold text-ink-muted">
                   {SIZE_OPTIONS[SQUARE_INDEX]?.dims} · PNG
                 </span>
               </div>
               {user ? (
                 <Link
                   href="/requests"
-                  className="bg-brand px-4 py-2.5 text-sm font-bold text-brand-foreground"
+                  className="bg-brand px-5 py-3.5 text-base font-bold text-brand-foreground"
                 >
                   Request more sizes
                 </Link>
@@ -373,7 +448,7 @@ export default function AdDetailView({
                 <button
                   type="button"
                   onClick={() => setSignUp("requests")}
-                  className="bg-brand px-4 py-2.5 text-sm font-bold text-brand-foreground"
+                  className="bg-brand px-5 py-3.5 text-base font-bold text-brand-foreground"
                 >
                   Request more sizes
                 </button>
@@ -383,12 +458,12 @@ export default function AdDetailView({
 
           {/* 18 · Definition of the format. */}
           {definition && ad.adFormat && (
-            <section className="mt-10">
-              <h2 className="text-xl font-extrabold text-ink">{definition.question}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink">{definition.answer}</p>
+            <section className="order-[9] mt-10 lg:order-none">
+              <h2 className="text-[22px] font-extrabold text-ink">{definition.question}</h2>
+              <p className="mt-2.5 text-base leading-[1.7] text-pretty text-ink">{definition.answer}</p>
               <Link
                 href={libraryQuery("q", ad.adFormat)}
-                className="mt-2 inline-block text-sm text-brand"
+                className="mt-2.5 inline-block text-[15px] text-brand"
               >
                 See all {ad.adFormat.toLowerCase()} ads &rarr;
               </Link>
@@ -397,17 +472,17 @@ export default function AdDetailView({
 
           {/* 3 · Why it works: original editorial content. */}
           {content.whyItWorks && content.whyItWorks.length > 0 && (
-            <section className="mt-10">
-              <h2 className="text-xl font-extrabold text-ink">Why this {subject} ad works</h2>
+            <section className="order-[10] mt-10 lg:order-none">
+              <h2 className="text-[22px] font-extrabold text-ink lg:text-[26px]">Why this {subject} ad works</h2>
               <ol className="mt-4 divide-y divide-ink/10 border-y border-ink/10">
                 {content.whyItWorks.map((point, i) => (
-                  <li key={i} className="flex gap-4 py-3">
-                    <span className="text-sm font-bold text-brand tabular-nums">
+                  <li key={i} className="flex gap-4 py-3.5">
+                    <span className="w-7 shrink-0 font-bold text-brand tabular-nums">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <div>
-                      <h3 className="text-sm font-bold text-ink">{point.title}</h3>
-                      <p className="mt-0.5 text-sm leading-relaxed text-ink-muted">{point.text}</p>
+                      <h3 className="text-base font-bold text-ink">{point.title}</h3>
+                      <p className="mt-1 text-[15px] leading-[1.55] text-ink-muted">{point.text}</p>
                     </div>
                   </li>
                 ))}
@@ -417,9 +492,9 @@ export default function AdDetailView({
 
           {/* 14 · Long-form breakdown with jump links. */}
           {(breakdown.length > 0 || steps.length > 0 || content.platformTips) && (
-            <section className="mt-10">
-              <h2 className="text-xl font-extrabold text-ink">Full creative breakdown</h2>
-              <nav aria-label="Breakdown sections" className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <section className="order-[11] mt-10 lg:order-none">
+              <h2 className="text-[22px] font-extrabold text-ink lg:text-[26px]">Full creative breakdown</h2>
+              <nav aria-label="Breakdown sections" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
                 {breakdown.map((s) => (
                   <a suppressHydrationWarning key={s.id} href={`#${s.id}`} className="text-brand">
                     {s.nav}
@@ -437,19 +512,19 @@ export default function AdDetailView({
                 )}
               </nav>
               {breakdown.map((s) => (
-                <div key={s.id} id={s.id} className="mt-6 scroll-mt-6">
-                  <h3 className="text-base font-bold text-ink">{s.title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-line text-ink">
+                <div key={s.id} id={s.id} className="mt-7 scroll-mt-6">
+                  <h3 className="text-lg font-bold text-ink lg:text-[19px]">{s.title}</h3>
+                  <p className="mt-2.5 text-base leading-[1.7] whitespace-pre-line text-pretty text-ink">
                     {s.text}
                   </p>
                 </div>
               ))}
               {steps.length > 0 && (
-                <div id="adapt" className="mt-6 scroll-mt-6">
-                  <h3 className="text-base font-bold text-ink">
+                <div id="adapt" className="mt-7 scroll-mt-6">
+                  <h3 className="text-lg font-bold text-ink lg:text-[19px]">
                     How to adapt this template for your brand
                   </h3>
-                  <ol className="mt-1.5 list-decimal space-y-1 pl-5 text-sm leading-relaxed text-ink">
+                  <ol className="mt-2.5 list-decimal space-y-1.5 pl-5 text-base leading-[1.7] text-ink">
                     {steps.map((step, i) => (
                       <li key={i}>{step}</li>
                     ))}
@@ -457,11 +532,11 @@ export default function AdDetailView({
                 </div>
               )}
               {content.platformTips && (
-                <div id="platform-tips" className="mt-6 scroll-mt-6">
-                  <h3 className="text-base font-bold text-ink">
+                <div id="platform-tips" className="mt-7 scroll-mt-6">
+                  <h3 className="text-lg font-bold text-ink lg:text-[19px]">
                     Tips for {ad.category.toLowerCase()} ads on {mainPlatform}
                   </h3>
-                  <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-line text-ink">
+                  <p className="mt-2.5 text-base leading-[1.7] whitespace-pre-line text-pretty text-ink">
                     {content.platformTips}
                   </p>
                 </div>
@@ -470,9 +545,9 @@ export default function AdDetailView({
           )}
 
           {ad.creativeDescription && (
-            <section className="mt-10">
-              <h2 className="text-xl font-extrabold text-ink">About this creative</h2>
-              <p className="mt-2 text-justify text-sm leading-relaxed whitespace-pre-line hyphens-auto text-ink">
+            <section className="order-[12] mt-10 lg:order-none">
+              <h2 className="text-[22px] font-extrabold text-ink">About this creative</h2>
+              <p className="mt-2.5 text-base leading-[1.7] whitespace-pre-line text-pretty text-ink">
                 {ad.creativeDescription}
               </p>
             </section>
@@ -480,7 +555,7 @@ export default function AdDetailView({
 
           {/* 15 · Curator bio box. */}
           {ad.author && (
-            <aside className="mt-10 border border-ink/15 bg-surface-2 p-5">
+            <aside className="order-[15] mt-10 border border-ink/15 bg-card p-5 lg:order-none lg:p-6">
               <p className={eyebrow}>About the curator</p>
               <div className="mt-3 flex gap-4">
                 <Avatar author={ad.author} size="lg" />
@@ -488,17 +563,17 @@ export default function AdDetailView({
                   <Link
                     href={`/authors/${ad.author.slug}`}
                     rel="author"
-                    className="text-base font-extrabold text-ink hover:text-brand"
+                    className="text-lg font-extrabold text-ink hover:text-brand"
                   >
                     {ad.author.name}
                   </Link>
-                  <p className="text-xs text-ink-muted">
+                  <p className="mt-0.5 text-sm text-ink-muted">
                     {[ad.author.jobTitle, ad.author.credentials].filter(Boolean).join(" · ")}
                   </p>
                   {ad.author.bio && (
-                    <p className="mt-2 text-sm leading-relaxed text-ink">{ad.author.bio}</p>
+                    <p className="mt-2 text-[15px] leading-relaxed text-pretty text-ink">{ad.author.bio}</p>
                   )}
-                  <div className="mt-2 flex flex-wrap gap-x-4 text-sm">
+                  <div className="mt-2.5 flex flex-wrap gap-x-4 text-sm">
                     <Link href={`/authors/${ad.author.slug}`} className="text-brand">
                       All ads by {ad.author.name.split(" ")[0]} &rarr;
                     </Link>
@@ -520,149 +595,154 @@ export default function AdDetailView({
         </div>
 
         {/* Right: what the ad is, who curated it and its details. */}
-        <div className="min-w-0 px-10 py-8 break-words">
-          <p className={eyebrow}>
-            {[`${mainPlatform} ad`, SQUARE_SIZE.dims, ad.category].join(" · ")}
-          </p>
-          {/* 4 · One keyword-led H1 and an intro paragraph. */}
-          <div className="mt-1 flex items-start justify-between gap-3">
-            <h1 className="text-3xl font-extrabold text-ink">{headline}</h1>
-            <div className="flex shrink-0 gap-2">
-              {user?.role === "admin" && (
-                <Link
-                  href={`/ads/${ad.id}/edit`}
-                  aria-label="Edit ad"
-                  title="Edit ad"
-                  className="flex h-9 w-9 items-center justify-center border border-border text-ink"
-                >
-                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" />
-                  </svg>
-                </Link>
-              )}
-              <button
-                onClick={toggleSaved}
-                aria-label="Save ad"
-                title={saved ? "Remove from saved" : "Save ad"}
-                className={`flex h-9 w-9 cursor-pointer items-center justify-center border border-border ${
-                  saved ? "bg-brand text-brand-foreground" : "text-ink"
-                }`}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="15"
-                  height="15"
-                  fill={saved ? "currentColor" : "none"}
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M6 4h12v16l-6-4-6 4Z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          {ad.introParagraph && (
-            <p className="mt-3 text-sm leading-relaxed text-ink">{ad.introParagraph}</p>
-          )}
-
-          {/* 12 · Visible dates for freshness. */}
-          <p className="mt-3 flex flex-wrap gap-x-3 text-xs text-ink-muted">
-            {added && (
-              <span>
-                Added <time dateTime={added}>{formatDay(added)}</time>
-              </span>
-            )}
-            {updated && updated !== added && (
-              <span>
-                Updated <time dateTime={updated}>{formatDay(updated)}</time>
-              </span>
-            )}
-          </p>
-
-          {/* 13 · Author byline and reviewer. */}
-          {ad.author && (
-            <div className="mt-4 flex items-center gap-3">
-              <Avatar author={ad.author} size="sm" />
-              <div className="text-xs text-ink-muted">
-                <p>
-                  Added by{" "}
+        <div className="contents lg:block lg:min-w-0 lg:px-12 lg:py-10">
+          <div className="order-1 lg:order-none">
+            <p className={eyebrow}>
+              {[`${mainPlatform} ad`, SQUARE_SIZE.dims, ad.category].join(" · ")}
+            </p>
+            {/* 4 · One keyword-led H1 and an intro paragraph. */}
+            <div className="mt-1 flex items-start justify-between gap-3">
+              <h1 className="text-2xl leading-tight font-extrabold text-pretty text-ink sm:text-3xl lg:text-[38px] lg:leading-[1.12]">{headline}</h1>
+              <div className="flex shrink-0 gap-2">
+                {user?.role === "admin" && (
                   <Link
-                    href={`/authors/${ad.author.slug}`}
-                    rel="author"
-                    className="font-bold text-ink hover:text-brand"
+                    href={`/ads/${ad.id}/edit`}
+                    aria-label="Edit ad"
+                    title="Edit ad"
+                    className="flex h-9 w-9 items-center justify-center border border-border text-ink"
                   >
-                    {ad.author.name}
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" />
+                    </svg>
                   </Link>
-                  {ad.author.jobTitle && <>, {ad.author.jobTitle}</>}
-                </p>
-                {ad.reviewer && (
-                  <p>
-                    Copy and tags reviewed by{" "}
-                    <Link
-                      href={`/authors/${ad.reviewer.slug}`}
-                      className="underline hover:text-brand"
-                    >
-                      {ad.reviewer.name}
-                    </Link>
-                  </p>
                 )}
+                <button
+                  onClick={toggleSaved}
+                  aria-label="Save ad"
+                  title={saved ? "Remove from saved" : "Save ad"}
+                  className={`flex h-9 w-9 cursor-pointer items-center justify-center border border-border ${
+                    saved ? "bg-brand text-brand-foreground" : "text-ink"
+                  }`}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="15"
+                    height="15"
+                    fill={saved ? "currentColor" : "none"}
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M6 4h12v16l-6-4-6 4Z" />
+                  </svg>
+                </button>
               </div>
             </div>
-          )}
+          </div>
+
+          <div className="order-3 lg:order-none">
+            {ad.introParagraph && (
+              <p className="mt-5 text-base leading-relaxed text-pretty text-ink lg:mt-4 lg:text-[17px] lg:leading-[1.6]">
+                {ad.introParagraph}
+              </p>
+            )}
+
+            {/* 12 · Visible dates for freshness. */}
+            <p className="mt-3 flex flex-wrap gap-x-4 text-sm text-ink-muted lg:mt-4">
+              {added && (
+                <span>
+                  Added <time dateTime={added}>{formatDay(added)}</time>
+                </span>
+              )}
+              {updated && updated !== added && (
+                <span>
+                  Updated <time dateTime={updated}>{formatDay(updated)}</time>
+                </span>
+              )}
+            </p>
+
+            {/* 13 · Author byline and reviewer. */}
+            {ad.author && (
+              <div className="mt-4 flex items-center gap-3">
+                <Avatar author={ad.author} size="sm" />
+                <div className="text-sm text-ink-muted">
+                  <p>
+                    Added by{" "}
+                    <Link
+                      href={`/authors/${ad.author.slug}`}
+                      rel="author"
+                      className="font-bold text-ink hover:text-brand"
+                    >
+                      {ad.author.name}
+                    </Link>
+                    {ad.author.jobTitle && <>, {ad.author.jobTitle}</>}
+                  </p>
+                  {ad.reviewer && (
+                    <p>
+                      Copy and tags reviewed by{" "}
+                      <Link
+                        href={`/authors/${ad.reviewer.slug}`}
+                        className="underline hover:text-brand"
+                      >
+                        {ad.reviewer.name}
+                      </Link>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </div>
 
           {/* 5 · Download (signed-in only) and share links. */}
-          <div className="mt-6 grid grid-cols-2 gap-2">
-            {ad.canvaUrl ? (
-              <a suppressHydrationWarning
-                href={ad.canvaUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="block bg-brand py-2.5 text-center text-sm font-bold text-brand-foreground"
+          {/* Side by side from 400px; stacked full-width below that, so
+              neither label has to wrap on a small phone. */}
+          {/* On desktop the actions sit under the title; on smaller screens
+              they're in the bar pinned to the bottom (end of the page). */}
+          <div className="mt-6 hidden grid-cols-2 gap-3 lg:grid">
+            {canvaAction}
+            {/* Signed in, Download opens a menu of the files on offer (just
+                the PNG the ad is stored as). */}
+            {user && download ? (
+              <div
+                className="relative"
+                onBlur={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setDownloadOpen(false);
+                }}
+                onKeyDown={(e) => e.key === "Escape" && setDownloadOpen(false)}
               >
-                &#9998; Edit in Canva
-              </a>
-            ) : ad.hasEditableCopy ? (
-              // Not on this plan: keep it visible, locked.
-              <button
-                type="button"
-                onClick={() =>
-                  user ? setUpgrade("editableCopies") : setSignUp("editableCopies")
-                }
-                className="bg-brand py-2.5 text-sm font-bold text-brand-foreground"
-              >
-                &#128274; Edit in Canva
-              </button>
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={downloadOpen}
+                  onClick={() => setDownloadOpen((o) => !o)}
+                  className={downloadButton}
+                >
+                  <span>&#8595; Download</span>
+                  <span className="text-[11px]">&#9660;</span>
+                </button>
+                {downloadOpen && (
+                  <div
+                    role="menu"
+                    className="absolute inset-x-0 top-full z-10 border border-t-0 border-ink/25 bg-card shadow-lg"
+                  >
+                    <a suppressHydrationWarning
+                      role="menuitem"
+                      href={download}
+                      download={ad.imageFileName || true}
+                      onClick={() => setDownloadOpen(false)}
+                      className="flex justify-between px-4 py-3 text-[15px] text-ink hover:bg-surface-2"
+                    >
+                      <span>PNG</span>
+                      <span className="text-ink-muted">1200 × 1200</span>
+                    </a>
+                  </div>
+                )}
+              </div>
             ) : (
-              <span className="block bg-brand py-2.5 text-center text-sm font-bold text-brand-foreground opacity-60">
-                &#9998; Edit in Canva
-              </span>
-            )}
-            {/* Downloading needs an account; visitors only see the image. */}
-            {!user ? (
-              <button
-                type="button"
-                onClick={() => setSignUp("download")}
-                className="flex items-center justify-between border border-border px-3 py-2.5 text-sm font-bold text-ink hover:border-ink/60"
-              >
-                <span>&#8595; Download</span>
-                <span className="text-xs font-normal text-ink-muted">PNG 1200 × 1200</span>
-              </button>
-            ) : download ? (
-              <a suppressHydrationWarning
-                href={download}
-                download={ad.imageFileName || true}
-                className="flex items-center justify-between border border-border px-3 py-2.5 text-sm font-bold text-ink hover:border-ink/60"
-              >
-                <span>&#8595; Download</span>
-                <span className="text-xs font-normal text-ink-muted">PNG 1200 × 1200</span>
-              </a>
-            ) : (
-              <span className="flex items-center border border-border px-3 py-2.5 text-sm font-bold text-ink/40">
-                &#8595; Download
-              </span>
+              downloadAction
             )}
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <div className="order-4 mt-5 flex flex-wrap items-center gap-2.5 text-sm lg:order-none lg:mt-3">
             <span className="text-ink-muted">Share</span>
             <button
               type="button"
@@ -685,9 +765,9 @@ export default function AdDetailView({
           </div>
 
           {/* 6 · Details as internal links. */}
-          <div className="mt-8">
+          <div className="order-[5] mt-8 lg:order-none">
             <p className={eyebrow}>Details</p>
-            <div className="mt-2 grid grid-cols-1 gap-x-8 border-t border-ink/10 sm:grid-cols-2">
+            <div className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-10 border-t border-ink/10">
               <DetailRow label="Category" value={ad.category} href={libraryQuery("category", ad.category)} />
               <DetailRow label="Platform" value={platforms.join(", ")} />
               {ad.adFormat && (
@@ -705,7 +785,7 @@ export default function AdDetailView({
                 <DetailRow label="Brand" value={ad.brandName} href={libraryQuery("q", ad.brandName)} />
               )}
               {(ad.canvaUrl || ad.hasEditableCopy) && (
-                <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
+                <div className="flex justify-between gap-4 border-b border-ink/10 py-3.5 text-base">
                   <span className="text-ink-muted">Canva template</span>
                   {ad.canvaUrl ? (
                     <a suppressHydrationWarning href={ad.canvaUrl} target="_blank" rel="noreferrer" className="text-brand">
@@ -728,30 +808,30 @@ export default function AdDetailView({
             </div>
           </div>
 
-          <div className="mt-8">
+          <div className="order-[6] mt-8 lg:order-none">
             <p className={eyebrow}>Ad copy</p>
             {ad.primaryText && (
               <>
-                <p className="mt-3 text-xs font-bold text-ink">Primary text</p>
-                <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-ink">
+                <h3 className="mt-3 text-[15px] font-semibold text-ink">Primary text</h3>
+                <p className="mt-1.5 text-base leading-[1.65] whitespace-pre-line text-ink">
                   {ad.primaryText}
                 </p>
               </>
             )}
-            <div className="mt-3 grid grid-cols-1 gap-x-8 border-t border-ink/10 sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-10 border-t border-ink/10">
               <DetailRow label="Headline" value={ad.headline} />
               {ad.cta && <DetailRow label="Call to action" value={ad.cta} />}
             </div>
             {ad.description && (
               <>
-                <p className="mt-3 text-xs font-bold text-ink">Description</p>
-                <p className="mt-1 text-sm leading-relaxed text-ink">{ad.description}</p>
+                <h3 className="mt-3 text-[15px] font-semibold text-ink">Description</h3>
+                <p className="mt-1.5 text-base leading-[1.65] text-ink">{ad.description}</p>
               </>
             )}
             {ad.onImageText && (
               <>
-                <p className="mt-3 text-xs font-bold text-ink">On-image text</p>
-                <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-ink">
+                <h3 className="mt-3 text-[15px] font-semibold text-ink">On-image text</h3>
+                <p className="mt-1.5 text-base leading-[1.65] whitespace-pre-line text-ink">
                   {ad.onImageText}
                 </p>
               </>
@@ -760,11 +840,11 @@ export default function AdDetailView({
 
           {/* 19 · Headline ideas. */}
           {content.headlineIdeas && content.headlineIdeas.length > 0 && (
-            <div className="mt-8">
+            <div className="order-[13] mt-8 lg:order-none">
               <p className={eyebrow}>Headline ideas for this template</p>
               <ol className="mt-2 divide-y divide-ink/10 border-y border-ink/10">
                 {content.headlineIdeas.map((idea, i) => (
-                  <li key={i} className="flex gap-3 py-2.5 text-sm text-ink">
+                  <li key={i} className="flex gap-3.5 py-3 text-base text-ink">
                     <span className="font-bold text-brand tabular-nums">{i + 1}</span>
                     {idea}
                   </li>
@@ -775,27 +855,27 @@ export default function AdDetailView({
 
           {/* 20 · Specs table. */}
           {isMeta && (
-            <div className="mt-8">
+            <div className="order-[14] mt-8 lg:order-none">
               <p className={eyebrow}>Meta image ad specs</p>
-              <table className="mt-2 w-full border-collapse text-sm">
+              <table className="mt-2 w-full border-collapse text-[15px]">
                 <thead>
-                  <tr className="border-b border-ink/15 text-left text-xs text-ink-muted">
-                    <th scope="col" className="py-2 font-medium">Placement</th>
-                    <th scope="col" className="py-2 font-medium">Ratio</th>
-                    <th scope="col" className="py-2 text-right font-medium">Size (px)</th>
+                  <tr className="border-b border-ink/25 text-left text-ink-muted">
+                    <th scope="col" className="py-2.5 font-medium">Placement</th>
+                    <th scope="col" className="py-2.5 font-medium">Ratio</th>
+                    <th scope="col" className="py-2.5 text-right font-medium">Size (px)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {META_IMAGE_SPECS.map((row) => (
                     <tr key={row.placement} className="border-b border-ink/10 text-ink">
-                      <td className="py-2">{row.placement}</td>
-                      <td className="py-2">{row.ratio}</td>
-                      <td className="py-2 text-right tabular-nums">{row.size}</td>
+                      <td className="py-3">{row.placement}</td>
+                      <td className="py-3">{row.ratio}</td>
+                      <td className="py-3 text-right tabular-nums">{row.size}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <p className="mt-2 text-xs text-ink-muted">
+              <p className="mt-2.5 text-sm text-ink-muted">
                 This template is 1:1. Request 4:5 or 9:16 to cover all placements.
               </p>
             </div>
@@ -803,7 +883,7 @@ export default function AdDetailView({
 
           {/* 7 · Tags as crawlable links. */}
           {ad.tags && ad.tags.length > 0 && (
-            <div className="mt-8">
+            <div className="order-[16] mt-8 lg:order-none">
               <p className={eyebrow}>Browse similar by tag</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {ad.tags.map((tag, i) => (
@@ -811,7 +891,7 @@ export default function AdDetailView({
                     key={i}
                     href={`${libraryHref}?tag=${encodeURIComponent(tag)}`}
                     title={`See all ads tagged “${tag}”`}
-                    className="border border-border px-2 py-0.5 text-xs text-ink hover:border-brand hover:text-brand"
+                    className="block border border-ink/25 px-2.5 py-1 text-sm text-ink hover:border-brand hover:text-brand"
                   >
                     {tag}
                   </Link>
@@ -824,14 +904,14 @@ export default function AdDetailView({
 
       {/* 8 · Collections and related guides. */}
       {((content.collections?.length ?? 0) > 0 || guides.length > 0) && (
-        <section className="grid grid-cols-1 gap-10 border-t border-ink/15 px-10 py-8 md:grid-cols-2">
+        <section className="grid grid-cols-1 gap-10 border-t border-ink/15 px-4 sm:px-10 lg:px-12 py-8 md:grid-cols-2">
           {content.collections && content.collections.length > 0 && (
             <div>
-              <h2 className="text-lg font-extrabold text-ink">Featured in collections</h2>
+              <h2 className="text-[22px] font-extrabold text-ink">Featured in collections</h2>
               <ul className="mt-3 divide-y divide-ink/10 border-y border-ink/10">
                 {/* Collections have no pages yet, so they aren't links. */}
                 {content.collections.map((name) => (
-                  <li key={name} className="py-2.5 text-sm font-bold text-ink">
+                  <li key={name} className="py-3.5 text-base font-semibold text-ink">
                     {name}
                   </li>
                 ))}
@@ -840,10 +920,10 @@ export default function AdDetailView({
           )}
           {guides.length > 0 && (
             <div>
-              <h2 className="text-lg font-extrabold text-ink">Related guides</h2>
+              <h2 className="text-[22px] font-extrabold text-ink">Related guides</h2>
               <ul className="mt-3 divide-y divide-ink/10 border-y border-ink/10">
                 {guides.map((g) => (
-                  <li key={g.title} className="py-2.5 text-sm">
+                  <li key={g.title} className="py-3.5 text-base">
                     {g.href ? (
                       <Link href={g.href} className="font-bold text-ink hover:text-brand">
                         {g.title}
@@ -864,7 +944,7 @@ export default function AdDetailView({
 
       {/* 10 · Related ads with keyword anchor text. */}
       {related.length > 0 && (
-        <section className="border-t border-ink/15 px-10 py-8">
+        <section className="border-t border-ink/15 px-4 sm:px-10 lg:px-12 py-8">
           <p className={eyebrow}>Visual similarity</p>
           <h2 className="mt-1 text-2xl font-extrabold text-ink">
             More {ad.category} ads like this
@@ -879,12 +959,13 @@ export default function AdDetailView({
 
       {/* 11 · Popular searches. */}
       {content.popularSearches && content.popularSearches.length > 0 && (
-        <section className="border-t border-ink/15 px-10 py-8">
-          <h2 className="text-lg font-extrabold text-ink">Popular searches</h2>
-          <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <section className="border-t border-ink/15 px-4 sm:px-10 lg:px-12 py-8">
+          <h2 className="text-xl font-extrabold text-ink">Popular searches</h2>
+          {/* A tappable bordered list on phones, a row of links from sm. */}
+          <ul className="mt-3 grid grid-cols-1 border-t border-ink/10 text-[15px] sm:flex sm:flex-wrap sm:gap-x-8 sm:gap-y-3 sm:border-0">
             {content.popularSearches.map((term) => (
-              <li key={term}>
-                <Link href={libraryQuery("q", term)} className="text-brand">
+              <li key={term} className="border-b border-ink/10 sm:border-0">
+                <Link href={libraryQuery("q", term)} className="block py-3 text-brand sm:py-0">
                   {term}
                 </Link>
               </li>
@@ -898,6 +979,12 @@ export default function AdDetailView({
           <LandingFooter />
         </div>
       )}
+      {/* The ad's two actions pinned to the bottom on phones and tablets,
+          like an app's action bar (desktop shows them under the title). */}
+      <div className="sticky bottom-0 z-10 grid grid-cols-2 gap-2 border-t border-ink/15 bg-surface px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-10 lg:px-12 lg:hidden">
+        {canvaAction}
+        {downloadAction}
+      </div>
       <UpgradePrompt reason={upgrade} onClose={() => setUpgrade(null)} />
       <SignUpPrompt reason={signUp} onClose={() => setSignUp(null)} />
     </div>
