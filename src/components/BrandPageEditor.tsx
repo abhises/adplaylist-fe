@@ -66,7 +66,7 @@ export default function BrandPageEditor({
     [bodyHtml, adsBySlug]
   );
 
-  const signupButtonHtml = `\n<p><a class="brand-cta" href="${escapeHtml(
+  const signupButtonHtml = `\n<p><a suppressHydrationWarning class="brand-cta" href="${escapeHtml(
     brandSignupHref(effectiveSlug)
   )}">${escapeHtml(effectiveCta)}</a></p>\n`;
 

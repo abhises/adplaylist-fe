@@ -36,12 +36,12 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
   return (
     <header className="sticky top-0 z-20 bg-[#EC3016] text-white">
       <div className={`${container} flex h-[72px] items-center justify-between gap-6`}>
-        <a href={onLanding ? "#top" : "/"} className="text-[14px] font-extrabold tracking-[0.18em]">
+        <a suppressHydrationWarning href={onLanding ? "#top" : "/"} className="text-[14px] font-extrabold tracking-[0.18em]">
           ADPLAYLIST
         </a>
         <nav className="hidden flex-wrap items-center gap-7 text-[15px] font-medium min-[820px]:flex">
           {NAV_LINKS.map((l) => (
-            <a key={l.label} href={linkHref(l)}>
+            <a suppressHydrationWarning key={l.label} href={linkHref(l)}>
               {l.label}
             </a>
           ))}
@@ -52,7 +52,7 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
           ) : (
             <>
               <Link href="/login">Sign in</Link>
-              <a href={signupHref} className="bg-white px-[18px] py-[10px] font-bold text-[#EC3016]">
+              <a suppressHydrationWarning href={signupHref} className="bg-white px-[18px] py-[10px] font-bold text-[#EC3016]">
                 Sign up free
               </a>
             </>
@@ -64,7 +64,7 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
               Go to Library
             </Link>
           ) : (
-            <a href={signupHref} className="bg-white px-[14px] py-[10px] text-[14px] font-bold whitespace-nowrap text-[#EC3016]">
+            <a suppressHydrationWarning href={signupHref} className="bg-white px-[14px] py-[10px] text-[14px] font-bold whitespace-nowrap text-[#EC3016]">
               Sign up free
             </a>
           )}
@@ -82,7 +82,7 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
       {menuOpen && (
         <nav className="flex flex-col border-t border-white/35 px-[clamp(20px,4vw,32px)] pb-4 min-[820px]:hidden">
           {NAV_LINKS.map((l) => (
-            <a
+            <a suppressHydrationWarning
               key={l.label}
               href={linkHref(l)}
               onClick={() => setMenuOpen(false)}

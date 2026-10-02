@@ -61,7 +61,7 @@ export default function BlogPostsList() {
             <h1 className="text-3xl font-extrabold text-ink">Blog</h1>
             <p className="mt-2 text-sm text-ink-muted">
               Posts for the public blog at{" "}
-              <a href="/blog" target="_blank" rel="noreferrer" className="text-brand">
+              <a suppressHydrationWarning href="/blog" target="_blank" rel="noreferrer" className="text-brand">
                 /blog
               </a>
               . Drafts stay hidden until published.
@@ -131,7 +131,7 @@ export default function BlogPostsList() {
                     </td>
                     <td className="py-3 text-right whitespace-nowrap">
                       {post.published && (
-                        <a
+                        <a suppressHydrationWarning
                           href={`/blog/${post.slug}`}
                           target="_blank"
                           rel="noreferrer"

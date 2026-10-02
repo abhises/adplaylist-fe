@@ -99,7 +99,7 @@ export default function EditBrandPage({
           {page.published && (
             <>
               {" · "}
-              <a
+              <a suppressHydrationWarning
                 href={`/brands/${page.slug}`}
                 target="_blank"
                 rel="noreferrer"

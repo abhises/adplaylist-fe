@@ -63,12 +63,12 @@ export default function AuthorView({ author, ads }: { author: Author; ads: Ad[] 
             )}
             <div className="mt-3 flex flex-wrap gap-4 text-sm">
               {author.linkedinUrl && (
-                <a href={author.linkedinUrl} target="_blank" rel="noopener noreferrer me" className="text-brand">
+                <a suppressHydrationWarning href={author.linkedinUrl} target="_blank" rel="noopener noreferrer me" className="text-brand">
                   LinkedIn &#8599;
                 </a>
               )}
               {author.websiteUrl && (
-                <a href={author.websiteUrl} target="_blank" rel="noopener noreferrer me" className="text-brand">
+                <a suppressHydrationWarning href={author.websiteUrl} target="_blank" rel="noopener noreferrer me" className="text-brand">
                   Website &#8599;
                 </a>
               )}

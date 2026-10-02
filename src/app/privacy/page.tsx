@@ -90,7 +90,7 @@ export default function PrivacyPage() {
             </>,
             <>
               <Term>Cookies and similar technologies:</Term> see{" "}
-              <a href="#cookies" className="text-[#EC3016] underline">
+              <a suppressHydrationWarning href="#cookies" className="text-[#EC3016] underline">
                 section 5
               </a>
               .

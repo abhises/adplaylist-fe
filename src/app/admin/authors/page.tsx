@@ -5,6 +5,7 @@ import Link from "@/components/Link";
 import AppHeader from "@/components/AppHeader";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Modal from "@/components/Modal";
+import Pagination, { usePagination } from "@/components/Pagination";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type Author, type AuthorInput } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
@@ -65,6 +66,8 @@ export default function AdminAuthorsPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<Author | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const pagination = usePagination(authors?.length ?? 0, "adplaylist_authors_page_size");
 
   async function load() {
     try {
@@ -184,7 +187,7 @@ export default function AdminAuthorsPage() {
               </tr>
             </thead>
             <tbody>
-              {authors.map((a) => (
+              {authors.slice(pagination.start, pagination.end).map((a) => (
                 <tr key={a.id} className="border-b border-ink/10">
                   <td className="py-3 font-bold text-ink">{a.name}</td>
                   <td className="py-3 text-ink-muted">{a.jobTitle ?? "—"}</td>
@@ -206,6 +209,11 @@ export default function AdminAuthorsPage() {
               ))}
             </tbody>
           </table>
+        )}
+        {authors && authors.length > 0 && (
+          <div className="max-w-5xl">
+            <Pagination {...pagination.props} />
+          </div>
         )}
       </main>
 

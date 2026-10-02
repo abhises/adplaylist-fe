@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "@/components/Link";
 import AppHeader from "@/components/AppHeader";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import Pagination, { usePagination } from "@/components/Pagination";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type Ad, type Tag } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
@@ -27,6 +28,8 @@ export default function AdminTagsPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<Tag | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const pagination = usePagination(tags?.length ?? 0, "adplaylist_tags_page_size");
 
   useEffect(() => {
     if (!user) return;
@@ -113,6 +116,8 @@ export default function AdminTagsPage() {
 
   if (!ready || !user) return null;
 
+  const pageTags = (tags ?? []).slice(pagination.start, pagination.end);
+
   const deleteCount = deleteTarget
     ? (usage.get(deleteTarget.name.toLowerCase()) ?? 0)
     : 0;
@@ -172,7 +177,7 @@ export default function AdminTagsPage() {
                 </tr>
               </thead>
               <tbody>
-                {tags.map((tag) => {
+                {pageTags.map((tag) => {
                   const count = usage.get(tag.name.toLowerCase()) ?? 0;
                   const isEditing = editingId === tag.id;
                   return (
@@ -254,6 +259,7 @@ export default function AdminTagsPage() {
                 })}
               </tbody>
             </table>
+            <Pagination {...pagination.props} />
           </div>
         )}
       </main>

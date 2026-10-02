@@ -10,7 +10,7 @@ export const CONTACT_EMAIL = "info@adplaylist.com";
 
 export function Email() {
   return (
-    <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#EC3016] underline">
+    <a suppressHydrationWarning href={`mailto:${CONTACT_EMAIL}`} className="text-[#EC3016] underline">
       {CONTACT_EMAIL}
     </a>
   );
@@ -100,7 +100,7 @@ export default function LegalPage({
             <ol className="mt-3 grid gap-x-8 gap-y-1.5 text-sm sm:grid-cols-2">
               {sections.map(([id, label]) => (
                 <li key={id}>
-                  <a href={`#${id}`} className="hover:text-[#EC3016]">
+                  <a suppressHydrationWarning href={`#${id}`} className="hover:text-[#EC3016]">
                     {label}
                   </a>
                 </li>

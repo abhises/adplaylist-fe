@@ -76,7 +76,7 @@ function AttachmentPreview({ url, name }: { url: string; name?: string }) {
     <div className="mt-1.5">
       <div className="flex items-center justify-between gap-3">
         <p className="min-w-0 truncate text-sm text-ink">{displayName}</p>
-        <a
+        <a suppressHydrationWarning
           href={url}
           target="_blank"
           rel="noreferrer"
@@ -312,7 +312,7 @@ export default function RequestsPage() {
                         <p className="font-semibold text-ink">
                           {req.title}
                           {req.attachmentUrl && (
-                            <a
+                            <a suppressHydrationWarning
                               href={req.attachmentUrl}
                               target="_blank"
                               rel="noreferrer"
@@ -382,7 +382,7 @@ export default function RequestsPage() {
                         <p className="text-xs text-ink-muted">
                           Delivered {shortDate(req.createdAt)}
                         </p>
-                        <a
+                        <a suppressHydrationWarning
                           href={`/ads/${req.ad.id}`}
                           className="mt-auto border border-border px-2.5 py-1.5 text-center text-sm font-bold text-ink hover:bg-surface-2"
                         >

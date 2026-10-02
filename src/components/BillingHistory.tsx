@@ -201,7 +201,7 @@ export function PaymentHistory({ version }: { version: string }) {
                   </td>
                   <td className="py-2.5 whitespace-nowrap">
                     {p.receiptUrl ? (
-                      <a href={p.receiptUrl} target="_blank" rel="noreferrer" className="text-brand">
+                      <a suppressHydrationWarning href={p.receiptUrl} target="_blank" rel="noreferrer" className="text-brand">
                         View
                       </a>
                     ) : (
@@ -210,7 +210,7 @@ export function PaymentHistory({ version }: { version: string }) {
                     {p.pdfUrl && (
                       <>
                         {" · "}
-                        <a href={p.pdfUrl} target="_blank" rel="noreferrer" className="text-brand">
+                        <a suppressHydrationWarning href={p.pdfUrl} target="_blank" rel="noreferrer" className="text-brand">
                           PDF
                         </a>
                       </>

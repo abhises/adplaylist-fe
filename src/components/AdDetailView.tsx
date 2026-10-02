@@ -421,17 +421,17 @@ export default function AdDetailView({
               <h2 className="text-xl font-extrabold text-ink">Full creative breakdown</h2>
               <nav aria-label="Breakdown sections" className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                 {breakdown.map((s) => (
-                  <a key={s.id} href={`#${s.id}`} className="text-brand">
+                  <a suppressHydrationWarning key={s.id} href={`#${s.id}`} className="text-brand">
                     {s.nav}
                   </a>
                 ))}
                 {steps.length > 0 && (
-                  <a href="#adapt" className="text-brand">
+                  <a suppressHydrationWarning href="#adapt" className="text-brand">
                     Adapt this template
                   </a>
                 )}
                 {content.platformTips && (
-                  <a href="#platform-tips" className="text-brand">
+                  <a suppressHydrationWarning href="#platform-tips" className="text-brand">
                     {mainPlatform} tips
                   </a>
                 )}
@@ -503,7 +503,7 @@ export default function AdDetailView({
                       All ads by {ad.author.name.split(" ")[0]} &rarr;
                     </Link>
                     {ad.author.linkedinUrl && (
-                      <a
+                      <a suppressHydrationWarning
                         href={ad.author.linkedinUrl}
                         target="_blank"
                         rel="noopener noreferrer me"
@@ -613,7 +613,7 @@ export default function AdDetailView({
           {/* 5 · Download (signed-in only) and share links. */}
           <div className="mt-6 grid grid-cols-2 gap-2">
             {ad.canvaUrl ? (
-              <a
+              <a suppressHydrationWarning
                 href={ad.canvaUrl}
                 target="_blank"
                 rel="noreferrer"
@@ -648,7 +648,7 @@ export default function AdDetailView({
                 <span className="text-xs font-normal text-ink-muted">PNG 1200 × 1200</span>
               </button>
             ) : download ? (
-              <a
+              <a suppressHydrationWarning
                 href={download}
                 download={ad.imageFileName || true}
                 className="flex items-center justify-between border border-border px-3 py-2.5 text-sm font-bold text-ink hover:border-ink/60"
@@ -672,7 +672,7 @@ export default function AdDetailView({
               {copied ? "Copied" : "Copy link"}
             </button>
             {shareLinks.map((s) => (
-              <a
+              <a suppressHydrationWarning
                 key={s.label}
                 href={s.href}
                 target="_blank"
@@ -708,7 +708,7 @@ export default function AdDetailView({
                 <div className="flex justify-between gap-4 border-b border-ink/10 py-3 text-sm">
                   <span className="text-ink-muted">Canva template</span>
                   {ad.canvaUrl ? (
-                    <a href={ad.canvaUrl} target="_blank" rel="noreferrer" className="text-brand">
+                    <a suppressHydrationWarning href={ad.canvaUrl} target="_blank" rel="noreferrer" className="text-brand">
                       Open link
                     </a>
                   ) : (

@@ -120,7 +120,7 @@ export default function BrandPagesList() {
                           >
                             {copied === page.id ? "Copied!" : "Copy link"}
                           </button>
-                          <a
+                          <a suppressHydrationWarning
                             href={`/brands/${page.slug}`}
                             target="_blank"
                             rel="noreferrer"

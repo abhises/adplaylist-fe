@@ -534,7 +534,7 @@ export default function LandingPage() {
                 {REQUEST_NOTES[requestType]}
               </div>
             </div>
-            <a
+            <a suppressHydrationWarning
               href={signedIn ? "/requests" : "#signup"}
               className="bg-[#161514] px-5 py-[15px] text-center text-[16px] font-bold text-white hover:bg-[#EC3016]"
             >
@@ -584,7 +584,7 @@ export default function LandingPage() {
               </Link>
             ) : (
               <>
-                <a href="#top" className="shrink-0 bg-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap text-[#EC3016]">
+                <a suppressHydrationWarning href="#top" className="shrink-0 bg-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap text-[#EC3016]">
                   Sign up free
                 </a>
                 <Link href="/login" className="shrink-0 border-[1.5px] border-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap">

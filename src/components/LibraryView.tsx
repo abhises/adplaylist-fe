@@ -8,6 +8,7 @@ import SignUpPrompt from "@/components/SignUpPrompt";
 import AdCard from "@/components/AdCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import FeedbackPanel from "@/components/FeedbackPanel";
+import Pagination, { usePagination } from "@/components/Pagination";
 import Spinner from "@/components/Spinner";
 import UpgradePrompt from "@/components/UpgradePrompt";
 import { can } from "@/lib/plans";
@@ -27,22 +28,12 @@ const ADDED_OPTIONS = [
   { label: "Last 6 months", days: 182 },
 ] as const;
 
-const PAGE_SIZE = 25;
+// Multiples of every column count the grid uses (2–5), so pages end on a
+// full row.
+const PAGE_SIZE_OPTIONS = [20, 40, 60, 100];
 
 // Page numbers to show around the current page, with null marking a gap,
 // e.g. 1 … 4 5 6 … 12.
-function pageItems(current: number, total: number): (number | null)[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages = new Set([1, total, current - 1, current, current + 1]);
-  const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
-  const items: (number | null)[] = [];
-  sorted.forEach((p, i) => {
-    if (i > 0 && p - sorted[i - 1] > 1) items.push(null);
-    items.push(p);
-  });
-  return items;
-}
-
 export default function LibraryView({
   heading,
   user,
@@ -103,7 +94,6 @@ export default function LibraryView({
         : [initialTags]
   );
   const [moreOpen, setMoreOpen] = useState(false);
-  const [page, setPage] = useState(1);
 
   // Keep ?tag=, ?q= and ?category= in step with the filters so a filtered
   // view can be bookmarked or shared.
@@ -316,20 +306,20 @@ export default function LibraryView({
     selectedColors,
     selectedTags,
   ]);
+  const pagination = usePagination(filtered.length, "adplaylist_library_page_size", {
+    options: PAGE_SIZE_OPTIONS,
+    defaultSize: PAGE_SIZE_OPTIONS[0],
+  });
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey);
-    setPage(1);
+    pagination.setPage(1);
   }
+  const pageAds = filtered.slice(pagination.start, pagination.end);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  // Clamped so deleting the last ad on the last page doesn't strand us.
-  const currentPage = Math.min(page, totalPages);
-  const pageStart = (currentPage - 1) * PAGE_SIZE;
-  const pageAds = filtered.slice(pageStart, pageStart + PAGE_SIZE);
-
+  // A new page starts at the top of the grid, not where the controls were.
   function goToPage(p: number) {
-    setPage(p);
+    pagination.setPage(p);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -767,55 +757,10 @@ export default function LibraryView({
                 ))}
               </div>
 
-              {totalPages > 1 && (
-                <nav
-                  aria-label="Pagination"
-                  className="mt-12 flex flex-wrap items-center gap-3 border-t border-ink/15 pt-6 text-sm"
-                >
-                  <span className="text-ink-muted">
-                    Showing {pageStart + 1}–{pageStart + pageAds.length} of{" "}
-                    {filtered.length}
-                  </span>
-                  <div className="ml-auto flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => goToPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="border border-border px-2.5 py-1 text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                    >
-                      ← Prev
-                    </button>
-                    {pageItems(currentPage, totalPages).map((p, i) =>
-                      p === null ? (
-                        <span key={`gap-${i}`} className="px-1 text-ink-muted">
-                          …
-                        </span>
-                      ) : (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => goToPage(p)}
-                          aria-current={p === currentPage ? "page" : undefined}
-                          className={`min-w-[32px] border px-2.5 py-1 ${
-                            p === currentPage
-                              ? "border-brand/30 bg-brand/10 font-bold text-brand"
-                              : "border-border text-ink hover:bg-surface-2"
-                          }`}
-                        >
-                          {p}
-                        </button>
-                      )
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => goToPage(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="border border-border px-2.5 py-1 text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                    >
-                      Next →
-                    </button>
-                  </div>
-                </nav>
+              {filtered.length > 0 && (
+                <div className="mt-12 border-t border-ink/15 pt-3">
+                  <Pagination {...pagination.props} onPageChange={goToPage} />
+                </div>
               )}
 
               {filtered.length === 0 && (

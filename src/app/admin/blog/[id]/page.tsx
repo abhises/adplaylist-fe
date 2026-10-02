@@ -99,7 +99,7 @@ export default function EditBlogPost({
           {post.published && (
             <>
               {" · "}
-              <a
+              <a suppressHydrationWarning
                 href={`/blog/${post.slug}`}
                 target="_blank"
                 rel="noreferrer"

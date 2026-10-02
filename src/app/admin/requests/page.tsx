@@ -390,7 +390,7 @@ export default function RequestsQueuePage() {
                     </td>
                     <td className="border-b border-border p-2">
                       {req.ad ? (
-                        <a
+                        <a suppressHydrationWarning
                           href={`/ads/${req.ad.id}`}
                           className="text-brand hover:underline"
                         >

@@ -349,7 +349,7 @@ export default function AdEditor({
 
           <div className="mt-6 grid grid-cols-2 gap-2">
             {draft.canvaUrl && !editing ? (
-              <a
+              <a suppressHydrationWarning
                 href={draft.canvaUrl}
                 target="_blank"
                 rel="noreferrer"
@@ -482,7 +482,7 @@ export default function AdEditor({
                 label="Canva template"
                 value={
                   draft.canvaUrl && (
-                    <a
+                    <a suppressHydrationWarning
                       href={draft.canvaUrl}
                       target="_blank"
                       rel="noreferrer"

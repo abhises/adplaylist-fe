@@ -172,7 +172,7 @@ export default function AdminFeedbackPage() {
                   </p>
 
                   {item.screenshotUrl && (
-                    <a
+                    <a suppressHydrationWarning
                       href={item.screenshotUrl}
                       target="_blank"
                       rel="noreferrer"
@@ -189,7 +189,7 @@ export default function AdminFeedbackPage() {
 
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
                     {replyTo && (
-                      <a href={`mailto:${replyTo}`} className="text-brand hover:underline">
+                      <a suppressHydrationWarning href={`mailto:${replyTo}`} className="text-brand hover:underline">
                         Reply to {replyTo}
                       </a>
                     )}

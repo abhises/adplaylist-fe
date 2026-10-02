@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import AppHeader from "@/components/AppHeader";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Modal from "@/components/Modal";
+import Pagination, { usePagination } from "@/components/Pagination";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type AdminUser, type NewUserInput, type Role } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
@@ -108,6 +109,8 @@ export default function AdminUsersPage() {
   const [newUser, setNewUser] = useState<NewUserInput>(EMPTY_NEW_USER);
   const [addError, setAddError] = useState<string | null>(null);
   const [addSaving, setAddSaving] = useState(false);
+
+  const pagination = usePagination(users.length, "adplaylist_users_page_size");
 
   useEffect(() => {
     if (!authUser) return;
@@ -268,7 +271,7 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => {
+              {users.slice(pagination.start, pagination.end).map((u) => {
                 const isAdmin = u.role === "admin";
                 return (
                   <tr key={u.id} className="hover:bg-surface-2/60">
@@ -361,6 +364,11 @@ export default function AdminUsersPage() {
               })}
             </tbody>
           </table>
+        )}
+        {!loading && !error && users.length > 0 && (
+          <div className="max-w-5xl">
+            <Pagination {...pagination.props} />
+          </div>
         )}
       </main>
 
