@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
 import TagPicker from "@/components/TagPicker";
+import AdSeoEditor from "@/components/AdSeoEditor";
 import {
   CATEGORY_OPTIONS,
   DOMINANT_COLORS,
@@ -567,6 +568,9 @@ export default function AddAdPage() {
                     />
                   </Field>
                 </div>
+                {/* Everything else the CSV filled: SEO, content, author and
+                    linking fields, all open so nothing imported is hidden. */}
+                <AdSeoEditor draft={draft} update={updateFields} embedded />
               </>
             ) : (
               <p className="mt-4 text-sm text-ink-muted">

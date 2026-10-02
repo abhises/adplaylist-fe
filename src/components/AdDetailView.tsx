@@ -610,7 +610,7 @@ export default function AdDetailView({
             </div>
           )}
 
-          {/* 5 · Public download and share links. */}
+          {/* 5 · Download (signed-in only) and share links. */}
           <div className="mt-6 grid grid-cols-2 gap-2">
             {ad.canvaUrl ? (
               <a
@@ -637,7 +637,17 @@ export default function AdDetailView({
                 &#9998; Edit in Canva
               </span>
             )}
-            {download ? (
+            {/* Downloading needs an account; visitors only see the image. */}
+            {!user ? (
+              <button
+                type="button"
+                onClick={() => setSignUp("download")}
+                className="flex items-center justify-between border border-border px-3 py-2.5 text-sm font-bold text-ink hover:border-ink/60"
+              >
+                <span>&#8595; Download</span>
+                <span className="text-xs font-normal text-ink-muted">PNG 1200 × 1200</span>
+              </button>
+            ) : download ? (
               <a
                 href={download}
                 download={ad.imageFileName || true}

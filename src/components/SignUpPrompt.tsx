@@ -3,12 +3,13 @@
 import Link from "@/components/Link";
 import Modal from "@/components/Modal";
 
-export type SignUpReason = "save" | "editableCopies" | "requests";
+export type SignUpReason = "save" | "editableCopies" | "requests" | "download";
 
 const WHAT: Record<SignUpReason, string> = {
   save: "save creatives to your own collection",
   editableCopies: "open editable copies",
   requests: "request new sizes and custom ads",
+  download: "download creatives",
 };
 
 // For visitors on the public library and ad pages: everything can be

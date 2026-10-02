@@ -131,9 +131,13 @@ function ListInput({
 export default function AdSeoEditor({
   draft,
   update,
+  embedded = false,
 }: {
   draft: AdDraft;
   update: (patch: Partial<AdDraft>) => void;
+  // Inside the Add ad page's preview panel: no page-width padding, and every
+  // group open so all the fields loaded from the CSV are in view.
+  embedded?: boolean;
 }) {
   const [authors, setAuthors] = useState<Author[] | null>(null);
 
@@ -205,18 +209,20 @@ export default function AdSeoEditor({
   }
 
   return (
-    <section className="border-t border-ink/15 px-10 py-8">
+    <section className={embedded ? "mt-8" : "border-t border-ink/15 px-10 py-8"}>
       <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
         Ad page
       </p>
-      <h2 className="mt-1 text-2xl font-extrabold text-ink">SEO &amp; page content</h2>
+      <h2 className={`mt-1 font-extrabold text-ink ${embedded ? "text-xl" : "text-2xl"}`}>
+        SEO &amp; page content
+      </h2>
       <p className="mt-1 max-w-2xl text-sm text-ink-muted">
         Filled in from the CSV. These fields build the ad&apos;s public page;
         anything left empty is left out or generated from the ad&apos;s
         details.
       </p>
 
-      <div className="mt-4 max-w-3xl border-t border-ink/15">
+      <div className={`mt-4 border-t border-ink/15 ${embedded ? "" : "max-w-3xl"}`}>
         <Group
           title="Basics"
           description="Creative format, breadcrumb subcategory and the text on the image."
@@ -357,6 +363,7 @@ export default function AdSeoEditor({
         <Group
           title="Content"
           description="Key takeaways, why it works, the full breakdown and headline ideas."
+          defaultOpen={embedded}
         >
           <p className="pt-2 text-xs font-bold tracking-[1px] text-ink-muted uppercase">
             Key takeaways
@@ -501,6 +508,7 @@ export default function AdSeoEditor({
         <Group
           title="Linking"
           description="Collections, related guides, popular searches and related ads."
+          defaultOpen={embedded}
         >
           <Field label="Collections" hint="Comma separated.">
             <ListInput
