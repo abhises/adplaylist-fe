@@ -257,8 +257,7 @@ export default function BlogPostEditor({
                   Any HTML works: headings, paragraphs, lists, images, links
                   and inline styles. Scripts and event handlers are removed
                   when you save. &ldquo;Insert ad creative&rdquo; adds library
-                  ads with their copy and an Adplaylist watermark; they update
-                  when the ad is edited.
+                  ads with their copy; they update when the ad is edited.
                 </>
               }
             />

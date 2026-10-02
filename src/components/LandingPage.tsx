@@ -167,7 +167,7 @@ function CardBackground({ ad }: { ad: LibraryCard }) {
     >
       {ad.photo && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={ad.photo} alt={ad.name} className="h-full w-full object-cover" />
+        <img src={ad.photo} alt={ad.name} className="ad-creative h-full w-full object-cover" />
       )}
     </div>
   );

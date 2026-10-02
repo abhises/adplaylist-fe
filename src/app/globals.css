@@ -211,24 +211,15 @@ button:disabled,
   font-weight: 700;
   text-transform: uppercase;
 }
-.ad-embed-watermark {
-  position: absolute;
-  inset: -50%;
-  z-index: 3;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: center;
-  justify-content: center;
-  gap: 2.5rem 3rem;
-  transform: rotate(-30deg);
-  pointer-events: none;
-}
-.ad-embed-watermark span {
-  color: rgb(255 255 255 / 0.22);
-  font-size: 0.95rem;
-  font-weight: 800;
-  letter-spacing: 3px;
-  text-shadow: 0 0 2px rgb(0 0 0 / 0.25);
+
+/* Ad creatives can't be long-pressed (iOS's save menu) or dragged out to
+   save them, except by paid plans and staff (components/ImageGuard.tsx sets
+   data-allow-save, and blocks right-click too). */
+:root:not([data-allow-save]) .ad-creative {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 /* Toasts (lib/ToastProvider.tsx) slide up into place. */

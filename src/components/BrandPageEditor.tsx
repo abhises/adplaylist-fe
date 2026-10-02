@@ -195,8 +195,8 @@ export default function BrandPageEditor({
                   when you save. A sign-up button is always shown at the bottom
                   of the page; use &ldquo;+ Sign-up button&rdquo; to add more
                   inside the content. &ldquo;Insert ad creative&rdquo; adds
-                  library ads with their copy and an Adplaylist watermark; they
-                  update when the ad is edited.
+                  library ads with their copy; they update when the ad is
+                  edited.
                 </>
               }
             />

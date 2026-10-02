@@ -23,12 +23,6 @@ export type Ad = {
   market: string;
   language: string;
   photo?: string;
-  // True when `photo` has the ADPLAYLIST watermark in the file itself, so
-  // pages don't draw it again on top.
-  watermarked?: boolean;
-  // The clean upload, without the watermark: only sent to signed-in users,
-  // for Download.
-  originalPhoto?: string;
   platforms: string[];
   editable: boolean;
   // Only sent when the viewer's plan includes editable copies;
@@ -177,6 +171,8 @@ export type AccountStatus = "trial" | "active" | "past_due" | "cancelled" | "exp
 
 export type Entitlements = {
   save: boolean;
+  // Downloads without the watermark (paid plans); others get a watermarked copy.
+  cleanDownload: boolean;
   editableCopies: boolean;
   requests: boolean;
   videoRequests: boolean;
@@ -461,6 +457,11 @@ export const api = {
   },
 
   getAd: (id: string) => request<{ ad: Ad }>(`/api/ads/${id}`),
+
+  // The creative's download link: clean for staff and paid plans,
+  // watermarked otherwise.
+  getAdDownload: (id: string) =>
+    request<{ url: string; watermarked: boolean }>(`/api/ads/${id}/download`),
 
   createAd: (data: Partial<Ad>) =>
     request<{ ad: Ad }>("/api/ads", {

@@ -20,8 +20,8 @@ import {
   type RelatedGuide,
 } from "@/lib/adPage";
 import { api, ApiError, type Ad, type Author } from "@/lib/api";
+import { useToast } from "@/lib/ToastProvider";
 import { useAuth } from "@/lib/AuthProvider";
-import { WATERMARK } from "@/lib/watermark";
 import { can } from "@/lib/plans";
 import { SITE_URL } from "@/lib/site";
 import { slugify } from "@/lib/slug";
@@ -68,18 +68,6 @@ function relatedAds(ad: Ad, allAds: Ad[]) {
 
 const libraryQuery = (key: "q" | "category" | "tag", value: string) =>
   `/library?${key}=${encodeURIComponent(value)}`;
-
-// Signed-in downloads get the clean original (sent only to them), under the
-// ad's keyword file name: a Supabase public URL serves the file as a
-// download with ?download=<name>.
-function downloadHref(ad: Ad) {
-  const file = ad.originalPhoto ?? ad.photo;
-  if (!file) return undefined;
-  const name = ad.imageFileName || (ad.photo ?? file).split("/").pop() || "ad.png";
-  return file.includes("/storage/v1/object/public/")
-    ? `${file}?download=${encodeURIComponent(name)}`
-    : file;
-}
 
 function initials(name: string) {
   return name
@@ -160,6 +148,7 @@ export default function AdDetailView({
   guides?: RelatedGuide[];
 }) {
   const { user } = useAuth();
+  const toast = useToast();
   const id = initialAd.id;
 
   const [ad, setAd] = useState<Ad>(initialAd);
@@ -238,7 +227,22 @@ export default function AdDetailView({
     { id: "visual-design", nav: "Visual design", title: "Visual design", text: content.visualDesign },
   ].filter((s) => s.text);
   const steps = content.adaptSteps ?? [];
-  const download = downloadHref(ad);
+  const download = !!ad.photo;
+
+  // Paid plans and staff download the clean file; other signed-in users get
+  // a watermarked copy. The link is served as an attachment, so navigating
+  // to it saves the file and leaves this page as it is.
+  const cleanDownload = !!user && can(user, "cleanDownload");
+  async function downloadCreative() {
+    setDownloadOpen(false);
+    if (!user) return setSignUp("download");
+    try {
+      const { url } = await api.getAdDownload(ad.id);
+      window.location.assign(url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Download failed");
+    }
+  }
   const shareText = encodeURIComponent(headline);
   const shareUrl = encodeURIComponent(pageUrl);
   const shareLinks = [
@@ -276,28 +280,19 @@ export default function AdDetailView({
     ) : (
       <span className={`${canvaButton} opacity-60`}>&#9998; Edit in Canva</span>
     );
-  // Downloading needs an account; visitors only see the image.
+  // Downloading needs an account: for visitors the button opens the sign-up
+  // prompt.
   const downloadAction =
-    !user ? (
+    !user || download ? (
       <button
         type="button"
-        onClick={() => setSignUp("download")}
+        onClick={downloadCreative}
         title="PNG · 1200 × 1200"
         className={downloadButton}
       >
         <span>&#8595; Download</span>
         <span aria-hidden className="hidden text-[11px] lg:inline">&#9660;</span>
       </button>
-    ) : download ? (
-      <a suppressHydrationWarning
-        href={download}
-        download={ad.imageFileName || true}
-        title="PNG · 1200 × 1200"
-        className={downloadButton}
-      >
-        <span>&#8595; Download</span>
-        <span aria-hidden className="hidden text-[11px] lg:inline">&#9660;</span>
-      </a>
     ) : (
       <span className={`${downloadButton} text-ink/40`}>&#8595; Download</span>
     );
@@ -384,16 +379,7 @@ export default function AdDetailView({
                   width={1200}
                   height={1200}
                   fetchPriority="high"
-                  className="absolute inset-0 h-full w-full object-contain"
-                />
-              )}
-              {/* Faint repeating ADPLAYLIST mark over the creative, for images
-                  that don't have it in the file yet. */}
-              {!ad.watermarked && (
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute -inset-1/2 bg-[length:200px_80px]"
-                  style={{ backgroundImage: WATERMARK, transform: "rotate(-30deg)" }}
+                  className="ad-creative absolute inset-0 h-full w-full object-contain"
                 />
               )}
             </div>
@@ -727,16 +713,20 @@ export default function AdDetailView({
                     role="menu"
                     className="absolute inset-x-0 top-full z-10 border border-t-0 border-ink/25 bg-card shadow-lg"
                   >
-                    <a suppressHydrationWarning
+                    <button
+                      type="button"
                       role="menuitem"
-                      href={download}
-                      download={ad.imageFileName || true}
-                      onClick={() => setDownloadOpen(false)}
-                      className="flex justify-between px-4 py-3 text-[15px] text-ink hover:bg-surface-2"
+                      onClick={downloadCreative}
+                      className="flex w-full justify-between px-4 py-3 text-[15px] text-ink hover:bg-surface-2"
                     >
-                      <span>PNG</span>
+                      <span>PNG{cleanDownload ? "" : " · watermarked"}</span>
                       <span className="text-ink-muted">1200 × 1200</span>
-                    </a>
+                    </button>
+                    {!cleanDownload && (
+                      <p className="border-t border-ink/10 px-4 py-2 text-xs text-ink-muted">
+                        Paid plans download it without the watermark.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

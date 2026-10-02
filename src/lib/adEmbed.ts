@@ -1,8 +1,8 @@
 import type { Ad } from "@/lib/api";
 
 // Brand pages embed library ads with a placeholder, <div data-ad="slug"></div>,
-// in their HTML. It's swapped for the full creative (image, copy overlay and
-// an Adplaylist watermark) when the page is rendered, so edits to the ad in
+// in their HTML. It's swapped for the full creative (image and copy
+// overlay) when the page is rendered, so edits to the ad in
 // the library show up on every page that embeds it. Styles are the .ad-embed
 // rules in globals.css.
 
@@ -27,10 +27,6 @@ function esc(s: string) {
     .replace(/"/g, "&quot;");
 }
 
-const WATERMARK = `<div class="ad-embed-watermark" aria-hidden="true">${"<span>ADPLAYLIST</span>".repeat(
-  24
-)}</div>`;
-
 export function adEmbedHtml(ad: Ad): string {
   const photo = ad.photo && /^https?:\/\//.test(ad.photo) ? ad.photo : null;
   const light = ad.light && !photo;
@@ -38,7 +34,7 @@ export function adEmbedHtml(ad: Ad): string {
     `<figure class="ad-embed${light ? " ad-embed-light" : ""}">`,
     `<div class="ad-embed-frame${photo ? "" : ` ${esc(ad.swatch)}`}">`,
     photo
-      ? `<img src="${esc(photo)}" alt="${esc(ad.title)}" loading="lazy" draggable="false" />`
+      ? `<img class="ad-creative" src="${esc(photo)}" alt="${esc(ad.title)}" loading="lazy" draggable="false" />`
       : "",
     photo ? `<div class="ad-embed-shade"></div>` : "",
     ad.eyebrow ? `<span class="ad-embed-kicker">${esc(ad.eyebrow)}</span>` : "",
@@ -47,7 +43,6 @@ export function adEmbedHtml(ad: Ad): string {
     ad.sub ? `<p class="ad-embed-sub">${esc(ad.sub)}</p>` : "",
     ad.cta ? `<span class="ad-embed-cta">${esc(ad.cta)}</span>` : "",
     `</div>`,
-    WATERMARK,
     `</div>`,
     `</figure>`,
   ].join("");

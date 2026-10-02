@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Archivo, JetBrains_Mono } from "next/font/google";
+import ImageGuard from "@/components/ImageGuard";
 import { AuthProvider } from "@/lib/AuthProvider";
 import { ThemeProvider } from "@/lib/ThemeProvider";
 import { ToastProvider } from "@/lib/ToastProvider";
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col font-sans">
         <ThemeProvider>
           <AuthProvider>
+            <ImageGuard />
             <ToastProvider>{children}</ToastProvider>
           </AuthProvider>
         </ThemeProvider>
