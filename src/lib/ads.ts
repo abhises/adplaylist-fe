@@ -67,3 +67,18 @@ export const DOMINANT_COLORS = [
 ];
 
 export const VIDEO_LENGTH_OPTIONS = ["Under 6s", "6–15s", "15–30s", "30s+"];
+
+// The creative style of an ad ("Format" in the ad CSV). Not the same as the
+// ad's `format` field, which is its placement size.
+export const AD_FORMAT_OPTIONS = [
+  "Feature callouts",
+  "Product shot",
+  "Lifestyle",
+  "UGC",
+  "Testimonial",
+  "Before / After",
+  "Comparison",
+  "Offer / Discount",
+  "Listicle",
+  "Meme",
+];

@@ -120,6 +120,7 @@ export default function AppHeader() {
   const adminLinks: NavLink[] = isAdmin
     ? [
         { href: "/admin", label: "Users" },
+        { href: "/admin/authors", label: "Authors" },
         { href: "/admin/tags", label: "Tags" },
         { href: "/admin/home-section", label: "Home section" },
         { href: "/admin/feedback", label: "Feedback" },

@@ -13,9 +13,13 @@ import { slugify } from "@/lib/slug";
 export default function PublicLibraryView({
   ads,
   initialTags,
+  initialQuery,
+  initialCategory,
 }: {
   ads: Ad[];
   initialTags?: string | string[];
+  initialQuery?: string;
+  initialCategory?: string;
 }) {
   const { user, ready } = useAuth();
   const router = useRouter();
@@ -27,10 +31,12 @@ export default function PublicLibraryView({
       (Array.isArray(initialTags) ? initialTags : initialTags ? [initialTags] : []).forEach((t) =>
         params.append("tag", t)
       );
+      if (initialQuery) params.set("q", initialQuery);
+      if (initialCategory) params.set("category", initialCategory);
       const qs = params.toString();
       router.replace(`/library/${slugify(user.fullName)}${qs ? `?${qs}` : ""}`);
     }
-  }, [isClient, user, initialTags, router]);
+  }, [isClient, user, initialTags, initialQuery, initialCategory, router]);
 
   if (isClient) return null;
 
@@ -40,6 +46,8 @@ export default function PublicLibraryView({
       user={ready ? user : null}
       initialAds={ads}
       initialTags={initialTags}
+      initialQuery={initialQuery}
+      initialCategory={initialCategory}
     />
   );
 }

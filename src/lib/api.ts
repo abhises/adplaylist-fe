@@ -36,7 +36,64 @@ export type Ad = {
   featured?: boolean;
   showInHero?: boolean;
   createdAt: string;
+
+  // SEO page fields (from the ad's CSV). The long-form ones are only sent
+  // for a single ad, not in lists.
+  slug?: string;
+  subcategory?: string;
+  adFormat?: string;
+  onImageText?: string;
+  seoTitle?: string;
+  metaDescription?: string;
+  pageHeadline?: string;
+  introParagraph?: string;
+  imageFileName?: string;
+  imageAlt?: string;
+  imageCaption?: string;
+  content?: AdContent;
+  // "YYYY-MM-DD". dateAdded falls back to when the ad was published.
+  dateAdded?: string;
+  dateUpdated?: string;
+  author?: Author;
+  reviewer?: Author;
+  // Only sent when saving: which authors to credit, by slug.
+  authorSlug?: string;
+  reviewerSlug?: string;
 };
+
+// The editorial sections of an ad's public page. Every part is optional.
+export type AdContent = {
+  takeaways?: { format?: string; bestFor?: string; hook?: string; reuse?: string };
+  whyItWorks?: { title: string; text: string }[];
+  targets?: string;
+  copywriting?: string;
+  visualDesign?: string;
+  adaptSteps?: string[];
+  platformTips?: string;
+  headlineIdeas?: string[];
+  collections?: string[];
+  relatedGuides?: string[];
+  popularSearches?: string[];
+  // Ad slugs picked by hand; empty means similar ads are picked automatically.
+  relatedAds?: string[];
+};
+
+// A curator credited on ad pages, with a public profile at /authors/<slug>.
+export type Author = {
+  id: number;
+  slug: string;
+  name: string;
+  jobTitle?: string;
+  credentials?: string;
+  bio?: string;
+  photoUrl?: string;
+  linkedinUrl?: string;
+  websiteUrl?: string;
+  // How many ads they added; only on the author routes.
+  adCount?: number;
+};
+
+export type AuthorInput = Omit<Author, "id" | "adCount" | "slug"> & { slug?: string };
 
 export type Role = "client" | "designer" | "editor" | "admin";
 
@@ -599,6 +656,28 @@ export const api = {
 
   deleteBlogPost: (id: number) =>
     request<void>(`/api/blog-posts/${id}`, { method: "DELETE" }),
+
+  getAuthors: () => request<{ authors: Author[] }>("/api/authors"),
+
+  getAuthor: (slug: string) =>
+    request<{ author: Author; ads: Ad[] }>(
+      `/api/authors/${encodeURIComponent(slug)}`
+    ),
+
+  createAuthor: (data: AuthorInput) =>
+    request<{ author: Author }>("/api/authors", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateAuthor: (id: number, data: AuthorInput) =>
+    request<{ author: Author }>(`/api/authors/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteAuthor: (id: number) =>
+    request<void>(`/api/authors/${id}`, { method: "DELETE" }),
 };
 
 export { ApiError };

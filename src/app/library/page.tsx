@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 export default async function LibraryPage({ searchParams }: PageProps<"/library">) {
   // Per request, so newly published ads are listed straight away.
   await connection();
-  const { tag } = await searchParams;
+  const { tag, q, category } = await searchParams;
   const ads: Ad[] = await api
     .getAds()
     .then((res) => res.ads)
@@ -53,7 +53,12 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(structuredData)} />
-      <PublicLibraryView ads={ads} initialTags={tag} />
+      <PublicLibraryView
+        ads={ads}
+        initialTags={tag}
+        initialQuery={typeof q === "string" ? q : undefined}
+        initialCategory={typeof category === "string" ? category : undefined}
+      />
     </>
   );
 }

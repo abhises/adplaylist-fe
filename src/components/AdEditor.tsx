@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Link from "@/components/Link";
 import AppHeader from "@/components/AppHeader";
 import TagPicker from "@/components/TagPicker";
+import AdSeoEditor from "@/components/AdSeoEditor";
 import {
   CATEGORY_OPTIONS,
   DOMINANT_COLORS,
@@ -585,6 +586,13 @@ export default function AdEditor({
           </div>
         </div>
       </main>
+
+      <AdSeoEditor draft={draft} update={update} />
+
+      <div className="flex flex-wrap items-center gap-3 border-t border-ink/15 px-10 py-6">
+        {submitButton}
+        {error && <p className="text-xs text-brand">{error}</p>}
+      </div>
     </div>
   );
 }

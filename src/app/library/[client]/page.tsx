@@ -9,7 +9,7 @@ import { slugify } from "@/lib/slug";
 export default function ClientLibraryPage({
   searchParams,
 }: PageProps<"/library/[client]">) {
-  const { tag } = use(searchParams);
+  const { tag, q, category } = use(searchParams);
   const { user, ready } = useRequireAuth();
   const router = useRouter();
   const params = useParams<{ client: string }>();
@@ -32,5 +32,13 @@ export default function ClientLibraryPage({
     return null;
   }
 
-  return <LibraryView heading={user.fullName} user={user} initialTags={tag} />;
+  return (
+    <LibraryView
+      heading={user.fullName}
+      user={user}
+      initialTags={tag}
+      initialQuery={typeof q === "string" ? q : undefined}
+      initialCategory={typeof category === "string" ? category : undefined}
+    />
+  );
 }

@@ -35,7 +35,8 @@ export default function AdCard({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={ad.photo}
-              alt=""
+              alt={ad.imageAlt ?? ""}
+              loading="lazy"
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
             />
           ) : (

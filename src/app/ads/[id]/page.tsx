@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { connection } from "next/server";
 import AdDetailView from "@/components/AdDetailView";
-import { api, ApiError, type Ad } from "@/lib/api";
+import { api, ApiError, type Ad, type Author } from "@/lib/api";
+import {
+  adDates,
+  adImageAlt,
+  adPageDescription,
+  adPageHeadline,
+  adPageTitle,
+  resolveGuides,
+} from "@/lib/adPage";
 import { jsonLd, SITE_NAME, SITE_URL } from "@/lib/site";
 
 // Public and indexable: an ad's page is rendered on the server with all its
@@ -17,79 +25,152 @@ async function getAd(slug: string): Promise<Ad | null> {
   }
 }
 
-// What search results and link previews show: the most descriptive copy the
-// ad has, trimmed to a snippet's length.
-function summary(ad: Ad) {
-  const text =
-    ad.creativeDescription || ad.description || ad.primaryText || ad.headline || ad.title;
-  const flat = text.replace(/\s+/g, " ").trim();
-  return flat.length > 160 ? `${flat.slice(0, 157).trimEnd()}…` : flat;
-}
-
 export async function generateMetadata({ params }: PageProps<"/ads/[id]">): Promise<Metadata> {
   const { id } = await params;
   const ad = await getAd(id);
   if (!ad) return { title: "Ad not found" };
+  // Always the current slug, so an old URL that redirects here isn't indexed
+  // as a second copy.
   const url = `/ads/${ad.id}`;
-  const title = `${ad.title} – ${ad.category} ad creative`;
-  const description = summary(ad);
+  const title = adPageTitle(ad);
+  const description = adPageDescription(ad);
+  const { added, updated } = adDates(ad);
+  const image = ad.photo
+    ? [{ url: ad.photo, alt: adImageAlt(ad), width: 1200, height: 1200 }]
+    : undefined;
   return {
     title,
     description,
     keywords: ad.tags,
     alternates: { canonical: url },
+    authors: ad.author ? [{ name: ad.author.name, url: `/authors/${ad.author.slug}` }] : undefined,
+    robots: { index: true, follow: true, "max-image-preview": "large" },
     openGraph: {
       title,
       description,
       url,
       siteName: SITE_NAME,
       type: "article",
-      images: ad.photo ? [{ url: ad.photo, alt: ad.title }] : undefined,
+      publishedTime: added,
+      modifiedTime: updated ?? added,
+      authors: ad.author ? [`${SITE_URL}/authors/${ad.author.slug}`] : undefined,
+      tags: ad.tags,
+      images: image,
     },
     twitter: {
       card: ad.photo ? "summary_large_image" : "summary",
       title,
       description,
-      images: ad.photo ? [ad.photo] : undefined,
+      images: ad.photo ? [{ url: ad.photo, alt: adImageAlt(ad) }] : undefined,
     },
+  };
+}
+
+function person(author: Author) {
+  return {
+    "@type": "Person",
+    name: author.name,
+    url: `${SITE_URL}/authors/${author.slug}`,
+    jobTitle: author.jobTitle,
+    image: author.photoUrl,
+    sameAs: [author.linkedinUrl, author.websiteUrl].filter(Boolean),
   };
 }
 
 export default async function AdPage({ params }: PageProps<"/ads/[id]">) {
   await connection();
   const { id } = await params;
-  const [ad, ads] = await Promise.all([
+  const [ad, ads, posts] = await Promise.all([
     getAd(id),
     api
       .getAds()
       .then((res) => res.ads)
       .catch(() => [] as Ad[]),
+    api
+      .getPublicBlogPosts()
+      .then((res) => res.posts)
+      .catch(() => []),
   ]);
   if (!ad) notFound();
+  // Reached through a slug the ad used to have.
+  if (ad.id !== id) permanentRedirect(`/ads/${ad.id}`);
 
   const url = `${SITE_URL}/ads/${ad.id}`;
+  const { added, updated } = adDates(ad);
+  const image = ad.photo
+    ? {
+        "@type": "ImageObject",
+        contentUrl: ad.photo,
+        url: ad.photo,
+        name: adPageHeadline(ad),
+        caption: ad.imageCaption || adImageAlt(ad),
+        description: adImageAlt(ad),
+        width: 1200,
+        height: 1200,
+        creditText: ad.brandName || SITE_NAME,
+        copyrightNotice: ad.brandName
+          ? `${ad.brandName}. Shown for reference; trademarks belong to their owners.`
+          : undefined,
+        acquireLicensePage: `${SITE_URL}/terms`,
+        license: `${SITE_URL}/terms`,
+      }
+    : undefined;
+
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "CreativeWork",
-    name: ad.title,
-    headline: ad.headline,
-    description: summary(ad),
+    "@type": "WebPage",
+    "@id": url,
     url,
-    image: ad.photo ? [ad.photo] : undefined,
-    genre: ad.category,
-    keywords: ad.tags?.join(", "),
+    name: adPageTitle(ad),
+    headline: adPageHeadline(ad),
+    description: adPageDescription(ad),
     inLanguage: ad.language,
-    dateCreated: ad.createdAt,
-    isPartOf: { "@type": "CollectionPage", name: "Ads", url: `${SITE_URL}/library` },
+    datePublished: added,
+    dateModified: updated ?? added,
+    author: ad.author ? person(ad.author) : undefined,
+    reviewedBy: ad.reviewer ? person(ad.reviewer) : undefined,
+    primaryImageOfPage: image,
+    isPartOf: { "@type": "WebSite", name: SITE_NAME, url: SITE_URL },
     publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
+    mainEntity: {
+      "@type": "CreativeWork",
+      name: ad.title,
+      headline: ad.headline,
+      description: ad.introParagraph || adPageDescription(ad),
+      genre: [ad.category, ad.subcategory, ad.adFormat].filter(Boolean),
+      keywords: ad.tags?.join(", "),
+      inLanguage: ad.language,
+      image,
+      creator: ad.brandName ? { "@type": "Organization", name: ad.brandName } : undefined,
+      dateCreated: added,
+    },
   };
+
+  const crumbs = [
+    { name: "Ad library", item: `${SITE_URL}/library` },
+    {
+      name: ad.category,
+      item: `${SITE_URL}/library?category=${encodeURIComponent(ad.category)}`,
+    },
+    ...(ad.subcategory
+      ? [
+          {
+            name: ad.subcategory,
+            item: `${SITE_URL}/library?q=${encodeURIComponent(ad.subcategory)}`,
+          },
+        ]
+      : []),
+    { name: adPageHeadline(ad), item: url },
+  ];
   const breadcrumbs = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Ads", item: `${SITE_URL}/library` },
-      { "@type": "ListItem", position: 2, name: ad.title, item: url },
-    ],
+    itemListElement: crumbs.map((c, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: c.name,
+      item: c.item,
+    })),
   };
 
   return (
@@ -97,7 +178,12 @@ export default async function AdPage({ params }: PageProps<"/ads/[id]">) {
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(structuredData)} />
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(breadcrumbs)} />
       {/* Keyed by ad so moving between ads starts fresh. */}
-      <AdDetailView key={ad.id} initialAd={ad} initialAds={ads} />
+      <AdDetailView
+        key={ad.id}
+        initialAd={ad}
+        initialAds={ads}
+        guides={resolveGuides(ad.content?.relatedGuides, posts)}
+      />
     </>
   );
 }

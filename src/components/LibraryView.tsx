@@ -47,6 +47,8 @@ export default function LibraryView({
   heading,
   user,
   initialTags,
+  initialQuery,
+  initialCategory,
   initialAds,
 }: {
   heading: string;
@@ -59,6 +61,10 @@ export default function LibraryView({
   // The page's ?tag= value(s), so a tag clicked on an ad page opens the
   // library already filtered to it.
   initialTags?: string | string[];
+  // The page's ?q= search and ?category=, used by links on ad pages
+  // (popular searches, the category in the details and breadcrumb).
+  initialQuery?: string;
+  initialCategory?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -72,10 +78,12 @@ export default function LibraryView({
   const [deleteTarget, setDeleteTarget] = useState<Ad | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const [keyword, setKeyword] = useState("");
+  const [keyword, setKeyword] = useState(initialQuery ?? "");
   const [mediaTypes, setMediaTypes] = useState<string[]>([]);
   const [platforms, setPlatforms] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    initialCategory ? [initialCategory] : []
+  );
   const [catOpen, setCatOpen] = useState(false);
   const [country, setCountry] = useState("");
   const [language, setLanguage] = useState("");
@@ -97,14 +105,16 @@ export default function LibraryView({
   const [moreOpen, setMoreOpen] = useState(false);
   const [page, setPage] = useState(1);
 
-  // Keep ?tag= in step with the ticked tags so a filtered view can be
-  // bookmarked or shared.
+  // Keep ?tag=, ?q= and ?category= in step with the filters so a filtered
+  // view can be bookmarked or shared.
   useEffect(() => {
     const params = new URLSearchParams();
     selectedTags.forEach((t) => params.append("tag", t));
+    if (keyword) params.set("q", keyword);
+    if (selectedCategories.length === 1) params.set("category", selectedCategories[0]);
     const qs = params.toString();
     window.history.replaceState(null, "", `${pathname}${qs ? `?${qs}` : ""}`);
-  }, [selectedTags, pathname]);
+  }, [selectedTags, keyword, selectedCategories, pathname]);
 
   function handleAddedChange(value: string) {
     const days = value === "" ? null : Number(value);
@@ -226,9 +236,10 @@ export default function LibraryView({
       const adTags = (ad.tags ?? []).map((t) => t.toLowerCase());
       if (
         kw &&
-        !ad.headline.toLowerCase().includes(kw) &&
-        !ad.title.toLowerCase().includes(kw) &&
-        !adTags.some((t) => t.includes(kw))
+        ![ad.headline, ad.title, ad.brandName, ad.adFormat, ad.subcategory, ad.category].some(
+          (v) => v?.toLowerCase().includes(kw)
+        ) &&
+        !adTags.some((t) => t.includes(kw) || kw.includes(t))
       ) {
         return false;
       }
@@ -673,15 +684,30 @@ export default function LibraryView({
 
           {!user ? (
             <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-ink/15 pb-4 text-sm text-ink-muted">
-              {selectedTags.length > 0 ? (
+              {selectedTags.length > 0 || keyword || selectedCategories.length > 0 ? (
                 <>
                   <span>
-                    Ads tagged{" "}
-                    <span className="font-bold text-ink">{selectedTags.join(", ")}</span>
+                    {selectedCategories.length > 0 && (
+                      <>
+                        {selectedCategories.join(", ")} ads{" "}
+                      </>
+                    )}
+                    {selectedTags.length > 0 && (
+                      <>
+                        tagged{" "}
+                        <span className="font-bold text-ink">{selectedTags.join(", ")}</span>{" "}
+                      </>
+                    )}
+                    {keyword && (
+                      <>
+                        matching{" "}
+                        <span className="font-bold text-ink">&ldquo;{keyword}&rdquo;</span>
+                      </>
+                    )}
                   </span>
                   <button
                     type="button"
-                    onClick={() => setSelectedTags([])}
+                    onClick={resetAllFilters}
                     className="font-bold text-brand"
                   >
                     Show all ads

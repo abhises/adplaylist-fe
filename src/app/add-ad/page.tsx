@@ -67,6 +67,8 @@ export default function AddAdPage() {
   const [csvError, setCsvError] = useState<string | null>(null);
   const [csvUnrecognized, setCsvUnrecognized] = useState<string[]>([]);
   const [csvDragOver, setCsvDragOver] = useState(false);
+  // How many fields the CSV filled, shown so a mostly-empty template stands out.
+  const [csvMatched, setCsvMatched] = useState<number | null>(null);
 
   // Coming back from the preview page ("Back to edit") restores what was
   // already filled in instead of making the designer start over.
@@ -149,6 +151,7 @@ export default function AddAdPage() {
       }
       setCsvDraft(draft);
       setCsvFileName(file.name);
+      setCsvMatched(matched);
       setCsvUnrecognized(unrecognized);
       if (draft.canvaUrl) setCanvaUrl(draft.canvaUrl);
     } catch {
@@ -167,6 +170,7 @@ export default function AddAdPage() {
     setCsvFileName(null);
     setCsvError(null);
     setCsvUnrecognized([]);
+    setCsvMatched(null);
     if (csvInputRef.current) csvInputRef.current.value = "";
   }
 
@@ -243,7 +247,11 @@ export default function AddAdPage() {
                 <div className="relative mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-border text-ink-muted">
                   <span className="text-2xl">&#128196;</span>
                   <span className="text-sm text-ink">{csvFileName}</span>
-                  <span className="text-xs">Fields loaded from CSV</span>
+                  <span className="text-xs">
+                    {csvMatched !== null
+                      ? `${csvMatched} fields loaded from CSV`
+                      : "Fields loaded from CSV"}
+                  </span>
                   <button
                     type="button"
                     onClick={clearCsv}
@@ -287,13 +295,13 @@ export default function AddAdPage() {
                 </div>
               )}
               <p className="mt-1 text-xs text-ink-muted">
-                Accepts a header row of fields (adName, mediaType,
-                primaryText, brandName, headline, description, cta, category, market,
-                language, platforms, dominantColor, sizes,
-                creativeDescription, tags, canvaUrl) or a
-                two-column &quot;Field,Answer&quot; export with one row per
-                field. Separate multiple platforms, sizes or tags with
-                commas.
+                Use the &quot;Adplaylist File&quot; template (Section, Field,
+                Answer, Notes): one row per field, including the SEO,
+                content, author and linking rows. Older
+                &quot;Field,Answer&quot; files and a single header row of
+                fields still work. Separate multiple platforms, sizes or tags
+                with commas. The SEO and page content fields are shown on the
+                next step.
               </p>
             </div>
 
