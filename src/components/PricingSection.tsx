@@ -280,6 +280,25 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
             );
           })}
         </div>
+        {/* Enterprise: above the biggest Agency tier, talk to the team. */}
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-6 bg-[#161514] p-[clamp(24px,4vw,40px)] text-white">
+          <div className="flex max-w-[640px] flex-col gap-2.5">
+            <div className={`${mono} text-[#FF6A52]`}>ENTERPRISE</div>
+            <h3 className="m-0 text-[clamp(26px,3vw,36px)] leading-[1.1] font-extrabold tracking-[-0.02em]">
+              Custom volume, custom price.
+            </h3>
+            <p className="m-0 text-[17px] leading-[1.55] text-pretty text-[#d8d5d1]">
+              Need more than 150 ads a month or a setup we don&rsquo;t list? Tell us what
+              you need and we&rsquo;re happy to solve it with you.
+            </p>
+          </div>
+          <a suppressHydrationWarning
+            href="#contact"
+            className="shrink-0 bg-white px-6 py-[15px] text-[16px] font-bold whitespace-nowrap text-[#161514] hover:bg-[#EC3016] hover:text-white"
+          >
+            Talk to us
+          </a>
+        </div>
         <p className="mt-5 text-[14px] text-[#6b6864]">
           Every plan starts with a 7-day free trial. Pro and Agency trials
           include 2 free ad requests. Prices in USD, excluding tax.

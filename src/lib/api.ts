@@ -95,6 +95,23 @@ export type Author = {
 
 export type AuthorInput = Omit<Author, "id" | "adCount" | "slug"> & { slug?: string };
 
+// An enquiry from the landing page's "Talk to us" form, answered by email
+// from Admin → Contact.
+export type EnquiryStatus = "new" | "replied" | "closed";
+export type ContactEnquiry = {
+  id: number;
+  name: string;
+  email: string;
+  company?: string;
+  volume?: string;
+  message: string;
+  status: EnquiryStatus;
+  createdAt: string;
+  replyCount: number;
+  // Only on a single enquiry.
+  replies?: { id: number; subject: string; body: string; sentBy?: string; sentAt: string }[];
+};
+
 export type Role = "client" | "designer" | "editor" | "admin";
 
 // The public price list, in USD.
@@ -525,6 +542,20 @@ export const api = {
       body: JSON.stringify({ reason }),
     }),
 
+  // Public: the landing page's "Talk to us" form for custom volumes.
+  sendContact: (data: {
+    name: string;
+    email: string;
+    company?: string;
+    volume?: string;
+    message: string;
+    website?: string;
+  }) =>
+    request<{ ok: true }>("/api/contact", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   sendFeedback: (data: {
     message: string;
     email?: string;
@@ -656,6 +687,25 @@ export const api = {
 
   deleteBlogPost: (id: number) =>
     request<void>(`/api/blog-posts/${id}`, { method: "DELETE" }),
+
+  getEnquiries: () =>
+    request<{ enquiries: ContactEnquiry[]; mailConfigured: boolean }>("/api/contact"),
+
+  getEnquiry: (id: number) => request<{ enquiry: ContactEnquiry }>(`/api/contact/${id}`),
+
+  replyToEnquiry: (id: number, data: { subject: string; body: string }) =>
+    request<{ enquiry: ContactEnquiry }>(`/api/contact/${id}/reply`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  setEnquiryStatus: (id: number, status: EnquiryStatus) =>
+    request<{ ok: true }>(`/api/contact/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
+  deleteEnquiry: (id: number) => request<void>(`/api/contact/${id}`, { method: "DELETE" }),
 
   getAuthors: () => request<{ authors: Author[] }>("/api/authors"),
 

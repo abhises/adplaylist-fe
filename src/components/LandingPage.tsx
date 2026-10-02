@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "@/components/Link";
 import LandingFooter from "@/components/LandingFooter";
 import LandingHeader from "@/components/LandingHeader";
+import ContactSection from "@/components/ContactSection";
 import PricingSection from "@/components/PricingSection";
 import { useAuth } from "@/lib/AuthProvider";
 import { api, type Ad as LibraryAd } from "@/lib/api";
@@ -484,6 +485,8 @@ export default function LandingPage() {
       </section>
 
       <PricingSection signedIn={signedIn} />
+
+      <ContactSection />
 
       {/* REQUEST */}
       <section id="request" className={`scroll-mt-[72px] ${container} py-[clamp(64px,10vw,110px)]`}>
