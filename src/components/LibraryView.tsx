@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
+import Link from "@/components/Link";
 import LandingHeader from "@/components/LandingHeader";
 import SignUpPrompt from "@/components/SignUpPrompt";
 import AdCard from "@/components/AdCard";
@@ -31,6 +32,10 @@ const ADDED_OPTIONS = [
 // Multiples of every column count the grid uses (2–5), so pages end on a
 // full row.
 const PAGE_SIZE_OPTIONS = [20, 40, 60, 100];
+
+// Visitors preview this many ads per platform they pick (or this many in
+// total with none picked); the rest of the library needs an account.
+const PREVIEW_PER_PLATFORM = 10;
 
 // Page numbers to show around the current page, with null marking a gap,
 // e.g. 1 … 4 5 6 … 12.
@@ -61,7 +66,7 @@ export default function LibraryView({
   const pathname = usePathname();
   const [ads, setAds] = useState<Ad[]>(initialAds ?? []);
   const [loading, setLoading] = useState(!initialAds);
-  const [signUpPrompt, setSignUpPrompt] = useState(false);
+  const [signUpPrompt, setSignUpPrompt] = useState<"save" | "filters" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [saveLocked, setSaveLocked] = useState(false);
@@ -131,7 +136,7 @@ export default function LibraryView({
 
   async function toggleSave(id: string) {
     const wasSaved = savedIds.has(id);
-    if (!user) return setSignUpPrompt(true);
+    if (!user) return setSignUpPrompt("save");
     if (!wasSaved && !can(user, "save")) return setSaveLocked(true);
     setSavedIds((prev) => {
       const next = new Set(prev);
@@ -317,6 +322,31 @@ export default function LibraryView({
   }
   const pageAds = filtered.slice(pagination.start, pagination.end);
 
+  // Signed out: up to PREVIEW_PER_PLATFORM ads for each picked platform
+  // (an ad on two platforms counts once), then a blurred teaser of what's
+  // locked behind sign-up.
+  const preview = useMemo(() => {
+    if (user) return null;
+    const groups: (string | null)[] = platforms.length
+      ? PLATFORM_OPTIONS.filter((p) => platforms.includes(p))
+      : [null];
+    const shownIds = new Set<string>();
+    const shown: Ad[] = [];
+    for (const platform of groups) {
+      let n = 0;
+      for (const ad of filtered) {
+        if (n >= PREVIEW_PER_PLATFORM) break;
+        if (shownIds.has(ad.id) || (platform && !ad.platforms.includes(platform))) continue;
+        shownIds.add(ad.id);
+        shown.push(ad);
+        n++;
+      }
+    }
+    const rest = [...filtered, ...ads].filter((ad) => !shownIds.has(ad.id));
+    const locked = [...new Map(rest.map((ad) => [ad.id, ad])).values()].slice(0, 10);
+    return { shown, locked };
+  }, [user, platforms, filtered, ads]);
+
   // A new page starts at the top of the grid, not where the controls were.
   function goToPage(p: number) {
     pagination.setPage(p);
@@ -348,7 +378,55 @@ export default function LibraryView({
     <div className="flex min-h-screen flex-col">
       {user ? <AppHeader /> : <LandingHeader />}
       <div className="flex flex-1">
-        {/* Filters are for signed-in users; the public page is a plain grid. */}
+        {/* Visitors get the platform filter only; the rest come with an account. */}
+        {!user && (
+          <aside className="hidden w-[250px] shrink-0 border-r-2 border-ink/15 px-5 py-6 md:block">
+            <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
+              Platform
+            </p>
+            <div className="flex flex-col gap-2.5">
+              {PLATFORM_OPTIONS.map((platform) => (
+                <label key={platform} className="flex items-center gap-2 text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    checked={platforms.includes(platform)}
+                    onChange={() => toggle(platforms, platform, setPlatforms)}
+                    className="h-[15px] w-[15px] accent-brand"
+                  />
+                  {platform}
+                  <span className="ml-auto text-xs text-ink-muted">
+                    {ads.filter((ad) => ad.platforms.includes(platform)).length}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-ink-muted">
+              Preview up to {PREVIEW_PER_PLATFORM} ads per platform.
+            </p>
+
+            <div className="mt-6 flex flex-col gap-3 border-t border-ink/15 pt-6">
+              <button
+                type="button"
+                onClick={() => setSignUpPrompt("filters")}
+                className="flex items-center gap-2 border border-border bg-card px-3 py-2.5 text-left text-sm font-bold text-ink hover:border-ink"
+              >
+                <span className="text-base font-normal">+</span>
+                <span className="flex-1 whitespace-nowrap">Show more filters</span>
+                <span className="text-[10px] tracking-[0.12em] text-brand">TRIAL</span>
+              </button>
+              <p className="text-xs leading-relaxed text-ink-muted">
+                Keyword, category, country, language and date filters come with the free trial.
+              </p>
+              <Link
+                href="/signup"
+                className="bg-brand px-3 py-2.5 text-center text-sm font-bold text-brand-foreground hover:bg-brand/90"
+              >
+                Start free trial
+              </Link>
+            </div>
+          </aside>
+        )}
+
         {user && (
         <aside className="w-[220px] shrink-0 border-r-2 border-ink/15 px-5 py-6">
           <div>
@@ -673,43 +751,56 @@ export default function LibraryView({
           <h1 className="text-3xl font-extrabold text-ink">{heading}</h1>
 
           {!user ? (
-            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-ink/15 pb-4 text-sm text-ink-muted">
-              {selectedTags.length > 0 || keyword || selectedCategories.length > 0 ? (
-                <>
-                  <span>
-                    {selectedCategories.length > 0 && (
-                      <>
-                        {selectedCategories.join(", ")} ads{" "}
-                      </>
-                    )}
-                    {selectedTags.length > 0 && (
-                      <>
-                        tagged{" "}
-                        <span className="font-bold text-ink">{selectedTags.join(", ")}</span>{" "}
-                      </>
-                    )}
-                    {keyword && (
-                      <>
-                        matching{" "}
-                        <span className="font-bold text-ink">&ldquo;{keyword}&rdquo;</span>
-                      </>
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={resetAllFilters}
-                    className="font-bold text-brand"
-                  >
-                    Show all ads
-                  </button>
-                </>
-              ) : (
+            <>
+              {/* Phones have no sidebar, so the platform filter sits here. */}
+              <div className="mt-4 flex flex-wrap gap-2 md:hidden">
+                {PLATFORM_OPTIONS.map((platform) => {
+                  const on = platforms.includes(platform);
+                  return (
+                    <button
+                      key={platform}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggle(platforms, platform, setPlatforms)}
+                      className={`border px-3 py-1.5 text-sm font-bold ${
+                        on ? "border-ink bg-ink text-surface" : "border-border bg-surface text-ink"
+                      }`}
+                    >
+                      {platform}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-ink/15 pb-4 text-sm text-ink-muted">
+                <span className="text-[11px] font-medium tracking-[0.12em] uppercase">Active</span>
                 <span>
-                  Ready-made ad creatives for Meta, TikTok, Google and more. Open any ad to
-                  see its copy and creative details.
+                  {platforms.length
+                    ? PLATFORM_OPTIONS.filter((p) => platforms.includes(p)).join(", ")
+                    : "None — showing everything cleared for you"}
                 </span>
-              )}
-            </div>
+                {/* Tag, search and category links from ad pages still narrow the list. */}
+                {(selectedTags.length > 0 || keyword || selectedCategories.length > 0) && (
+                  <>
+                    <span>
+                      {selectedCategories.length > 0 && <>· {selectedCategories.join(", ")} ads </>}
+                      {selectedTags.length > 0 && (
+                        <>
+                          · tagged <span className="font-bold text-ink">{selectedTags.join(", ")}</span>{" "}
+                        </>
+                      )}
+                      {keyword && (
+                        <>
+                          · matching <span className="font-bold text-ink">&ldquo;{keyword}&rdquo;</span>
+                        </>
+                      )}
+                    </span>
+                    <button type="button" onClick={resetAllFilters} className="font-bold text-brand">
+                      Show all ads
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
           ) : (
           <div className="mt-4 flex items-center gap-3 border-b border-ink/15 pb-4 text-sm">
             <span className="text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
@@ -738,7 +829,65 @@ export default function LibraryView({
             </p>
           )}
 
-          {!loading && !error && (
+          {!loading && !error && preview && (
+            <>
+              <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {preview.shown.map((ad) => (
+                  <AdCard key={ad.id} ad={ad} saved={false} onToggleSave={toggleSave} />
+                ))}
+              </div>
+
+              {preview.shown.length === 0 && (
+                <p className="mt-10 text-sm text-ink-muted">No ads match those filters.</p>
+              )}
+
+              {preview.locked.length > 0 && (
+                <div className="relative mt-10">
+                  <div
+                    aria-hidden="true"
+                    inert
+                    className="pointer-events-none grid grid-cols-2 gap-x-6 gap-y-10 opacity-85 blur-[14px] select-none sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                  >
+                    {preview.locked.map((ad) => (
+                      <AdCard key={ad.id} ad={ad} saved={false} onToggleSave={() => {}} />
+                    ))}
+                  </div>
+                  <div className="absolute inset-x-[-20px] top-[-40px] bottom-0 flex justify-center bg-gradient-to-b from-surface/0 via-surface/80 to-surface px-4 pt-24 sm:pt-36">
+                    <div className="flex h-fit w-full max-w-[520px] flex-col items-center gap-4 border border-border bg-card px-6 py-10 text-center shadow-[0_24px_60px_rgba(20,20,20,0.12)] sm:px-12">
+                      <p className="text-[11px] font-medium tracking-[0.16em] text-ink-muted uppercase">
+                        You&rsquo;ve seen {preview.shown.length} of {filtered.length} ads
+                      </p>
+                      <h2 className="text-[28px] leading-tight font-extrabold text-balance text-ink sm:text-[32px]">
+                        Sign up to see the full library
+                      </h2>
+                      <p className="text-base leading-relaxed text-pretty text-ink-muted">
+                        Start your 7-day free trial to browse all {ads.length} ads, save the ones you
+                        like and request creatives.
+                      </p>
+                      {platforms.length < PLATFORM_OPTIONS.length && (
+                        <p className="text-sm text-ink-muted">
+                          Or pick another platform to preview {PREVIEW_PER_PLATFORM} more.
+                        </p>
+                      )}
+                      <div className="mt-2 flex w-full flex-col gap-3">
+                        <Link
+                          href="/signup"
+                          className="bg-brand px-4 py-4 text-base font-bold text-brand-foreground hover:bg-brand/90"
+                        >
+                          Start free trial
+                        </Link>
+                        <Link href="/login" className="text-sm text-ink-muted underline">
+                          Already have an account? Log in
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {!loading && !error && !preview && (
             <>
               <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {pageAds.map((ad) => (
@@ -792,7 +941,7 @@ export default function LibraryView({
 
       {user && <FeedbackPanel user={user} />}
       <UpgradePrompt reason={saveLocked ? "save" : null} onClose={() => setSaveLocked(false)} />
-      <SignUpPrompt reason={signUpPrompt ? "save" : null} onClose={() => setSignUpPrompt(false)} />
+      <SignUpPrompt reason={signUpPrompt} onClose={() => setSignUpPrompt(null)} />
     </div>
   );
 }

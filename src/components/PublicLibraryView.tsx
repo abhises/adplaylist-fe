@@ -42,7 +42,7 @@ export default function PublicLibraryView({
 
   return (
     <LibraryView
-      heading={ready && user ? "Explore Ads" : "Ads"}
+      heading="Explore Ads"
       user={ready ? user : null}
       initialAds={ads}
       initialTags={initialTags}
