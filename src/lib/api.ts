@@ -198,6 +198,8 @@ export type Account = {
   creditTotal: number;
   nextRefillAt: string | null;
   hasSubscription: boolean;
+  // A trial owner who hasn't added a card yet: the trial starts at checkout.
+  needsCard: boolean;
   // Cancelled during the free trial: ends at the trial's end, never charged.
   cancelledInTrial: boolean;
   maxBrands: number;

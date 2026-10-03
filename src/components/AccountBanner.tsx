@@ -18,9 +18,12 @@ export default function AccountBanner() {
     case "trial": {
       const days = daysUntil(account.trialEndsAt);
       const left = `${days} ${days === 1 ? "day" : "days"} left in your ${account.planName} trial.`;
-      if (!account.hasSubscription) {
-        text = `${left} Add a card to keep your plan.`;
-        action = "Upgrade";
+      if (account.needsCard) {
+        // The trial hasn't started: owners are on the billing page's start
+        // step already, so only members need telling.
+        if (owner) return null;
+        text = "Your free trial starts once the account owner adds a card.";
+        action = null;
       } else if (account.credits === 0 && account.creditVolume > 0) {
         text = `${left} You've used your trial credits.`;
         action = "Start plan now";

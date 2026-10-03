@@ -31,7 +31,7 @@ export default function BillingPage() {
 }
 
 function Billing() {
-  const { user, ready } = useRequireAuth();
+  const { user, ready } = useRequireAuth({ allowWithoutCard: true });
   const { refresh } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -91,6 +91,51 @@ function Billing() {
     }
   }
 
+  const planChooser = account && (
+    <PlanChooser
+      account={account}
+      busy={busy}
+      initial={{
+        plan: searchParams.get("plan"),
+        volume: searchParams.get("volume"),
+        cycle: searchParams.get("cycle"),
+      }}
+      onCheckout={(plan, volume, cycle) => go(() => api.startCheckout(plan, volume, cycle))}
+    />
+  );
+
+  // New owners (and older card-less trials) land here first: the free trial
+  // starts once a card is added, and the rest of the app waits until then.
+  if (account?.needsCard && account.role === "owner") {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <AppHeader />
+        <main className="mx-auto w-full max-w-[1000px] flex-1 px-4 py-10 sm:px-10">
+          <p className="text-[11px] font-medium tracking-[0.16em] text-ink-muted uppercase">
+            One last step
+          </p>
+          <h1 className="mt-2 text-[clamp(30px,4vw,44px)] leading-[1.05] font-extrabold tracking-[-0.02em] text-ink">
+            Start your 7-day free trial
+          </h1>
+          <p className="mt-3 max-w-[640px] text-base text-ink-muted">
+            Pick a plan and add your card to unlock the library. You won&apos;t be charged
+            for 7 days. Cancel any time before then and you pay nothing.
+          </p>
+          <ul className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink">
+            <li>✓ Nothing charged today</li>
+            <li>✓ Change plan any time</li>
+            <li>✓ Cancel any time from Billing</li>
+          </ul>
+          {notice && (
+            <p className="mt-6 border border-ink/15 px-4 py-3 text-sm text-ink">{notice}</p>
+          )}
+          {error && <p className="mt-6 text-sm text-brand">{error}</p>}
+          {planChooser}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader />
@@ -123,18 +168,7 @@ function Billing() {
             ) : account.hasSubscription ? (
               <ManageCard account={account} busy={busy} onManage={() => go(api.openBillingPortal)} />
             ) : (
-              <PlanChooser
-                account={account}
-                busy={busy}
-                initial={{
-                  plan: searchParams.get("plan"),
-                  volume: searchParams.get("volume"),
-                  cycle: searchParams.get("cycle"),
-                }}
-                onCheckout={(plan, volume, cycle) =>
-                  go(() => api.startCheckout(plan, volume, cycle))
-                }
-              />
+              planChooser
             )}
 
             {account.role === "owner" && (
@@ -327,7 +361,7 @@ function PlanChooser({
           </h2>
           <p className="mt-1 text-sm text-ink-muted">
             {keepsTrial
-              ? `You'll be charged only after your free trial ends on ${fmtDate(account.trialEndsAt)} — cancel before then and you pay nothing. Your card is needed now to start the trial. Pro and Agency trials include 2 credits.`
+              ? "Your card is needed to start the trial, and is first charged when the 7 days are up — cancel before then and you pay nothing. Pro and Agency trials include 2 credits."
               : "You'll be charged today. Prices in USD, excluding tax."}
           </p>
         </div>

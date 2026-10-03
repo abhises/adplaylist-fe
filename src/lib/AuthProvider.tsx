@@ -103,15 +103,25 @@ export function useAuth() {
   return ctx;
 }
 
-export function useRequireAuth() {
+// An account owner who hasn't added a card yet. The free trial needs one, so
+// they're sent to /billing to start it before using the app (the server
+// also withholds every entitlement until then).
+export function needsCard(user: User | null) {
+  return user?.role === "client" && user.account?.role === "owner" && !!user.account.needsCard;
+}
+
+export function useRequireAuth({ allowWithoutCard = false } = {}) {
   const { user, ready } = useAuth();
   const router = useRouter();
+  const blocked = !allowWithoutCard && needsCard(user);
 
   useEffect(() => {
-    if (ready && !user) router.replace("/login");
-  }, [ready, user, router]);
+    if (!ready) return;
+    if (!user) router.replace("/login");
+    else if (blocked) router.replace("/billing");
+  }, [ready, user, blocked, router]);
 
-  return { user, ready };
+  return { user, ready: ready && !blocked };
 }
 
 // Redirects to /login if signed out, or to /library if signed in with a role

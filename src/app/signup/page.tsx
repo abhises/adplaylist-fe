@@ -24,8 +24,9 @@ function SignupForm() {
   // The landing page's hero form sends visitors here with ?email= prefilled.
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
-  // A plan picked on the pricing section (?plan=&volume=&cycle=) goes on to
-  // the billing page to add a card for it; otherwise straight to the library.
+  // Next stop is the billing page, to add a card and start the free trial,
+  // with any plan picked on the pricing section (?plan=&volume=&cycle=)
+  // already selected.
   const plan = searchParams.get("plan");
   const next = plan
     ? `/billing?${new URLSearchParams({
@@ -33,7 +34,7 @@ function SignupForm() {
         volume: searchParams.get("volume") ?? "",
         cycle: searchParams.get("cycle") ?? "monthly",
       })}`
-    : "/library";
+    : "/billing";
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
