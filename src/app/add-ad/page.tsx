@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
 import TagPicker from "@/components/TagPicker";
@@ -223,7 +224,10 @@ export default function AddAdPage() {
         <h1 className="text-3xl font-extrabold text-ink">Add a new ad</h1>
         <p className="mt-2 text-sm text-ink-muted">
           Upload the text data and creative, then preview the ad before
-          publishing it to the library.
+          publishing it to the library. Adding several?{" "}
+          <Link href="/add-ad/bulk" className="text-brand">
+            Bulk add ads
+          </Link>
         </p>
 
         <form

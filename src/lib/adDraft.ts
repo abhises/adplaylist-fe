@@ -443,45 +443,47 @@ function canonicalKey(label: string): string | undefined {
   return FIELD_ALIASES[key];
 }
 
-// Accepts a "wide" CSV (one header row of field names, one data row of
-// values) or a "long" CSV with one row per field. The long form is found by
-// its "Field" and "Answer" header cells wherever they sit, so the current
-// template (Section,Field,Answer,Notes) and the older Field,Answer both work.
-function parseAdCsv(text: string): {
-  fields: Record<string, string>;
-  unrecognized: string[];
-} {
+type CsvRecord = { fields: Record<string, string>; unrecognized: string[] };
+
+// Accepts a "wide" CSV (one header row of field names, then one data row per
+// ad) or a "long" CSV with one row per field, holding a single ad. The long
+// form is found by its "Field" and "Answer" header cells wherever they sit,
+// so the current template (Section,Field,Answer,Notes) and the older
+// Field,Answer both work.
+function parseAdCsvRecords(text: string): CsvRecord[] {
   const rows = parseCsvRows(text);
-  if (rows.length < 2) return { fields: {}, unrecognized: [] };
+  if (rows.length < 2) return [];
 
   const headerCells = rows[0].map(normalizeKey);
   const fieldCol = headerCells.indexOf("field");
   const answerCol = headerCells.indexOf("answer");
   const isLongFormat = fieldCol !== -1 && answerCol !== -1;
 
-  const fields: Record<string, string> = {};
-  // Labels that carry a value but don't map to any field — reported back so
-  // a renamed column isn't dropped without anyone noticing.
-  const unrecognized: string[] = [];
-
-  function take(label: string, value: string | undefined) {
-    const key = canonicalKey(label);
-    const v = (value ?? "").trim();
-    if (key) fields[key] = v;
-    else if (v) unrecognized.push(label.trim());
+  function record(pairs: [string, string | undefined][]): CsvRecord {
+    const fields: Record<string, string> = {};
+    // Labels that carry a value but don't map to any field — reported back
+    // so a renamed column isn't dropped without anyone noticing.
+    const unrecognized: string[] = [];
+    for (const [label, value] of pairs) {
+      const key = canonicalKey(label);
+      const v = (value ?? "").trim();
+      if (key) fields[key] = v;
+      else if (v) unrecognized.push(label.trim());
+    }
+    return { fields, unrecognized };
   }
 
   if (isLongFormat) {
-    for (const row of rows.slice(1)) {
-      const label = row[fieldCol];
-      if (label) take(label, row[answerCol]);
-    }
-  } else {
-    const values = rows[1] ?? [];
-    rows[0].forEach((label, i) => take(label, values[i]));
+    return [
+      record(
+        rows
+          .slice(1)
+          .filter((row) => row[fieldCol])
+          .map((row) => [row[fieldCol], row[answerCol]])
+      ),
+    ];
   }
-
-  return { fields, unrecognized };
+  return rows.slice(1).map((values) => record(rows[0].map((label, i) => [label, values[i]])));
 }
 
 function findOption(options: string[], value: string): string | undefined {
@@ -514,6 +516,7 @@ const splitList = (v: string) =>
 
 // Returns a copy of `base` with every recognized CSV field applied, plus how
 // many fields matched so the caller can reject a CSV with no known columns.
+// Only the first ad is read; see csvToDrafts for a CSV holding several.
 export function applyCsvToDraft(
   text: string,
   base: AdDraft
@@ -523,10 +526,42 @@ export function applyCsvToDraft(
   empty: boolean;
   unrecognized: string[];
 } {
-  const { fields: row, unrecognized } = parseAdCsv(text);
+  const [first] = parseAdCsvRecords(text);
+  const { draft, matched, unrecognized } = recordToDraft(
+    first ?? { fields: {}, unrecognized: [] },
+    base
+  );
+  if (!first) return { draft, matched: 0, empty: true, unrecognized };
+  return { draft, matched, empty: false, unrecognized };
+}
+
+export type CsvDraft = {
+  draft: AdDraft;
+  matched: number;
+  unrecognized: string[];
+  // Pick-list fields (category, market…) whose value isn't one of the
+  // options, so the draft kept its default instead, e.g. "Category: Petz".
+  invalid: string[];
+};
+
+// Every ad in a CSV: one for the long template, one per data row for a wide
+// file. Rows with nothing recognized in them are skipped.
+export function csvToDrafts(text: string, base: AdDraft): CsvDraft[] {
+  return parseAdCsvRecords(text)
+    .map((record) => recordToDraft(record, base))
+    .filter((d) => d.matched > 0 || d.unrecognized.length > 0);
+}
+
+function recordToDraft(
+  { fields: row, unrecognized }: CsvRecord,
+  base: AdDraft
+): CsvDraft {
   const draft: AdDraft = { ...base, content: toDraftContent(fromDraftContent(base.content)) };
-  if (Object.keys(row).length === 0 && unrecognized.length === 0)
-    return { draft, matched: 0, empty: true, unrecognized };
+  const invalid: string[] = [];
+  const checkOption = (label: string, value: string | undefined, found: unknown) => {
+    // The blank template's answer cells list every option, so keep it short.
+    if (value && !found) invalid.push(`${label}: ${value.length > 40 ? `${value.slice(0, 40)}…` : value}`);
+  };
   let matched = 0;
 
   if (row.adname) {
@@ -538,6 +573,7 @@ export function applyCsvToDraft(
     draft.mediaType = mediaTypeVal;
     matched++;
   }
+  checkOption("Media type", row.mediatype, mediaTypeVal === "image" || mediaTypeVal === "video");
   for (const key of ["kicker", "headline", "sub", "cta", "description"] as const) {
     if (row[key]) {
       draft[key] = row[key];
@@ -568,16 +604,19 @@ export function applyCsvToDraft(
     draft.category = categoryVal;
     matched++;
   }
+  checkOption("Category", row.category, categoryVal);
   const marketVal = row.market ? findOption(MARKET_OPTIONS, row.market) : undefined;
   if (marketVal) {
     draft.market = marketVal;
     matched++;
   }
+  checkOption("Market", row.market, marketVal);
   const languageVal = row.language ? findOption(LANGUAGE_OPTIONS, row.language) : undefined;
   if (languageVal) {
     draft.language = languageVal;
     matched++;
   }
+  checkOption("Language", row.language, languageVal);
   if (row.platforms) {
     const list = row.platforms
       .split(/[,;|]/)
@@ -587,6 +626,7 @@ export function applyCsvToDraft(
       draft.platforms = list;
       matched++;
     }
+    checkOption("Platforms", row.platforms, list.length);
   }
   if (row.sizes) {
     const list = row.sizes
@@ -608,6 +648,7 @@ export function applyCsvToDraft(
     draft.dominantColor = dominantColorVal;
     matched++;
   }
+  checkOption("Dominant color", row.dominantcolor, dominantColorVal);
   if (row.canvaurl) {
     draft.canvaUrl = row.canvaurl;
     matched++;
@@ -619,6 +660,7 @@ export function applyCsvToDraft(
     draft.adFormat = adFormatVal;
     matched++;
   }
+  checkOption("Format", row.adformat, adFormatVal);
 
   const textFields = {
     subcategory: "subcategory",
@@ -707,5 +749,5 @@ export function applyCsvToDraft(
     }
   }
 
-  return { draft, matched, empty: false, unrecognized };
+  return { draft, matched, unrecognized, invalid };
 }
