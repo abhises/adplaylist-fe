@@ -112,7 +112,7 @@ export default function Pagination({
   return (
     <nav
       aria-label="Pagination"
-      className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2 py-3 text-sm text-ink-muted"
+      className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 py-3 text-sm text-ink-muted sm:justify-end"
     >
       <label className="flex items-center gap-2">
         Rows per page:

@@ -67,6 +67,8 @@ export default function LibraryView({
   const [ads, setAds] = useState<Ad[]>(initialAds ?? []);
   const [loading, setLoading] = useState(!initialAds);
   const [signUpPrompt, setSignUpPrompt] = useState<"save" | "filters" | null>(null);
+  // Phones show the filter sidebar as a full-screen panel, opened on demand.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [saveLocked, setSaveLocked] = useState(false);
@@ -374,13 +376,76 @@ export default function LibraryView({
         ? selectedCategories[0]
         : `${selectedCategories.length} selected`;
 
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFiltersOpen(false);
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [filtersOpen]);
+
+  // Below md the sidebar slides in from the left as a drawer.
+  const drawerClass = (desktopWidth: string) =>
+    `fixed inset-y-0 left-0 z-50 w-[85%] max-w-[320px] overflow-y-auto bg-surface px-5 py-6 shadow-xl transition-transform duration-200 ${
+      filtersOpen ? "translate-x-0" : "-translate-x-full"
+    } md:static md:z-auto md:translate-x-0 md:overflow-visible md:shadow-none md:transition-none ${desktopWidth} md:shrink-0 md:border-r-2 md:border-ink/15`;
+  const drawerHeader = (
+    <div className="mb-6 flex items-center justify-between md:hidden">
+      <p className="text-lg font-extrabold text-ink">Filters</p>
+      <button
+        type="button"
+        onClick={() => setFiltersOpen(false)}
+        aria-label="Close filters"
+        className="flex h-9 w-9 items-center justify-center text-xl text-ink hover:bg-surface-2"
+      >
+        &times;
+      </button>
+    </div>
+  );
+  const drawerFooter = (label: string) => (
+    <div className="sticky bottom-[-24px] -mx-5 mt-6 border-t border-ink/15 bg-surface px-5 py-4 md:hidden">
+      <button
+        type="button"
+        onClick={() => setFiltersOpen(false)}
+        className="w-full bg-brand px-4 py-3 text-sm font-bold text-brand-foreground hover:bg-brand/90"
+      >
+        {label}
+      </button>
+    </div>
+  );
+  const filtersButton = (count: number) => (
+    <button
+      type="button"
+      onClick={() => setFiltersOpen(true)}
+      aria-expanded={filtersOpen}
+      className="flex items-center gap-2 border border-border px-3 py-1.5 text-sm font-bold text-ink hover:bg-surface-2 md:hidden"
+    >
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M4 6h16M7 12h10M10 18h4" />
+      </svg>
+      Filters
+      {count > 0 && <span className="bg-brand px-1.5 text-xs text-brand-foreground">{count}</span>}
+    </button>
+  );
+
   return (
     <div className="flex min-h-screen flex-col">
       {user ? <AppHeader /> : <LandingHeader />}
       <div className="flex flex-1">
+        {filtersOpen && (
+          <div
+            aria-hidden="true"
+            onClick={() => setFiltersOpen(false)}
+            className="fixed inset-0 z-40 bg-ink/40 md:hidden"
+          />
+        )}
         {/* Visitors get the platform filter only; the rest come with an account. */}
         {!user && (
-          <aside className="hidden w-[250px] shrink-0 border-r-2 border-ink/15 px-5 py-6 md:block">
+          <aside aria-label="Filters" className={drawerClass("md:w-[250px]")}>
+            {drawerHeader}
             <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
               Platform
             </p>
@@ -407,7 +472,10 @@ export default function LibraryView({
             <div className="mt-6 flex flex-col gap-3 border-t border-ink/15 pt-6">
               <button
                 type="button"
-                onClick={() => setSignUpPrompt("filters")}
+                onClick={() => {
+                  setFiltersOpen(false);
+                  setSignUpPrompt("filters");
+                }}
                 className="flex items-center gap-2 border border-border bg-card px-3 py-2.5 text-left text-sm font-bold text-ink hover:border-ink"
               >
                 <span className="text-base font-normal">+</span>
@@ -424,11 +492,16 @@ export default function LibraryView({
                 Start free trial
               </Link>
             </div>
+            {drawerFooter("Show ads")}
           </aside>
         )}
 
         {user && (
-        <aside className="w-[220px] shrink-0 border-r-2 border-ink/15 px-5 py-6">
+        <aside
+          aria-label="Filters"
+          className={drawerClass("md:w-[220px]")}
+        >
+          {drawerHeader}
           <div>
             <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
               Keyword
@@ -744,34 +817,18 @@ export default function LibraryView({
           >
             Reset all filters
           </button>
+
+          {drawerFooter(`Show ${filtered.length} ad${filtered.length === 1 ? "" : "s"}`)}
         </aside>
         )}
 
         <main className="min-w-0 flex-1 px-4 py-8 sm:px-10">
-          <h1 className="text-3xl font-extrabold text-ink">{heading}</h1>
+          <h1 className="text-2xl font-extrabold text-ink sm:text-3xl">{heading}</h1>
 
           {!user ? (
             <>
-              {/* Phones have no sidebar, so the platform filter sits here. */}
-              <div className="mt-4 flex flex-wrap gap-2 md:hidden">
-                {PLATFORM_OPTIONS.map((platform) => {
-                  const on = platforms.includes(platform);
-                  return (
-                    <button
-                      key={platform}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() => toggle(platforms, platform, setPlatforms)}
-                      className={`border px-3 py-1.5 text-sm font-bold ${
-                        on ? "border-ink bg-ink text-surface" : "border-border bg-surface text-ink"
-                      }`}
-                    >
-                      {platform}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-ink/15 pb-4 text-sm text-ink-muted">
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-ink/15 pb-4 text-sm text-ink-muted">
+                {filtersButton(platforms.length)}
                 <span className="text-[11px] font-medium tracking-[0.12em] uppercase">Active</span>
                 <span>
                   {platforms.length
@@ -802,7 +859,8 @@ export default function LibraryView({
               </div>
             </>
           ) : (
-          <div className="mt-4 flex items-center gap-3 border-b border-ink/15 pb-4 text-sm">
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-ink/15 pb-4 text-sm">
+            {filtersButton(activeCount)}
             <span className="text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
               Active
             </span>
@@ -831,7 +889,7 @@ export default function LibraryView({
 
           {!loading && !error && preview && (
             <>
-              <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              <div className="mt-6 grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-4 xl:grid-cols-5">
                 {preview.shown.map((ad) => (
                   <AdCard key={ad.id} ad={ad} saved={false} onToggleSave={toggleSave} />
                 ))}
@@ -846,7 +904,7 @@ export default function LibraryView({
                   <div
                     aria-hidden="true"
                     inert
-                    className="pointer-events-none grid grid-cols-2 gap-x-6 gap-y-10 opacity-85 blur-[14px] select-none sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                    className="pointer-events-none grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-10 opacity-85 blur-[14px] select-none lg:grid-cols-4 xl:grid-cols-5"
                   >
                     {preview.locked.map((ad) => (
                       <AdCard key={ad.id} ad={ad} saved={false} onToggleSave={() => {}} />
@@ -889,7 +947,7 @@ export default function LibraryView({
 
           {!loading && !error && !preview && (
             <>
-              <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              <div className="mt-6 grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-4 xl:grid-cols-5">
                 {pageAds.map((ad) => (
                   <AdCard
                     key={ad.id}

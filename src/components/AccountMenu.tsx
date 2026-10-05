@@ -39,13 +39,15 @@ export default function AccountMenu() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
+        aria-label="Account menu"
         className="flex items-center gap-2 text-sm text-ink"
       >
         <span className="flex h-8 w-8 items-center justify-center bg-ink text-xs font-bold text-surface">
           {initials(user.fullName)}
         </span>
-        {user.fullName}
-        <span className="text-ink-muted">&#9662;</span>
+        {/* Phones show just the initials. */}
+        <span className="hidden sm:inline">{user.fullName}</span>
+        <span className="hidden text-ink-muted sm:inline">&#9662;</span>
       </button>
 
       {open && (

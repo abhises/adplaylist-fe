@@ -102,6 +102,8 @@ function NavDropdown({
 export default function AppHeader() {
   const pathname = usePathname();
   const { user } = useAuth();
+  // Below lg the nav links move into a menu opened from a button.
+  const [menuOpen, setMenuOpen] = useState(false);
   const canPublish = user?.role === "designer" || user?.role === "admin";
   const isAdmin = user?.role === "admin";
   const libraryHref =
@@ -151,8 +153,8 @@ export default function AppHeader() {
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
-    <header className="border-b border-ink/15 bg-surface">
-      <div className="flex items-center justify-between px-10 py-4">
+    <header className="sticky top-0 z-30 border-b border-ink/15 bg-surface lg:static">
+      <div className="flex h-[72px] items-center justify-between gap-4 px-5 sm:px-10 lg:h-auto lg:py-4">
         <div className="flex items-center gap-10">
           <Link
             href={libraryHref}
@@ -160,7 +162,7 @@ export default function AppHeader() {
           >
             Adplaylist
           </Link>
-          <nav className="ml-[200px] flex items-center gap-6">
+          <nav className="hidden items-center gap-6 lg:flex xl:ml-[200px]">
             {navItems.map((item) =>
               isGroup(item) ? (
                 <NavDropdown
@@ -181,16 +183,67 @@ export default function AppHeader() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <Link
             href="/requests"
-            className="flex items-center gap-1.5 bg-brand px-4 py-2 text-sm font-bold text-brand-foreground"
+            className="flex items-center gap-1.5 bg-brand px-[14px] py-[10px] text-sm font-bold whitespace-nowrap text-brand-foreground lg:px-4 lg:py-2"
           >
-            <span>+</span> Request a creative
+            <span>+</span> <span className="sm:hidden">Request</span>
+            <span className="hidden sm:inline">Request a creative</span>
           </Link>
           <AccountMenu />
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-expanded={menuOpen}
+            aria-controls="app-menu"
+            aria-label="Menu"
+            className="flex h-11 w-11 items-center justify-center border-[1.5px] border-ink text-[20px] text-ink lg:hidden"
+          >
+            {menuOpen ? "✕" : "☰"}
+          </button>
         </div>
       </div>
+
+      {menuOpen && (
+        <nav
+          id="app-menu"
+          // Following a link closes the menu.
+          onClick={(e) => (e.target as HTMLElement).closest("a") && setMenuOpen(false)}
+          className="flex max-h-[calc(100vh-72px)] flex-col overflow-y-auto border-t border-ink/15 px-5 pb-4 sm:px-10 lg:hidden"
+        >
+          {navItems.map((item) =>
+            isGroup(item) ? (
+              <div key={item.label} className="border-b border-ink/15 py-4">
+                <p className="text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
+                  {item.label}
+                </p>
+                {item.links.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`block pt-3 text-[16px] ${
+                      link.href === activeHref ? "font-bold text-brand" : "font-medium text-ink"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`border-b border-ink/15 py-4 text-[18px] font-semibold ${
+                  item.href === activeHref ? "text-brand" : "text-ink"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ),
+          )}
+        </nav>
+      )}
       <AccountBanner />
     </header>
   );

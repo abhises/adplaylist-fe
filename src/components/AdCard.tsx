@@ -45,7 +45,7 @@ export default function AdCard({
             />
           )}
           {(onToggleSave || onDelete || onEdit) && (
-            <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+            <div className="absolute top-2 right-2 z-10 flex items-center gap-1 sm:top-3 sm:right-3 sm:gap-1.5">
               {onEdit && (
                 <button
                   onClick={(e) => {
@@ -55,7 +55,7 @@ export default function AdCard({
                   }}
                   aria-label="Edit ad"
                   title="Edit ad"
-                  className="flex h-9 w-9 items-center justify-center border border-border bg-surface text-ink opacity-0 transition-opacity group-hover:opacity-100 hover:border-brand hover:text-brand"
+                  className="flex h-8 w-8 items-center justify-center border border-border bg-surface text-ink opacity-0 transition-opacity group-hover:opacity-100 hover:border-brand hover:text-brand sm:h-9 sm:w-9 [@media(hover:none)]:opacity-100"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -78,7 +78,7 @@ export default function AdCard({
                   }}
                   aria-label="Delete ad"
                   title="Delete ad"
-                  className="flex h-9 w-9 items-center justify-center border border-border bg-surface text-ink opacity-0 transition-opacity group-hover:opacity-100 hover:border-brand hover:text-brand"
+                  className="flex h-8 w-8 items-center justify-center border border-border bg-surface text-ink opacity-0 transition-opacity group-hover:opacity-100 hover:border-brand hover:text-brand sm:h-9 sm:w-9 [@media(hover:none)]:opacity-100"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -101,10 +101,10 @@ export default function AdCard({
                   }}
                   aria-label={saved ? "Remove from saved" : "Save ad"}
                   title={saved ? "Remove from saved" : "Save ad"}
-                  className={`flex h-9 w-9 items-center justify-center border border-border transition-opacity ${
+                  className={`flex h-8 w-8 items-center justify-center border border-border transition-opacity sm:h-9 sm:w-9 ${
                     saved
                       ? "bg-brand text-brand-foreground opacity-100"
-                      : "bg-surface text-ink opacity-0 group-hover:opacity-100"
+                      : "bg-surface text-ink opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
                   }`}
                 >
                   <svg
@@ -124,7 +124,7 @@ export default function AdCard({
 
           {ad.badge && (
             <span
-              className={`absolute top-3 right-3 flex items-center gap-1 text-[11px] font-medium tracking-[0.5px] uppercase ${inkTextMuted}`}
+              className={`absolute bottom-2 left-2 flex items-center gap-1 text-[11px] sm:bottom-3 sm:left-3 font-medium tracking-[0.5px] uppercase ${inkTextMuted}`}
             >
               {ad.mediaType === "video" && <span>&#9654;</span>}
               {ad.badge}
