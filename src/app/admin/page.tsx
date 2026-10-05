@@ -230,7 +230,7 @@ export default function AdminUsersPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader />
-      <main className="flex-1 px-10 py-8">
+      <main className="flex-1 px-4 py-8 sm:px-10">
         <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
           Admin
         </p>
@@ -261,8 +261,10 @@ export default function AdminUsersPage() {
         {error && <p className="mt-8 text-sm text-brand">{error}</p>}
 
         {!loading && !error && (
-          <table className="mt-6 w-full max-w-5xl border-collapse text-sm">
-            <thead>
+          // Below md each row is laid out as a card: the name on top, the
+          // other cells as labelled lines (their data-label), actions last.
+          <table className="mt-6 w-full max-w-5xl border-collapse text-sm max-md:block">
+            <thead className="max-md:hidden">
               <tr>
                 {["User", "Email", "Joined", "Role", "Access", ""].map((h) => (
                   <th
@@ -274,21 +276,24 @@ export default function AdminUsersPage() {
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="max-md:flex max-md:flex-col max-md:gap-3">
               {users.slice(pagination.start, pagination.end).map((u) => {
                 const isAdmin = u.role === "admin";
                 return (
-                  <tr key={u.id} className="hover:bg-surface-2/60">
-                    <td className="border-b border-border p-2 font-semibold text-ink">
+                  <tr
+                    key={u.id}
+                    className="hover:bg-surface-2/60 max-md:block max-md:border-2 max-md:border-ink/15 max-md:p-4 max-md:hover:bg-transparent"
+                  >
+                    <td className="border-b border-border p-2 font-semibold text-ink max-md:block max-md:border-0 max-md:p-0 max-md:pb-1 max-md:text-base">
                       {u.fullName}
                     </td>
-                    <td className="border-b border-border p-2 text-ink-muted">
+                    <td data-label="Email" className="border-b border-border p-2 text-ink-muted max-md:flex max-md:items-center max-md:justify-between max-md:gap-4 max-md:border-0 max-md:px-0 max-md:py-1.5 max-md:before:shrink-0 max-md:before:text-[11px] max-md:before:tracking-[0.08em] max-md:before:text-ink-muted max-md:before:uppercase max-md:before:content-[attr(data-label)] max-md:min-w-0 max-md:break-all max-md:text-right">
                       {u.email}
                     </td>
-                    <td className="border-b border-border p-2 text-ink-muted">
+                    <td data-label="Joined" className="border-b border-border p-2 text-ink-muted max-md:flex max-md:items-center max-md:justify-between max-md:gap-4 max-md:border-0 max-md:px-0 max-md:py-1.5 max-md:before:shrink-0 max-md:before:text-[11px] max-md:before:tracking-[0.08em] max-md:before:text-ink-muted max-md:before:uppercase max-md:before:content-[attr(data-label)]">
                       {formatDate(u.createdAt)}
                     </td>
-                    <td className="border-b border-border p-2">
+                    <td data-label="Role" className="border-b border-border p-2 max-md:flex max-md:items-center max-md:justify-between max-md:gap-4 max-md:border-0 max-md:px-0 max-md:py-1.5 max-md:before:shrink-0 max-md:before:text-[11px] max-md:before:tracking-[0.08em] max-md:before:text-ink-muted max-md:before:uppercase max-md:before:content-[attr(data-label)] max-md:flex-wrap">
                       <div className="flex items-center gap-2">
                         <select
                           value={u.role}
@@ -313,8 +318,8 @@ export default function AdminUsersPage() {
                         <p className="mt-1 text-xs text-brand">{rowError.message}</p>
                       )}
                     </td>
-                    <td className="border-b border-border p-2">
-                      <div className="flex flex-wrap gap-1">
+                    <td data-label="Access" className="border-b border-border p-2 max-md:flex max-md:items-center max-md:justify-between max-md:gap-4 max-md:border-0 max-md:px-0 max-md:py-1.5 max-md:before:shrink-0 max-md:before:text-[11px] max-md:before:tracking-[0.08em] max-md:before:text-ink-muted max-md:before:uppercase max-md:before:content-[attr(data-label)]">
+                      <div className="flex flex-wrap justify-end gap-1 md:justify-start">
                         {isAdmin ? (
                           <span className="bg-ink/10 px-2 py-0.5 text-xs text-ink-muted">
                             Everything
@@ -345,7 +350,7 @@ export default function AdminUsersPage() {
                         )}
                       </div>
                     </td>
-                    <td className="border-b border-border p-2 text-right whitespace-nowrap">
+                    <td className="border-b border-border p-2 text-right whitespace-nowrap max-md:mt-3 max-md:flex max-md:justify-end max-md:border-0 max-md:border-t max-md:border-ink/10 max-md:px-0 max-md:pt-3 max-md:pb-0">
                       <button
                         type="button"
                         onClick={() => openEdit(u)}
