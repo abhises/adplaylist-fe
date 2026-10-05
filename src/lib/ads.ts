@@ -195,3 +195,14 @@ export const AD_FORMAT_OPTIONS = [
   "Listicle",
   "Meme",
 ];
+
+// A copy of `items` in random order (Fisher–Yates), so the library shows ads
+// in a different order on each visit.
+export function shuffle<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}

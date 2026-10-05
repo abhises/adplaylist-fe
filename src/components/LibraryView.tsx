@@ -19,6 +19,7 @@ import {
   MARKET_OPTIONS,
   PLATFORM_OPTIONS,
   VIDEO_LENGTH_OPTIONS,
+  shuffle,
 } from "@/lib/ads";
 import { api, ApiError, type Ad, type User } from "@/lib/api";
 
@@ -124,7 +125,8 @@ export default function LibraryView({
     if (!initialAds) {
       api
         .getAds()
-        .then(({ ads }) => setAds(ads))
+        // A new random order on each visit (see /library's page).
+        .then(({ ads }) => setAds(shuffle(ads)))
         .catch(() => setError("Couldn't load ads from the server."))
         .finally(() => setLoading(false));
     }
@@ -429,6 +431,27 @@ export default function LibraryView({
       Filters
       {count > 0 && <span className="bg-brand px-1.5 text-xs text-brand-foreground">{count}</span>}
     </button>
+  );
+
+  // Shown under the grid when a search finds fewer than this many ads, so a
+  // thin result points people to the design team instead of a dead end.
+  const requestCta = (
+    <div className="mt-10 flex flex-col items-start gap-4 border-2 border-ink/15 p-6 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-lg font-extrabold text-ink">
+          {filtered.length === 0 ? "Can't find the ad you need?" : "Not finding enough ads?"}
+        </p>
+        <p className="mt-1 text-sm text-ink-muted">
+          Our design team can make it for you: a new size, a new market or a brand-new ad.
+        </p>
+      </div>
+      <Link
+        href={user ? "/requests" : "/signup"}
+        className="shrink-0 bg-brand px-5 py-2.5 text-sm font-bold whitespace-nowrap text-brand-foreground hover:bg-brand/90"
+      >
+        + Request a creative
+      </Link>
+    </div>
   );
 
   return (
@@ -896,7 +919,10 @@ export default function LibraryView({
               </div>
 
               {preview.shown.length === 0 && (
-                <p className="mt-10 text-sm text-ink-muted">No ads match those filters.</p>
+                <>
+                  <p className="mt-10 text-sm text-ink-muted">No ads match those filters.</p>
+                  {requestCta}
+                </>
               )}
 
               {preview.locked.length > 0 && (
@@ -975,6 +1001,8 @@ export default function LibraryView({
                   No ads match those filters.
                 </p>
               )}
+
+              {filtered.length < 20 && requestCta}
             </>
           )}
         </main>

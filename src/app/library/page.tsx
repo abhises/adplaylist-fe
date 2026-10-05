@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import PublicLibraryView from "@/components/PublicLibraryView";
+import { shuffle } from "@/lib/ads";
 import { api, type Ad } from "@/lib/api";
 import { jsonLd, SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -27,9 +28,12 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
   // Per request, so newly published ads are listed straight away.
   await connection();
   const { tag, q, category } = await searchParams;
+  // A new random order on every visit, so the same ads aren't always first.
+  // Shuffled here rather than in the browser so the page renders the same
+  // order the browser then shows.
   const ads: Ad[] = await api
     .getAds()
-    .then((res) => res.ads)
+    .then((res) => shuffle(res.ads))
     .catch(() => []);
 
   const structuredData = {
