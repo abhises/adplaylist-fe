@@ -54,13 +54,6 @@ const STEPS = [
   { n: "03", title: "Save and ship", desc: "Bookmark creatives for this quarter's campaigns. Saving never locks an ad." },
 ];
 
-const FAQS = [
-  { q: "Who can use adplaylist?", a: "Anyone on your team. Marketers, regional leads, and agencies can browse, save, and open editable copies without waiting on design." },
-  { q: "Does editing a copy change the original?", a: "No. Opening an ad creates your own editable copy. The original stays in the library for everyone else." },
-  { q: "How long do new creative requests take?", a: "Average turnaround is 3 working days, whether you need a new size, a new market, or a brand-new ad." },
-  { q: "What can I filter by?", a: "Platform, category, market, and language." },
-];
-
 const mono = "font-mono text-[12px] tracking-[0.08em]";
 const container = "mx-auto max-w-[1320px] px-[clamp(20px,4vw,32px)]";
 const h2 = "text-[clamp(36px,4.5vw,56px)] leading-none font-extrabold tracking-[-0.03em]";
@@ -208,7 +201,6 @@ export default function LandingPage() {
   const [platform, setPlatform] = useState("All");
   const [category, setCategory] = useState("All");
   const [requestType, setRequestType] = useState("New market");
-  const [openFaq, setOpenFaq] = useState(0);
   // null while the first fetch is in flight; [] if it failed.
   const [liveAds, setLiveAds] = useState<LibraryAd[] | null>(null);
 
@@ -575,30 +567,6 @@ export default function LandingPage() {
               Send request
             </a>
           </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section id="faq" className="scroll-mt-[72px] border-t border-[#dcd9d5]">
-        <div className="mx-auto max-w-[960px] px-[clamp(20px,4vw,32px)] py-[clamp(64px,9vw,100px)]">
-          <h2 className="mb-8 text-[clamp(32px,4vw,48px)] font-extrabold tracking-[-0.03em]">Questions</h2>
-          {FAQS.map((f, i) => {
-            const open = openFaq === i;
-            return (
-              <div key={f.q} className="border-t border-[#cfccc7]">
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  onClick={() => setOpenFaq(open ? -1 : i)}
-                  className="flex w-full items-center justify-between gap-6 border-0 bg-transparent py-6 text-left text-[clamp(17px,2.4vw,20px)] font-bold text-[#161514]"
-                >
-                  <span>{f.q}</span>
-                  <span className="text-[26px] font-normal text-[#EC3016]">{open ? "–" : "+"}</span>
-                </button>
-                {open && <p className="mb-6 max-w-[720px] text-[17px] leading-[1.6] text-[#55524e]">{f.a}</p>}
-              </div>
-            );
-          })}
         </div>
       </section>
 

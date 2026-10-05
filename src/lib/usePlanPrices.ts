@@ -16,7 +16,10 @@ function toPriceList(plans: PlanCatalog): PriceList {
   for (const plan of plans) {
     if (!(plan.id in list)) continue;
     list[plan.id] = Object.fromEntries(
-      plan.tiers.map((t) => [t.volume, { monthly: t.monthly, yearly: t.yearly }])
+      plan.tiers.map((t) => [
+        t.volume,
+        { monthly: t.monthly, yearly: t.yearly, credits: t.credits ?? t.volume },
+      ])
     );
   }
   return list;

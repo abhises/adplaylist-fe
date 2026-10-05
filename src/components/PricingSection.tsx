@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "@/components/Link";
 import type { PlanId } from "@/lib/api";
-import { fmtUsd as fmt, monthlyPrice, volumesOf, yearlySaving } from "@/lib/plans";
+import { creditsOf, fmtUsd as fmt, monthlyPrice, volumesOf, yearlySaving } from "@/lib/plans";
 import { usePlanPrices } from "@/lib/usePlanPrices";
 
 type Plan = {
@@ -180,13 +180,13 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
                     >
                       {tierKeys.map((k) => (
                         <option key={k} value={k}>
-                          {k} ads / month
+                          {creditsOf(prices, p.id, k)} ads / month
                         </option>
                       ))}
                     </select>
                   ) : (
                     <span className="flex h-12 items-center border-[1.5px] border-[#161514] px-3 text-[16px] font-semibold">
-                      {c ? `${c} ads / month` : "Library only, no custom ads"}
+                      {c ? `${creditsOf(prices, p.id, c)} ads / month` : "Library only, no custom ads"}
                     </span>
                   )}
                 </div>
@@ -252,7 +252,7 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
                   {label}
                 </div>
                 {PLANS.map((p, ci) => {
-                  const raw = values === "credits" ? (credits[p.id] ? String(credits[p.id]) : "—") : values[ci];
+                  const raw = values === "credits" ? (credits[p.id] ? String(creditsOf(prices, p.id, credits[p.id])) : "—") : values[ci];
                   const isBool = typeof raw === "boolean";
                   const pop = p.popular;
                   return (

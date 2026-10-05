@@ -84,7 +84,11 @@ export function CreditHistory({ version }: { version: string }) {
               {entries.map((e) => (
                 <tr key={e.id} className="border-b border-ink/10">
                   <td className="py-2.5 pr-4 whitespace-nowrap text-ink-muted">{fmtDate(e.createdAt)}</td>
-                  <td className="py-2.5 pr-4 whitespace-nowrap text-ink">{REASON_LABELS[e.reason] ?? e.reason}</td>
+                  <td className="py-2.5 pr-4 whitespace-nowrap text-ink">
+                    {e.reason === "spent" && e.note?.startsWith("Canva edit:")
+                      ? "Canva edit"
+                      : (REASON_LABELS[e.reason] ?? e.reason)}
+                  </td>
                   <td className="py-2.5 pr-4 text-ink">{e.note}</td>
                   <td
                     className={`py-2.5 pr-4 text-right font-bold tabular-nums ${

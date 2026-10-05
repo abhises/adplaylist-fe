@@ -1,23 +1,25 @@
 import type { Account, AccountStatus, BillingCycle, Entitlements, PlanId, User } from "@/lib/api";
 
-// Credit volume → price in USD, monthly and yearly. Admins edit these
-// (/admin/pricing); usePlanPrices() loads the live list from the API.
-export type PriceList = Record<PlanId, Record<number, { monthly: number; yearly: number }>>;
+// Credit volume (each tier's fixed id) → price in USD, monthly and yearly,
+// and the credits a month the tier gives. Admins edit these (/admin/pricing);
+// usePlanPrices() loads the live list from the API.
+export type TierPrice = { monthly: number; yearly: number; credits: number };
+export type PriceList = Record<PlanId, Record<number, TierPrice>>;
 
 // What's shown until the live list loads: the backend's defaults.
 export const DEFAULT_PRICES: PriceList = {
-  starter: { 0: { monthly: 15, yearly: 144 } },
+  starter: { 0: { monthly: 15, yearly: 144, credits: 0 } },
   pro: {
-    10: { monthly: 49, yearly: 470.4 },
-    20: { monthly: 95, yearly: 912 },
-    30: { monthly: 139, yearly: 1334.4 },
-    40: { monthly: 179, yearly: 1718.4 },
+    10: { monthly: 49, yearly: 470.4, credits: 10 },
+    20: { monthly: 95, yearly: 912, credits: 20 },
+    30: { monthly: 139, yearly: 1334.4, credits: 30 },
+    40: { monthly: 179, yearly: 1718.4, credits: 40 },
   },
   agency: {
-    50: { monthly: 215, yearly: 2064 },
-    70: { monthly: 289, yearly: 2774.4 },
-    100: { monthly: 399, yearly: 3830.4 },
-    150: { monthly: 499, yearly: 4790.4 },
+    50: { monthly: 215, yearly: 2064, credits: 50 },
+    70: { monthly: 289, yearly: 2774.4, credits: 70 },
+    100: { monthly: 399, yearly: 3830.4, credits: 100 },
+    150: { monthly: 499, yearly: 4790.4, credits: 150 },
   },
 };
 
@@ -31,6 +33,11 @@ export const PLAN_IDS = Object.keys(DEFAULT_PRICES) as PlanId[];
 
 export function volumesOf(prices: PriceList, plan: PlanId) {
   return Object.keys(prices[plan]).map(Number).sort((a, b) => a - b);
+}
+
+// Credits a month a tier gives (falls back to its volume).
+export function creditsOf(prices: PriceList, plan: PlanId, volume: number) {
+  return prices[plan][volume]?.credits ?? volume;
 }
 
 export function defaultVolume(plan: PlanId) {

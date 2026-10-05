@@ -7,6 +7,7 @@ import LandingHeader from "@/components/LandingHeader";
 import LandingFooter from "@/components/LandingFooter";
 import SignUpPrompt, { type SignUpReason } from "@/components/SignUpPrompt";
 import AdCard from "@/components/AdCard";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import UpgradePrompt, { type UpgradeReason } from "@/components/UpgradePrompt";
 import { SIZE_OPTIONS } from "@/lib/ads";
 import {
@@ -147,7 +148,7 @@ export default function AdDetailView({
   initialAds: Ad[];
   guides?: RelatedGuide[];
 }) {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const toast = useToast();
   const id = initialAd.id;
 
@@ -158,6 +159,9 @@ export default function AdDetailView({
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [upgrade, setUpgrade] = useState<UpgradeReason | null>(null);
   const [signUp, setSignUp] = useState<SignUpReason | null>(null);
+  const [canvaConfirm, setCanvaConfirm] = useState(false);
+  const [canvaRequesting, setCanvaRequesting] = useState(false);
+  const [canvaRequested, setCanvaRequested] = useState(false);
 
   // The server renders the ad as a visitor sees it. Once signed in, reload
   // it as this user (their plan may include the editable copy) and their
@@ -185,6 +189,38 @@ export default function AdDetailView({
     } catch (err) {
       setSaved(!next);
       if (err instanceof ApiError && err.upgrade) setUpgrade("save");
+    }
+  }
+
+  // "Request Canva Edit" on an ad without a Canva copy: visitors sign up,
+  // plans without requests (or out of credits) see the upgrade prompt, and
+  // everyone else confirms spending the credit first.
+  function startCanvaRequest() {
+    if (!user) return setSignUp("requests");
+    if (!can(user, "requests")) return setUpgrade("requests");
+    if (user.account && user.account.credits < 1) return setUpgrade("outOfCredits");
+    setCanvaConfirm(true);
+  }
+
+  async function requestCanvaEdit() {
+    setCanvaRequesting(true);
+    try {
+      const { alreadyRequested } = await api.requestCanvaEdit(ad.id);
+      setCanvaRequested(true);
+      setCanvaConfirm(false);
+      toast.success(
+        alreadyRequested
+          ? "You've already requested a Canva edit for this ad. No extra credit was used."
+          : "Canva edit requested. We'll add the Canva link to this ad; 1 credit used."
+      );
+      refresh().catch(() => {});
+    } catch (err) {
+      setCanvaConfirm(false);
+      if (err instanceof ApiError && err.outOfCredits) setUpgrade("outOfCredits");
+      else if (err instanceof ApiError && err.upgrade) setUpgrade("requests");
+      else toast.error(err instanceof Error ? err.message : "Couldn't send the request.");
+    } finally {
+      setCanvaRequesting(false);
     }
   }
 
@@ -277,8 +313,21 @@ export default function AdDetailView({
       >
         &#128274; Edit in Canva
       </button>
-    ) : (
+    ) : user?.role === "designer" || user?.role === "admin" ? (
+      // Staff add the link themselves from the ad's edit page.
       <span className={`${canvaButton} opacity-60`}>&#9998; Edit in Canva</span>
+    ) : canvaRequested ? (
+      <span className={`${canvaButton} opacity-60`}>&#10003; Canva edit requested</span>
+    ) : (
+      <button
+        type="button"
+        onClick={startCanvaRequest}
+        title="This will cost 1 credit"
+        className={`${canvaButton} flex-col !gap-0 leading-tight`}
+      >
+        <span>&#9998; Request Canva Edit</span>
+        <span className="text-xs font-medium opacity-80">This will cost 1 credit</span>
+      </button>
     );
   // Downloading needs an account: for visitors the button opens the sign-up
   // prompt.
@@ -978,6 +1027,28 @@ export default function AdDetailView({
         {downloadAction}
       </div>
       <UpgradePrompt reason={upgrade} onClose={() => setUpgrade(null)} />
+      <ConfirmDialog
+        open={canvaConfirm}
+        title="Request a Canva edit?"
+        message={
+          <>
+            <p>
+              Our team will make an editable Canva copy of{" "}
+              <span className="font-bold text-ink">{ad.title}</span> and add the link to this
+              ad. You&apos;ll find it in Requests once it&apos;s done.
+            </p>
+            <p className="mt-2">
+              This will cost <span className="font-bold text-ink">1 credit</span>
+              {user?.account ? ` (you have ${user.account.credits})` : ""}. If we can&apos;t do
+              it, the credit is refunded.
+            </p>
+          </>
+        }
+        confirmLabel={canvaRequesting ? "Requesting…" : "Request for 1 credit"}
+        loading={canvaRequesting}
+        onConfirm={requestCanvaEdit}
+        onCancel={() => setCanvaConfirm(false)}
+      />
       <SignUpPrompt reason={signUp} onClose={() => setSignUp(null)} />
     </div>
   );

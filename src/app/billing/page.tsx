@@ -17,6 +17,7 @@ import {
   isPlanId,
   isValidVolume,
   monthlyPrice,
+  creditsOf,
   volumesOf,
   yearlyTotal,
 } from "@/lib/plans";
@@ -208,7 +209,7 @@ function PlanCard({ account }: { account: Account }) {
         <div>
           <h2 className="text-xl font-extrabold text-ink">
             {account.planName}
-            {account.creditVolume > 0 && ` · ${account.creditVolume} credits/month`}
+            {account.creditsPerMonth > 0 && ` · ${account.creditsPerMonth} credits/month`}
           </h2>
           <p className="mt-1 text-sm text-ink-muted">
             {account.hasSubscription &&
@@ -233,7 +234,7 @@ function PlanCard({ account }: { account: Account }) {
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <StartPlanNow account={account} />
           <span className="text-xs text-ink-muted">
-            Don&apos;t want to wait? Start now to get all {account.creditVolume} credits today.
+            Don&apos;t want to wait? Start now to get all {account.creditsPerMonth} credits today.
           </span>
         </div>
       )}
@@ -277,13 +278,13 @@ function CreditsCard({ account }: { account: Account }) {
           ? "Starter is library-only. Upgrade to Pro or Agency to request custom ads."
           : account.status === "trial"
             ? account.credits === 0
-              ? `You've used all your trial credits. Start your paid plan now to get ${account.creditVolume} credits straight away.`
+              ? `You've used all your trial credits. Start your paid plan now to get ${account.creditsPerMonth} credits straight away.`
               : "Trial credits. One credit is one custom ad from the design team."
             : account.status === "expired"
               ? "Subscribe to get credits again."
               : `One credit is one custom ad. Shared by everyone on the account; unused credits don't roll over.${
                   account.nextRefillAt && account.status !== "cancelled"
-                    ? ` Refills to ${account.creditVolume} on ${fmtDate(account.nextRefillAt)}.`
+                    ? ` Refills to ${account.creditsPerMonth} on ${fmtDate(account.nextRefillAt)}.`
                     : ""
                 }`}
       </p>
@@ -418,7 +419,7 @@ function PlanChooser({
                 >
                   {tiers.map((t) => (
                     <option key={t} value={t}>
-                      {t} credits / month
+                      {creditsOf(prices, p, t)} credits / month
                     </option>
                   ))}
                 </select>

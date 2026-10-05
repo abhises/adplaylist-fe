@@ -4,17 +4,17 @@ import { useState } from "react";
 import Link from "@/components/Link";
 import { useAuth } from "@/lib/AuthProvider";
 
-// Links to the landing page's sections. On the landing page itself they're
-// in-page anchors; elsewhere (e.g. /terms) they lead back to it. "Library"
-// is the landing page's preview of the library; "Ads" is the full public
-// library page (/library).
+// Links to the landing page's sections and the public pages beside it. On
+// the landing page itself the sections are in-page anchors; elsewhere (e.g.
+// /terms) they lead back to it. "Library" is the landing page's preview of
+// the library.
 const NAV_LINKS = [
   { hash: "#how", label: "How it works" },
   { hash: "#library", label: "Library" },
-  { href: "/library", label: "Ads" },
-  { hash: "#request", label: "Request" },
   { hash: "#pricing", label: "Pricing" },
-  { hash: "#faq", label: "FAQ" },
+  { href: "/blog", label: "Blog" },
+  { href: "/brands", label: "Brands" },
+  { href: "/about", label: "About us" },
 ];
 
 const container = "mx-auto max-w-[1320px] px-[clamp(20px,4vw,32px)]";

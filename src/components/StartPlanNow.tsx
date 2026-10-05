@@ -71,7 +71,7 @@ export default function StartPlanNow({
               Your free trial ends today and your card is charged{" "}
               <span className="font-bold text-ink">{price}</span> (excl. tax) for your first{" "}
               {cycle}. You get{" "}
-              <span className="font-bold text-ink">{account.creditVolume} credits</span> straight
+              <span className="font-bold text-ink">{account.creditsPerMonth} credits</span> straight
               away, replacing your remaining trial credits.
             </p>
             <p className="mt-2">

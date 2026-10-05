@@ -115,6 +115,22 @@ export type ContactEnquiry = {
 export type Role = "client" | "designer" | "editor" | "admin";
 
 // The public price list, in USD.
+// One price change from the pricing admin; old* are null on a plan's
+// starting price.
+export type PlanPriceChange = {
+  id: number;
+  plan: PlanId;
+  volume: number;
+  oldMonthly: number | null;
+  oldYearly: number | null;
+  monthly: number;
+  yearly: number;
+  oldCredits: number | null;
+  credits: number;
+  changedBy: string | null;
+  changedAt: string;
+};
+
 export type PlanCatalog = {
   id: PlanId;
   name: string;
@@ -122,7 +138,8 @@ export type PlanCatalog = {
   maxBrands: number;
   maxSeats: number;
   turnaround: string | null;
-  tiers: { volume: number; monthly: number; yearly: number }[];
+  // volume is the tier's fixed id; credits is what it gives a month.
+  tiers: { volume: number; monthly: number; yearly: number; credits: number }[];
 }[];
 
 export type CreditTotals = {
@@ -187,6 +204,8 @@ export type Account = {
   plan: PlanId;
   planName: string;
   creditVolume: number;
+  // Credits a month the account's tier gives (admins can change it).
+  creditsPerMonth: number;
   billingCycle: BillingCycle;
   status: AccountStatus;
   trialEndsAt: string | null;
@@ -407,11 +426,16 @@ export const api = {
 
   getPlans: () => request<{ plans: PlanCatalog }>("/api/plans"),
 
-  updatePlanPrice: (plan: PlanId, volume: number, monthly: number, yearly: number) =>
-    request<{ plans: PlanCatalog }>(`/api/admin/plan-prices/${plan}/${volume}`, {
+  updatePlanPrices: (
+    changes: { plan: PlanId; volume: number; monthly: number; yearly: number; credits: number }[]
+  ) =>
+    request<{ plans: PlanCatalog }>("/api/admin/plan-prices", {
       method: "PUT",
-      body: JSON.stringify({ monthly, yearly }),
+      body: JSON.stringify({ changes }),
     }),
+
+  getPlanPriceHistory: () =>
+    request<{ history: PlanPriceChange[] }>("/api/admin/plan-prices/history"),
 
   getCreditHistory: () =>
     request<{ totals: CreditTotals | null; entries: CreditEntry[] }>("/api/billing/credits"),
@@ -529,6 +553,14 @@ export const api = {
     request<{ saved: boolean }>(`/api/saved/${id}`, { method: "DELETE" }),
 
   getRequests: () => request<{ requests: CreativeRequest[] }>("/api/requests"),
+
+  // "Request Canva Edit" on an ad with no Canva copy; costs a client 1 credit.
+  // alreadyRequested: an open request for it existed, so nothing was charged.
+  requestCanvaEdit: (adId: string) =>
+    request<{ request: CreativeRequest; alreadyRequested: boolean }>("/api/requests/canva", {
+      method: "POST",
+      body: JSON.stringify({ adId }),
+    }),
 
   createRequest: (data: {
     title: string;

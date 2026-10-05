@@ -40,7 +40,7 @@ export default function UpgradePrompt({
         <h2 className="text-lg font-extrabold text-ink">You&apos;ve used your trial credits</h2>
         <p className="mt-2 text-sm text-ink-muted">
           {startable
-            ? `Start your ${account.planName} plan now to get ${account.creditVolume} credits straight away. Otherwise you won't be charged until your trial ends on ${fmtDate(account.trialEndsAt)}.`
+            ? `Start your ${account.planName} plan now to get ${account.creditsPerMonth} credits straight away. Otherwise you won't be charged until your trial ends on ${fmtDate(account.trialEndsAt)}.`
             : account.role === "owner"
               ? "Add a card on the billing page to start your plan and get your monthly credits."
               : "Ask your account owner to start the paid plan to get more credits."}
