@@ -33,12 +33,18 @@ type BulkItem = {
   draft: AdDraft;
   unrecognized: string[];
   invalid: string[];
+  // The CSV's "File name from image PNG", if given.
+  sourceImageName: string;
   // The image file's name; null until matched or picked.
   imageName: string | null;
   status: Status;
   error?: string;
   // Set once the creative is uploaded, so a retry doesn't upload it again.
-  uploaded?: { imageName: string; url: string; dims: { width: number; height: number } };
+  uploaded?: {
+    imageName: string;
+    url: string;
+    dims: { width: number; height: number };
+  };
   publishedId?: string;
 };
 
@@ -64,28 +70,36 @@ function baseName(name: string) {
     .replace(/[^a-z0-9]/g, "");
 }
 
-// Picks an image for each unmatched ad: the CSV's "Image file name" first,
-// then an image named like the CSV file. With exactly one ad and one image
+// Picks an image for each unmatched ad: the CSV's "File name from image PNG"
+// first, then its "Image file name", then an image named like the CSV file. With exactly one ad and one image
 // left over, they're paired.
 function autoMatch(items: BulkItem[], images: BulkImage[]): BulkItem[] {
   const taken = new Set(items.map((i) => i.imageName).filter(Boolean));
   const free = () => images.filter((img) => !taken.has(img.file.name));
   const find = (name: string) => {
     const wanted = baseName(name);
-    return wanted ? free().find((img) => baseName(img.file.name) === wanted) : undefined;
+    return wanted
+      ? free().find((img) => baseName(img.file.name) === wanted)
+      : undefined;
   };
   const next = items.map((item) => {
     if (item.imageName || item.status === "published") return item;
     const img =
-      find(item.draft.imageFileName) ?? (item.row === undefined ? find(item.csvName) : undefined);
+      find(item.sourceImageName) ??
+      find(item.draft.imageFileName) ??
+      (item.row === undefined ? find(item.csvName) : undefined);
     if (!img) return item;
     taken.add(img.file.name);
     return { ...item, imageName: img.file.name };
   });
-  const unmatched = next.filter((i) => !i.imageName && i.status !== "published");
+  const unmatched = next.filter(
+    (i) => !i.imageName && i.status !== "published",
+  );
   const left = free();
   if (unmatched.length === 1 && left.length === 1) {
-    return next.map((i) => (i === unmatched[0] ? { ...i, imageName: left[0].file.name } : i));
+    return next.map((i) =>
+      i === unmatched[0] ? { ...i, imageName: left[0].file.name } : i,
+    );
   }
   return next;
 }
@@ -116,7 +130,11 @@ export default function BulkAddAdsPage() {
   useEffect(() => {
     imagesRef.current = images;
   }, [images]);
-  useEffect(() => () => imagesRef.current.forEach((i) => URL.revokeObjectURL(i.previewUrl)), []);
+  useEffect(
+    () => () =>
+      imagesRef.current.forEach((i) => URL.revokeObjectURL(i.previewUrl)),
+    [],
+  );
 
   // Leaving mid-publish would stop the batch part way through.
   useEffect(() => {
@@ -127,7 +145,9 @@ export default function BulkAddAdsPage() {
   }, [publishing]);
 
   async function addCsvFiles(files: File[]) {
-    const csvs = files.filter((f) => /\.csv$/i.test(f.name) || f.type === "text/csv");
+    const csvs = files.filter(
+      (f) => /\.csv$/i.test(f.name) || f.type === "text/csv",
+    );
     if (!csvs.length) return;
     const problems: string[] = [];
     const added: BulkItem[] = [];
@@ -147,9 +167,10 @@ export default function BulkAddAdsPage() {
             draft: d.draft,
             unrecognized: d.unrecognized,
             invalid: d.invalid,
+            sourceImageName: d.sourceImageName,
             imageName: null,
             status: "pending",
-          })
+          }),
         );
       } catch {
         problems.push(`${file.name}: couldn't read it`);
@@ -157,11 +178,13 @@ export default function BulkAddAdsPage() {
     }
     const names = new Set(csvs.map((f) => f.name));
     // Dropping a fixed CSV again replaces its unpublished ads.
-    const kept = items.filter((i) => !names.has(i.csvName) || i.status === "published");
+    const kept = items.filter(
+      (i) => !names.has(i.csvName) || i.status === "published",
+    );
     const room = Math.max(MAX_BULK - kept.length, 0);
     if (added.length > room) {
       problems.push(
-        `Only ${MAX_BULK} ads fit in one batch, so ${added.length - room} were left out.`
+        `Only ${MAX_BULK} ads fit in one batch, so ${added.length - room} were left out.`,
       );
     }
     setItems(autoMatch([...kept, ...added.slice(0, room)], images));
@@ -181,7 +204,10 @@ export default function BulkAddAdsPage() {
       replaced.forEach((i) => URL.revokeObjectURL(i.previewUrl));
       const next = [
         ...images.filter((i) => !names.has(i.file.name)),
-        ...valid.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
+        ...valid.map((file) => ({
+          file,
+          previewUrl: URL.createObjectURL(file),
+        })),
       ];
       setImages(next);
       setItems((prev) => autoMatch(prev, next));
@@ -189,7 +215,10 @@ export default function BulkAddAdsPage() {
     setNotice(problems.length ? problems.join(" · ") : null);
   }
 
-  function dropHandler(add: (files: File[]) => void, setOver: (v: boolean) => void) {
+  function dropHandler(
+    add: (files: File[]) => void,
+    setOver: (v: boolean) => void,
+  ) {
     return (e: DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       setOver(false);
@@ -198,7 +227,9 @@ export default function BulkAddAdsPage() {
   }
 
   function updateItem(key: string, patch: Partial<BulkItem>) {
-    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
+    setItems((prev) =>
+      prev.map((i) => (i.key === key ? { ...i, ...patch } : i)),
+    );
   }
 
   function removeItem(key: string) {
@@ -229,22 +260,29 @@ export default function BulkAddAdsPage() {
     if (!d.adName.trim()) errors.push("No ad name");
     if (!d.headline.trim()) errors.push("No headline");
     if (!item.imageName) errors.push("No image matched");
-    else if (!imageByName.has(item.imageName)) errors.push(`Image ${item.imageName} was removed`);
+    else if (!imageByName.has(item.imageName))
+      errors.push(`Image ${item.imageName} was removed`);
     for (const v of item.invalid) errors.push(`Not an option — ${v}`);
     const slug = slugFor(d);
-    if (slug && (slugCounts.get(slug) ?? 0) > 1) errors.push(`URL slug "${slug}" is used twice in this batch`);
+    if (slug && (slugCounts.get(slug) ?? 0) > 1)
+      errors.push(`URL slug "${slug}" is used twice in this batch`);
     if (authors) {
       if (d.authorName && !matchAuthor(authors, d.authorName))
         warnings.push(`No curator profile named "${d.authorName}"`);
       if (d.reviewerName && !matchAuthor(authors, d.reviewerName))
         warnings.push(`No reviewer profile named "${d.reviewerName}"`);
     }
-    if (item.unrecognized.length) warnings.push(`Ignored rows: ${item.unrecognized.join(", ")}`);
+    if (item.unrecognized.length)
+      warnings.push(`Ignored rows: ${item.unrecognized.join(", ")}`);
     return { errors, warnings };
   }
 
-  const toPublish = items.filter((i) => i.status !== "published" && check(i).errors.length === 0);
-  const blocked = items.filter((i) => i.status !== "published" && check(i).errors.length > 0);
+  const toPublish = items.filter(
+    (i) => i.status !== "published" && check(i).errors.length === 0,
+  );
+  const blocked = items.filter(
+    (i) => i.status !== "published" && check(i).errors.length > 0,
+  );
   const publishedCount = items.filter((i) => i.status === "published").length;
 
   // One at a time, so a failure is reported against its own row and the
@@ -264,8 +302,12 @@ export default function BulkAddAdsPage() {
           uploaded = { imageName: image.file.name, url, dims };
           updateItem(item.key, { uploaded });
         }
-        const author = authors ? matchAuthor(authors, item.draft.authorName) : undefined;
-        const reviewer = authors ? matchAuthor(authors, item.draft.reviewerName) : undefined;
+        const author = authors
+          ? matchAuthor(authors, item.draft.authorName)
+          : undefined;
+        const reviewer = authors
+          ? matchAuthor(authors, item.draft.reviewerName)
+          : undefined;
         const draft: AdDraft = {
           ...item.draft,
           photoUrl: uploaded.url,
@@ -278,14 +320,20 @@ export default function BulkAddAdsPage() {
         ok++;
       } catch (err) {
         const message =
-          err instanceof ApiError || err instanceof Error ? err.message : "Something went wrong.";
+          err instanceof ApiError || err instanceof Error
+            ? err.message
+            : "Something went wrong.";
         updateItem(item.key, { status: "failed", error: message });
         failed++;
       }
     }
     setPublishing(false);
-    if (failed) toast.error(`${ok} published, ${failed} failed. See the list for why.`);
-    else toast.success(`${ok} ${ok === 1 ? "ad" : "ads"} published to the library.`);
+    if (failed)
+      toast.error(`${ok} published, ${failed} failed. See the list for why.`);
+    else
+      toast.success(
+        `${ok} ${ok === 1 ? "ad" : "ads"} published to the library.`,
+      );
   }
 
   if (!ready || !user) return null;
@@ -299,7 +347,9 @@ export default function BulkAddAdsPage() {
     <div className="flex min-h-screen flex-col">
       <AppHeader />
       <main className="flex-1 px-10 py-8">
-        <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">Admin</p>
+        <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+          Admin
+        </p>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h1 className="text-3xl font-extrabold text-ink">Bulk add ads</h1>
           <Link href="/add-ad" className="text-sm text-brand">
@@ -307,15 +357,18 @@ export default function BulkAddAdsPage() {
           </Link>
         </div>
         <p className="mt-2 max-w-3xl text-sm text-ink-muted">
-          Drop up to {MAX_BULK} ad CSVs and their creatives. Each CSV is matched to
-          the image named in its &quot;Image file name&quot; row (or an image with
-          the same name as the CSV). Check the list, then publish. Ads go live in
-          the library as soon as they&apos;re published.
+          Drop up to {MAX_BULK} ad CSVs and their creatives. Each CSV is matched
+          to the image named in its &quot;File name from image PNG&quot; row (or
+          its &quot;Image file name&quot; row, or an image with the same name as
+          the CSV). Check the list, then publish. Ads go live in the library as
+          soon as they&apos;re published.
         </p>
 
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div>
-            <label className="mb-[5px] block text-xs text-ink/70">Text data (CSVs)</label>
+            <label className="mb-[5px] block text-xs text-ink/70">
+              Text data (CSVs)
+            </label>
             <input
               ref={csvInputRef}
               type="file"
@@ -338,14 +391,19 @@ export default function BulkAddAdsPage() {
               className={dropZone(csvDragOver)}
             >
               <span className="text-2xl">&#128196;</span>
-              <span className="text-sm">Drop CSV files, or click to browse</span>
+              <span className="text-sm">
+                Drop CSV files, or click to browse
+              </span>
               <span className="text-xs">
-                One &quot;Adplaylist File&quot; template per ad, or one CSV with a row per ad
+                One &quot;Adplaylist File&quot; template per ad, or one CSV with
+                a row per ad
               </span>
             </div>
           </div>
           <div>
-            <label className="mb-[5px] block text-xs text-ink/70">Creatives</label>
+            <label className="mb-[5px] block text-xs text-ink/70">
+              Creatives
+            </label>
             <input
               ref={imageInputRef}
               type="file"
@@ -369,7 +427,9 @@ export default function BulkAddAdsPage() {
             >
               <span className="text-2xl">&#128444;</span>
               <span className="text-sm">Drop images, or click to browse</span>
-              <span className="text-xs">PNG, JPG, WEBP, GIF or SVG · up to 8 MB each</span>
+              <span className="text-xs">
+                PNG, JPG, WEBP, GIF or SVG · up to 8 MB each
+              </span>
             </div>
           </div>
         </div>
@@ -379,11 +439,14 @@ export default function BulkAddAdsPage() {
           <>
             <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-ink">
-                {items.length} {items.length === 1 ? "ad" : "ads"} · {images.length}{" "}
-                {images.length === 1 ? "image" : "images"}
+                {items.length} {items.length === 1 ? "ad" : "ads"} ·{" "}
+                {images.length} {images.length === 1 ? "image" : "images"}
                 {publishedCount > 0 && ` · ${publishedCount} published`}
                 {blocked.length > 0 && (
-                  <span className="text-brand"> · {blocked.length} need fixing</span>
+                  <span className="text-brand">
+                    {" "}
+                    · {blocked.length} need fixing
+                  </span>
                 )}
               </p>
               <button
@@ -399,10 +462,15 @@ export default function BulkAddAdsPage() {
             <ul className="mt-3 divide-y divide-border border border-border">
               {items.map((item) => {
                 const { errors, warnings } = check(item);
-                const image = item.imageName ? imageByName.get(item.imageName) : undefined;
+                const image = item.imageName
+                  ? imageByName.get(item.imageName)
+                  : undefined;
                 const d = item.draft;
                 return (
-                  <li key={item.key} className="flex flex-wrap items-start gap-4 p-4">
+                  <li
+                    key={item.key}
+                    className="flex flex-wrap items-start gap-4 p-4"
+                  >
                     <div className="h-20 w-20 shrink-0 border border-border bg-surface-2">
                       {image && (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -418,7 +486,12 @@ export default function BulkAddAdsPage() {
                         {d.adName || "Untitled ad"}
                       </p>
                       <p className="truncate text-xs text-ink-muted">
-                        {[d.category, d.adFormat, d.market, slugFor(d) && `/${slugFor(d)}`]
+                        {[
+                          d.category,
+                          d.adFormat,
+                          d.market,
+                          slugFor(d) && `/${slugFor(d)}`,
+                        ]
                           .filter(Boolean)
                           .join(" · ")}
                       </p>
@@ -431,7 +504,9 @@ export default function BulkAddAdsPage() {
                           value={item.imageName ?? ""}
                           disabled={publishing}
                           onChange={(e) =>
-                            updateItem(item.key, { imageName: e.target.value || null })
+                            updateItem(item.key, {
+                              imageName: e.target.value || null,
+                            })
                           }
                           className="mt-2 max-w-full border border-border bg-surface-2 px-2 py-1 text-xs text-ink"
                         >
@@ -456,7 +531,9 @@ export default function BulkAddAdsPage() {
                           </p>
                         ))}
                       {item.status === "failed" && item.error && (
-                        <p className="mt-1 text-xs text-brand">Failed: {item.error}</p>
+                        <p className="mt-1 text-xs text-brand">
+                          Failed: {item.error}
+                        </p>
                       )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-2 text-xs">
@@ -506,7 +583,8 @@ export default function BulkAddAdsPage() {
               </button>
               {blocked.length > 0 && !publishing && (
                 <span className="text-xs text-ink-muted">
-                  Ads that need fixing are skipped. Fix the CSV and drop it again to replace them.
+                  Ads that need fixing are skipped. Fix the CSV and drop it
+                  again to replace them.
                 </span>
               )}
             </div>

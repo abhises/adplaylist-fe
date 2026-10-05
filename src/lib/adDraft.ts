@@ -82,7 +82,10 @@ export const ADAPT_STEP_COUNT = 5;
 export const HEADLINE_IDEA_COUNT = 5;
 
 function padded(list: string[] | undefined, length: number): string[] {
-  return Array.from({ length: Math.max(length, list?.length ?? 0) }, (_, i) => list?.[i] ?? "");
+  return Array.from(
+    { length: Math.max(length, list?.length ?? 0) },
+    (_, i) => list?.[i] ?? "",
+  );
 }
 
 export function toDraftContent(content?: AdContent): DraftContent {
@@ -96,7 +99,7 @@ export function toDraftContent(content?: AdContent): DraftContent {
     },
     whyItWorks: Array.from(
       { length: Math.max(WHY_IT_WORKS_COUNT, why.length) },
-      (_, i) => ({ title: why[i]?.title ?? "", text: why[i]?.text ?? "" })
+      (_, i) => ({ title: why[i]?.title ?? "", text: why[i]?.text ?? "" }),
     ),
     targets: content?.targets ?? "",
     copywriting: content?.copywriting ?? "",
@@ -132,11 +135,16 @@ function fromDraftContent(c: DraftContent): AdContent {
 
 // Finds the author a CSV names in "Added by" / "Reviewed by": by name or
 // slug, ignoring case and spacing.
-export function matchAuthor(authors: Author[], name: string | undefined): Author | undefined {
+export function matchAuthor(
+  authors: Author[],
+  name: string | undefined,
+): Author | undefined {
   const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, "");
   const wanted = name ? norm(name) : "";
   if (!wanted) return undefined;
-  return authors.find((a) => norm(a.name) === wanted || norm(a.slug) === wanted);
+  return authors.find(
+    (a) => norm(a.name) === wanted || norm(a.slug) === wanted,
+  );
 }
 
 export const COLOR_SWATCH: Record<string, { bg: string; light: boolean }> = {
@@ -203,7 +211,11 @@ export function loadDraft(): AdDraft | null {
     if (!raw) return null;
     const stored = JSON.parse(raw);
     // Drafts saved before the SEO fields existed have no content.
-    return { ...emptyDraft(), ...stored, content: toDraftContent(stored.content) };
+    return {
+      ...emptyDraft(),
+      ...stored,
+      content: toDraftContent(stored.content),
+    };
   } catch {
     return null;
   }
@@ -266,7 +278,9 @@ export function draftToAd(draft: AdDraft): Omit<Ad, "id" | "createdAt"> {
 export function adToDraft(ad: Ad): AdDraft {
   const dominantColor =
     ad.dominantColor ??
-    Object.keys(COLOR_SWATCH).find((name) => COLOR_SWATCH[name].bg === ad.swatch) ??
+    Object.keys(COLOR_SWATCH).find(
+      (name) => COLOR_SWATCH[name].bg === ad.swatch,
+    ) ??
     DOMINANT_COLORS[0].name;
   return {
     adName: ad.title,
@@ -403,6 +417,9 @@ const FIELD_ALIASES: Record<string, string> = {
   introparagraph: "introparagraph",
   intro: "introparagraph",
   imagefilename: "imagefilename",
+  filenamefromimagepng: "sourceimage",
+  filenamefromimage: "sourceimage",
+  sourceimage: "sourceimage",
   imagealttext: "imagealt",
   imagealt: "imagealt",
   alttext: "imagealt",
@@ -479,11 +496,13 @@ function parseAdCsvRecords(text: string): CsvRecord[] {
         rows
           .slice(1)
           .filter((row) => row[fieldCol])
-          .map((row) => [row[fieldCol], row[answerCol]])
+          .map((row) => [row[fieldCol], row[answerCol]]),
       ),
     ];
   }
-  return rows.slice(1).map((values) => record(rows[0].map((label, i) => [label, values[i]])));
+  return rows
+    .slice(1)
+    .map((values) => record(rows[0].map((label, i) => [label, values[i]])));
 }
 
 function findOption(options: string[], value: string): string | undefined {
@@ -501,7 +520,9 @@ function normalizeDims(s: string): string | null {
 // to the "Marketplace / Messenger" (1200 × 1200) option.
 function matchSizeOption(token: string): string | undefined {
   const t = token.trim();
-  const byName = SIZE_OPTIONS.find((s) => s.name.toLowerCase() === t.toLowerCase());
+  const byName = SIZE_OPTIONS.find(
+    (s) => s.name.toLowerCase() === t.toLowerCase(),
+  );
   if (byName) return byName.name;
   const dims = normalizeDims(t);
   if (!dims) return undefined;
@@ -519,7 +540,7 @@ const splitList = (v: string) =>
 // Only the first ad is read; see csvToDrafts for a CSV holding several.
 export function applyCsvToDraft(
   text: string,
-  base: AdDraft
+  base: AdDraft,
 ): {
   draft: AdDraft;
   matched: number;
@@ -529,7 +550,7 @@ export function applyCsvToDraft(
   const [first] = parseAdCsvRecords(text);
   const { draft, matched, unrecognized } = recordToDraft(
     first ?? { fields: {}, unrecognized: [] },
-    base
+    base,
   );
   if (!first) return { draft, matched: 0, empty: true, unrecognized };
   return { draft, matched, empty: false, unrecognized };
@@ -542,6 +563,9 @@ export type CsvDraft = {
   // Pick-list fields (category, market…) whose value isn't one of the
   // options, so the draft kept its default instead, e.g. "Category: Petz".
   invalid: string[];
+  // "File name from image PNG": the creative's own file name, used to pair
+  // the CSV with its image in a bulk upload. Not saved on the ad.
+  sourceImageName: string;
 };
 
 // Every ad in a CSV: one for the long template, one per data row for a wide
@@ -554,13 +578,23 @@ export function csvToDrafts(text: string, base: AdDraft): CsvDraft[] {
 
 function recordToDraft(
   { fields: row, unrecognized }: CsvRecord,
-  base: AdDraft
+  base: AdDraft,
 ): CsvDraft {
-  const draft: AdDraft = { ...base, content: toDraftContent(fromDraftContent(base.content)) };
+  const draft: AdDraft = {
+    ...base,
+    content: toDraftContent(fromDraftContent(base.content)),
+  };
   const invalid: string[] = [];
-  const checkOption = (label: string, value: string | undefined, found: unknown) => {
+  const checkOption = (
+    label: string,
+    value: string | undefined,
+    found: unknown,
+  ) => {
     // The blank template's answer cells list every option, so keep it short.
-    if (value && !found) invalid.push(`${label}: ${value.length > 40 ? `${value.slice(0, 40)}…` : value}`);
+    if (value && !found)
+      invalid.push(
+        `${label}: ${value.length > 40 ? `${value.slice(0, 40)}…` : value}`,
+      );
   };
   let matched = 0;
 
@@ -573,8 +607,18 @@ function recordToDraft(
     draft.mediaType = mediaTypeVal;
     matched++;
   }
-  checkOption("Media type", row.mediatype, mediaTypeVal === "image" || mediaTypeVal === "video");
-  for (const key of ["kicker", "headline", "sub", "cta", "description"] as const) {
+  checkOption(
+    "Media type",
+    row.mediatype,
+    mediaTypeVal === "image" || mediaTypeVal === "video",
+  );
+  for (const key of [
+    "kicker",
+    "headline",
+    "sub",
+    "cta",
+    "description",
+  ] as const) {
     if (row[key]) {
       draft[key] = row[key];
       matched++;
@@ -599,19 +643,25 @@ function recordToDraft(
       matched++;
     }
   }
-  const categoryVal = row.category ? findOption(CATEGORY_OPTIONS, row.category) : undefined;
+  const categoryVal = row.category
+    ? findOption(CATEGORY_OPTIONS, row.category)
+    : undefined;
   if (categoryVal) {
     draft.category = categoryVal;
     matched++;
   }
   checkOption("Category", row.category, categoryVal);
-  const marketVal = row.market ? findOption(MARKET_OPTIONS, row.market) : undefined;
+  const marketVal = row.market
+    ? findOption(MARKET_OPTIONS, row.market)
+    : undefined;
   if (marketVal) {
     draft.market = marketVal;
     matched++;
   }
   checkOption("Market", row.market, marketVal);
-  const languageVal = row.language ? findOption(LANGUAGE_OPTIONS, row.language) : undefined;
+  const languageVal = row.language
+    ? findOption(LANGUAGE_OPTIONS, row.language)
+    : undefined;
   if (languageVal) {
     draft.language = languageVal;
     matched++;
@@ -641,7 +691,7 @@ function recordToDraft(
   const dominantColorVal = row.dominantcolor
     ? findOption(
         DOMINANT_COLORS.map((c) => c.name),
-        row.dominantcolor
+        row.dominantcolor,
       )
     : undefined;
   if (dominantColorVal) {
@@ -655,7 +705,9 @@ function recordToDraft(
   }
   // The blank template lists every choice in the answer cell ("Testimonial,
   // UGC, …"), so only a single known format is taken.
-  const adFormatVal = row.adformat ? findOption(AD_FORMAT_OPTIONS, row.adformat) : undefined;
+  const adFormatVal = row.adformat
+    ? findOption(AD_FORMAT_OPTIONS, row.adformat)
+    : undefined;
   if (adFormatVal) {
     draft.adFormat = adFormatVal;
     matched++;
@@ -711,7 +763,8 @@ function recordToDraft(
       c.takeaways[a as keyof DraftContent["takeaways"]] = value;
     } else if (kind === "why") {
       const i = Number(a);
-      while (c.whyItWorks.length <= i) c.whyItWorks.push({ title: "", text: "" });
+      while (c.whyItWorks.length <= i)
+        c.whyItWorks.push({ title: "", text: "" });
       c.whyItWorks[i][b as "title" | "text"] = value;
     } else if (kind === "step" || kind === "idea") {
       const list = kind === "step" ? c.adaptSteps : c.headlineIdeas;
@@ -749,5 +802,11 @@ function recordToDraft(
     }
   }
 
-  return { draft, matched, unrecognized, invalid };
+  return {
+    draft,
+    matched,
+    unrecognized,
+    invalid,
+    sourceImageName: row.sourceimage ?? "",
+  };
 }

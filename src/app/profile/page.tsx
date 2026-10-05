@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import { api, ApiError, type User } from "@/lib/api";
+import { LANGUAGE_OPTIONS } from "@/lib/ads";
 import { useAuth, useRequireAuth } from "@/lib/AuthProvider";
 import { useToast } from "@/lib/ToastProvider";
 
@@ -217,10 +218,9 @@ export default function ProfilePage() {
                   }
                   className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none"
                 >
-                  <option>English (EN)</option>
-                  <option>German (GE)</option>
-                  <option>French (FR)</option>
-                  <option>Dutch (NL)</option>
+                  {LANGUAGE_OPTIONS.map((l) => (
+                    <option key={l}>{l}</option>
+                  ))}
                 </select>
               </div>
               <div className="mt-4">
