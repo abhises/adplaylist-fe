@@ -13,9 +13,9 @@ import { useToast } from "@/lib/ToastProvider";
 import { ApiError, api, type Ad as LibraryAd } from "@/lib/api";
 import { HERO_PER_PLATFORM, HERO_PLATFORMS, shuffle } from "@/lib/ads";
 
-// Tiles in the hero panel's All tab (a 3×3 grid); each platform tab shows
-// that platform's picks, up to HERO_PER_PLATFORM.
-const HERO_ALL_TILES = 9;
+// Tiles in the hero panel's All tab; each platform tab shows that
+// platform's picks, up to HERO_PER_PLATFORM.
+const HERO_ALL_TILES = 6;
 
 // The landing page keeps its own fixed light palette (it doesn't follow the
 // app's dark theme), so colors here are literal rather than theme tokens.
@@ -288,12 +288,12 @@ export default function LandingPage() {
           className={`${container} grid w-full flex-1 content-center items-center gap-10 py-[clamp(40px,7vw,64px)]`}
           style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,460px),1fr))" }}
         >
-          <div>
+          <div className="md:-mt-12">
             <div className={`${mono} flex items-center gap-[10px] uppercase`}>
               <span className="h-2 w-2 rounded-full bg-white" />
               <span>The ad library for your whole team</span>
             </div>
-            <h1 className="mt-6 text-[clamp(48px,7vw,96px)] leading-[0.95] font-extrabold tracking-[-0.035em] text-balance">
+            <h1 className="mt-4 text-[clamp(36px,4.8vw,62px)] leading-[0.95] font-extrabold tracking-[-0.035em] text-balance">
               Steal the strategy, not the ad.
             </h1>
             <p className="mt-6 max-w-[520px] text-[clamp(17px,2.2vw,20px)] leading-[1.5] text-pretty">
@@ -373,23 +373,21 @@ export default function LandingPage() {
                 />
               ))}
             </div>
-            {/* Two columns (up to six tiles) on narrow phones, three columns (up to nine tiles) above. */}
+            {/* Two columns on narrow phones, three columns above. */}
             <div className="grid grid-cols-2 gap-[clamp(6px,1.5vw,10px)] px-[clamp(12px,3vw,18px)] pb-[clamp(12px,3vw,18px)] min-[480px]:grid-cols-3">
               {liveAds === null
                 ? Array.from({ length: HERO_ALL_TILES }, (_, i) => (
                     <div
                       key={i}
                       aria-hidden
-                      className={`aspect-square animate-pulse bg-[#eeece9] ${i >= 6 ? "max-[479px]:hidden" : ""}`}
+                      className="aspect-square animate-pulse bg-[#eeece9]"
                     />
                   ))
-                : heroAds.map((ad, i) => (
+                : heroAds.map((ad) => (
                     <Link
                       key={ad.key}
                       href={ad.href}
-                      className={`group relative flex aspect-square flex-col justify-between overflow-hidden p-[10px] ${
-                        i >= 6 ? "max-[479px]:hidden" : ""
-                      }`}
+                      className="group relative flex aspect-square flex-col justify-between overflow-hidden p-[10px]"
                       style={{ color: ad.fg }}
                     >
                       <CardBackground ad={ad} />
