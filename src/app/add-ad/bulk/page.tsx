@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
+import Spinner from "@/components/Spinner";
 import { api, ApiError, type Author } from "@/lib/api";
 import {
   csvToDrafts,
@@ -117,6 +118,8 @@ export default function BulkAddAdsPage() {
   const [csvDragOver, setCsvDragOver] = useState(false);
   const [imageDragOver, setImageDragOver] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  // Shown in the centre of the screen while a batch publishes.
+  const [progress, setProgress] = useState({ done: 0, total: 0, current: "" });
 
   useEffect(() => {
     api
@@ -292,7 +295,8 @@ export default function BulkAddAdsPage() {
     setPublishing(true);
     let ok = 0;
     let failed = 0;
-    for (const item of toPublish) {
+    for (const [index, item] of toPublish.entries()) {
+      setProgress({ done: index, total: toPublish.length, current: item.draft.adName });
       updateItem(item.key, { status: "publishing", error: undefined });
       try {
         const image = imageByName.get(item.imageName!)!;
@@ -310,6 +314,8 @@ export default function BulkAddAdsPage() {
           : undefined;
         const draft: AdDraft = {
           ...item.draft,
+          // Typed slugs are cleaned up the same way the backend does.
+          slug: slugFor(item.draft),
           photoUrl: uploaded.url,
           photoDims: uploaded.dims,
           authorSlug: item.draft.authorSlug || author?.slug || "",
@@ -490,7 +496,6 @@ export default function BulkAddAdsPage() {
                           d.category,
                           d.adFormat,
                           d.market,
-                          slugFor(d) && `/${slugFor(d)}`,
                         ]
                           .filter(Boolean)
                           .join(" · ")}
@@ -517,6 +522,32 @@ export default function BulkAddAdsPage() {
                             </option>
                           ))}
                         </select>
+                      )}
+                      {item.status !== "published" && (
+                        // Editable so a slug that's taken (or clashes in the
+                        // batch) can be fixed here and published again.
+                        <label className="mt-2 flex max-w-md items-center border border-ink/30 bg-surface text-xs text-ink focus-within:border-brand hover:border-ink">
+                          <span className="pl-2 font-bold text-ink-muted">Edit URL /</span>
+                          <input
+                            type="text"
+                            value={d.slug}
+                            placeholder={slugFor({ ...d, slug: "" })}
+                            disabled={publishing}
+                            aria-label={`URL slug for ${d.adName || "this ad"}`}
+                            onChange={(e) =>
+                              updateItem(item.key, {
+                                draft: { ...d, slug: e.target.value },
+                                // The old failure may no longer apply.
+                                ...(item.status === "failed" && {
+                                  status: "pending" as const,
+                                  error: undefined,
+                                }),
+                              })
+                            }
+                            className="min-w-0 flex-1 bg-transparent px-1 py-1.5 outline-none"
+                          />
+                          <PencilIcon className="mr-2 h-3.5 w-3.5 shrink-0 text-ink-muted" />
+                        </label>
                       )}
                       {item.status !== "published" &&
                         errors.map((e) => (
@@ -591,6 +622,50 @@ export default function BulkAddAdsPage() {
           </>
         )}
       </main>
+
+      {publishing && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-ink/50 p-4"
+          role="alertdialog"
+          aria-live="polite"
+          aria-label="Publishing ads"
+        >
+          <div className="flex w-full max-w-sm flex-col items-center gap-3 bg-surface p-8 text-center shadow-xl">
+            <Spinner className="h-8 w-8" />
+            <p className="text-lg font-extrabold text-ink">
+              Publishing {Math.min(progress.done + 1, progress.total)} of {progress.total}…
+            </p>
+            {progress.current && (
+              <p className="w-full truncate text-sm text-ink-muted">{progress.current}</p>
+            )}
+            <div className="h-1.5 w-full bg-surface-2">
+              <div
+                className="h-full bg-brand transition-[width] duration-300"
+                style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
+              />
+            </div>
+            <p className="text-xs text-ink-muted">Keep this tab open until it finishes.</p>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function PencilIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
   );
 }
