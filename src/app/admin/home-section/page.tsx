@@ -6,6 +6,7 @@ import AdCard from "@/components/AdCard";
 import AppHeader from "@/components/AppHeader";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type Ad } from "@/lib/api";
+import { HERO_PER_PLATFORM, HERO_PLATFORMS, heroPlatformsOf } from "@/lib/ads";
 import { useRequireRole } from "@/lib/AuthProvider";
 
 // The two landing page areas an admin can fill, and the ad field that marks
@@ -14,9 +15,9 @@ const AREAS = {
   hero: {
     label: "Hero panel",
     field: "showInHero",
-    // The hero's product panel only has room for six tiles.
-    max: 6,
-    help: "the product panel at the top of the landing page. It has room for six ads.",
+    // The hero's product panel has a tab per platform, six tiles each.
+    max: HERO_PLATFORMS.length * HERO_PER_PLATFORM,
+    help: `the product panel at the top of the landing page. It takes up to ${HERO_PER_PLATFORM} ads each for Meta, Google and LinkedIn; its All tab shows a random mix of them.`,
   },
   library: {
     label: "Library section",
@@ -77,6 +78,25 @@ export default function AdminHomeSectionPage() {
 
   const selectedCount = ads?.filter((a) => a[field]).length ?? 0;
   const full = max !== undefined && selectedCount >= max;
+  // Hero picks per platform; an ad on several platforms counts toward each.
+  const heroCounts = new Map(
+    HERO_PLATFORMS.map((p) => [
+      p,
+      ads?.filter((a) => a.showInHero && heroPlatformsOf(a.platforms).includes(p)).length ?? 0,
+    ])
+  );
+  // Why an ad can't be added to the current area, if it can't.
+  function blockedReason(ad: Ad): string | null {
+    if (ad[field]) return null;
+    if (full) return `${label} is full (${max} ads)`;
+    if (area !== "hero") return null;
+    const own = heroPlatformsOf(ad.platforms);
+    if (own.length === 0) return "Only Meta, Google and LinkedIn ads can go in the hero panel";
+    const fullPlatform = own.find((p) => (heroCounts.get(p) ?? 0) >= HERO_PER_PLATFORM);
+    return fullPlatform
+      ? `The hero panel already has ${HERO_PER_PLATFORM} ${platformName(fullPlatform)} ads`
+      : null;
+  }
   const shown = view === "selected" ? (ads ?? []).filter((a) => a[field]) : (ads ?? []);
 
   return (
@@ -121,6 +141,18 @@ export default function AdminHomeSectionPage() {
         <p className="mt-4 max-w-2xl text-sm text-ink-muted">
           Click the <HomeIcon filled={false} className="inline h-4 w-4 align-[-3px]" /> icon on an ad to show it in {help}
         </p>
+        {area === "hero" && ads && (
+          <p className="mt-2 flex gap-4 text-sm font-bold text-ink">
+            {HERO_PLATFORMS.map((p) => (
+              <span key={p}>
+                {platformName(p)}{" "}
+                <span className="font-medium text-ink-muted">
+                  {heroCounts.get(p)}/{HERO_PER_PLATFORM}
+                </span>
+              </span>
+            ))}
+          </p>
+        )}
 
         <div className="mt-4 flex items-center gap-3 border-b border-ink/15 pb-4 text-sm">
           {(["all", "selected"] as const).map((v) => (
@@ -163,7 +195,8 @@ export default function AdminHomeSectionPage() {
           <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {shown.map((ad) => {
               const on = !!ad[field];
-              const blocked = !on && full;
+              const reason = blockedReason(ad);
+              const blocked = reason !== null;
               const busy = pending.has(ad.id);
               return (
                 <div key={ad.id} className={`relative ${on ? "outline-2 outline-offset-4 outline-brand" : ""}`}>
@@ -175,8 +208,8 @@ export default function AdminHomeSectionPage() {
                     aria-pressed={on}
                     aria-label={on ? `Remove ${ad.title} from the ${label.toLowerCase()}` : `Show ${ad.title} in the ${label.toLowerCase()}`}
                     title={
-                      blocked
-                        ? `${label} is full (${max} ads)`
+                      reason
+                        ? reason
                         : on
                           ? `Remove from ${label.toLowerCase()}`
                           : `Show in ${label.toLowerCase()}`
@@ -197,6 +230,10 @@ export default function AdminHomeSectionPage() {
       </main>
     </div>
   );
+}
+
+function platformName(platform: string) {
+  return platform === "META" ? "Meta" : platform;
 }
 
 function HomeIcon({ filled, className }: { filled: boolean; className?: string }) {

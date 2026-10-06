@@ -11,6 +11,11 @@ import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useAuth } from "@/lib/AuthProvider";
 import { useToast } from "@/lib/ToastProvider";
 import { ApiError, api, type Ad as LibraryAd } from "@/lib/api";
+import { HERO_PER_PLATFORM, HERO_PLATFORMS, shuffle } from "@/lib/ads";
+
+// Tiles in the hero panel's All tab (a 3×3 grid); each platform tab shows
+// that platform's picks, up to HERO_PER_PLATFORM.
+const HERO_ALL_TILES = 9;
 
 // The landing page keeps its own fixed light palette (it doesn't follow the
 // app's dark theme), so colors here are literal rather than theme tokens.
@@ -203,13 +208,18 @@ export default function LandingPage() {
   const [requestType, setRequestType] = useState("New market");
   // null while the first fetch is in flight; [] if it failed.
   const [liveAds, setLiveAds] = useState<LibraryAd[] | null>(null);
+  // A random position per ad, drawn once per visit, so the hero's All tab
+  // shows a different mix each time without reshuffling on every render.
+  const [heroRank, setHeroRank] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
     api
       .getAds()
       .then(({ ads }) => {
-        if (!cancelled) setLiveAds(ads);
+        if (cancelled) return;
+        setLiveAds(ads);
+        setHeroRank(new Map(shuffle(ads).map((ad, i) => [ad.id, i])));
       })
       .catch(() => {
         if (!cancelled) setLiveAds([]);
@@ -228,11 +238,24 @@ export default function LandingPage() {
           .map((ad) => fromLibraryAd(ad, `/ads/${ad.id}`))
       : ADS.map((ad) => fromSample(ad, "/library"));
   // The hero panel shows the ads an admin picked for it in Admin → Home
-  // section (up to six); until they pick some, it shows the newest.
+  // section: a tab each for Meta, Google and LinkedIn (up to six picks each)
+  // and an All tab with nine of them at random. Until they pick some, it
+  // shows the newest.
   const heroPicked = libraryCards.filter((c) => c.inHero);
-  const heroCards = heroPicked.length > 0 ? heroPicked : libraryCards;
-  const platforms = allPlatforms(heroCards);
-  const heroAds = heroCards.filter((c) => platform === "All" || c.platforms.includes(platform)).slice(0, 6);
+  const runsOn = (c: LibraryCard, p: string) => c.platforms.some((cp) => cp.toLowerCase() === p.toLowerCase());
+  const platforms =
+    heroPicked.length > 0
+      ? ["All", ...HERO_PLATFORMS.filter((p) => heroPicked.some((c) => runsOn(c, p)))]
+      : allPlatforms(libraryCards);
+  const heroCards =
+    heroPicked.length === 0
+      ? libraryCards
+      : platform === "All"
+        ? [...heroPicked].sort((a, b) => (heroRank.get(a.key) ?? 0) - (heroRank.get(b.key) ?? 0))
+        : heroPicked;
+  const heroAds = heroCards
+    .filter((c) => platform === "All" || runsOn(c, platform))
+    .slice(0, platform === "All" ? HERO_ALL_TILES : HERO_PER_PLATFORM);
   // The library section shows every ad an admin picked in Admin → Home
   // section; until they pick some, it shows the four newest.
   const featuredCards = libraryCards.filter((c) => c.featured);
@@ -351,14 +374,14 @@ export default function LandingPage() {
                 />
               ))}
             </div>
-            {/* Two columns (four tiles) on narrow phones, three columns (six tiles) above. */}
+            {/* Two columns (up to six tiles) on narrow phones, three columns (up to nine tiles) above. */}
             <div className="grid grid-cols-2 gap-[clamp(6px,1.5vw,10px)] px-[clamp(12px,3vw,18px)] pb-[clamp(12px,3vw,18px)] min-[480px]:grid-cols-3">
               {liveAds === null
-                ? Array.from({ length: 6 }, (_, i) => (
+                ? Array.from({ length: HERO_ALL_TILES }, (_, i) => (
                     <div
                       key={i}
                       aria-hidden
-                      className={`aspect-square animate-pulse bg-[#eeece9] ${i >= 4 ? "max-[479px]:hidden" : ""}`}
+                      className={`aspect-square animate-pulse bg-[#eeece9] ${i >= 6 ? "max-[479px]:hidden" : ""}`}
                     />
                   ))
                 : heroAds.map((ad, i) => (
@@ -366,7 +389,7 @@ export default function LandingPage() {
                       key={ad.key}
                       href={ad.href}
                       className={`group relative flex aspect-square flex-col justify-between overflow-hidden p-[10px] ${
-                        i >= 4 ? "max-[479px]:hidden" : ""
+                        i >= 6 ? "max-[479px]:hidden" : ""
                       }`}
                       style={{ color: ad.fg }}
                     >

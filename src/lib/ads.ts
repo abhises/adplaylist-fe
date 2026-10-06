@@ -2,6 +2,18 @@ export type { Ad } from "@/lib/api";
 
 export const PLATFORM_OPTIONS = ["META", "Google", "TikTok", "LinkedIn"];
 
+// The landing hero's product panel has a tab per platform here, each showing
+// up to six ads an admin picked for it in Admin → Home section.
+export const HERO_PLATFORMS = ["META", "Google", "LinkedIn"];
+export const HERO_PER_PLATFORM = 6;
+
+// The hero platforms an ad runs on, matched case-insensitively and returned
+// in their HERO_PLATFORMS spelling.
+export function heroPlatformsOf(platforms: string[]) {
+  const lower = platforms.map((p) => p.toLowerCase());
+  return HERO_PLATFORMS.filter((p) => lower.includes(p.toLowerCase()));
+}
+
 // Order and dimension formatting (× not x) match the design's own Format
 // list exactly, verified against the rendered .dc.html mockup's DOM.
 export const SIZE_OPTIONS = [
