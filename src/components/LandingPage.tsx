@@ -272,11 +272,11 @@ export default function LandingPage() {
               <span>The ad library for your whole team</span>
             </div>
             <h1 className="mt-6 text-[clamp(48px,7vw,96px)] leading-[0.95] font-extrabold tracking-[-0.035em] text-balance">
-              Your next ad is already made.
+              Steal the strategy, not the ad.
             </h1>
             <p className="mt-6 max-w-[520px] text-[clamp(17px,2.2vw,20px)] leading-[1.5] text-pretty">
-              Find any creative your team has ever shipped, open it as an editable copy, and launch in minutes. Need
-              something new? Request it from the creative team.
+              We study ads that are working worldwide and create fresh, original versions you can make your own in
+              Canva.
             </p>
 
             {signedIn ? (
