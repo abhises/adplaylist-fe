@@ -320,11 +320,9 @@ export default function AdDetailView({
       <button
         type="button"
         onClick={startCanvaRequest}
-        title="This will cost 1 credit"
-        className={`${canvaButton} flex-col !gap-0 leading-tight`}
+        className={canvaButton}
       >
-        <span>&#9998; Request Canva Edit</span>
-        <span className="text-xs font-medium opacity-80">This will cost 1 credit</span>
+        &#9998; Request Canva Edit
       </button>
     );
   // Downloading needs an account: for visitors the button opens the sign-up
@@ -802,6 +800,14 @@ export default function AdDetailView({
               </a>
             ))}
           </div>
+          <p className="order-4 mt-4 flex items-center gap-3 border border-border bg-card px-4 py-2.5 text-[13px] leading-snug text-ink-muted lg:order-none">
+            <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 11v6M12 7.5v.5" strokeLinecap="round" />
+            </svg>
+            All brand names and logos are property of their owners. Adplaylist is not affiliated with or endorsed by
+            these brands.
+          </p>
 
           {/* 6 · Details as internal links. */}
           <div className="order-[5] mt-8 lg:order-none">
