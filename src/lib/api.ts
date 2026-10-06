@@ -340,6 +340,8 @@ export type CreativeRequest = {
   attachmentUrl?: string;
   attachmentName?: string;
   ad?: Ad;
+  // Whether a credit paid for it; a declined request's credit is refunded.
+  creditCharged?: boolean;
   // Only sent to staff: who raised it, and their company account.
   requester?: {
     id: number;
