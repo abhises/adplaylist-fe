@@ -32,9 +32,10 @@ export type Ad = {
   dominantColor?: string;
   videoLength?: string;
   // Picked by an admin to show on the landing page: `featured` in the
-  // library section, `showInHero` in the hero's product panel.
+  // library section; `heroPlatforms` lists the hero panel tabs (META,
+  // Google, LinkedIn) it was picked for.
   featured?: boolean;
-  showInHero?: boolean;
+  heroPlatforms?: string[];
   createdAt: string;
 
   // SEO page fields (from the ad's CSV). The long-form ones are only sent
@@ -503,7 +504,7 @@ export const api = {
 
   setAdHomeSection: (
     id: string,
-    data: { featured?: boolean; showInHero?: boolean }
+    data: { featured?: boolean; heroPlatforms?: string[] }
   ) =>
     request<{ ad: Ad }>(`/api/ads/${id}/home-section`, {
       method: "PATCH",

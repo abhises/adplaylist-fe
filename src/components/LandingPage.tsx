@@ -79,7 +79,8 @@ type LibraryCard = {
   video: boolean;
   platforms: string[];
   featured: boolean;
-  inHero: boolean;
+  // Hero panel tabs an admin picked it for (META, Google, LinkedIn).
+  heroPlatforms: string[];
   // Text drawn over the card; left empty for photo creatives, which already
   // carry their own copy.
   tag?: string;
@@ -103,7 +104,7 @@ function fromLibraryAd(ad: LibraryAd, href: string): LibraryCard {
     video: ad.mediaType === "video",
     platforms: ad.platforms,
     featured: !!ad.featured,
-    inHero: !!ad.showInHero,
+    heroPlatforms: ad.heroPlatforms ?? [],
     tag: ad.eyebrow?.toUpperCase(),
     headline: ad.headline,
     cta: ad.cta?.toUpperCase(),
@@ -123,7 +124,7 @@ function fromSample(ad: Ad, href: string): LibraryCard {
     video: false,
     platforms: [ad.platform],
     featured: false,
-    inHero: false,
+    heroPlatforms: [],
     tag: ad.tag,
     headline: ad.headline,
     cta: ad.cta,
@@ -238,23 +239,23 @@ export default function LandingPage() {
           .map((ad) => fromLibraryAd(ad, `/ads/${ad.id}`))
       : ADS.map((ad) => fromSample(ad, "/library"));
   // The hero panel shows the ads an admin picked for it in Admin → Home
-  // section: a tab each for Meta, Google and LinkedIn (up to six picks each)
-  // and an All tab with nine of them at random. Until they pick some, it
-  // shows the newest.
-  const heroPicked = libraryCards.filter((c) => c.inHero);
+  // section: a tab each for Meta, Google and LinkedIn with the ads picked for
+  // that tab (up to six), and an All tab with nine picks at random. Until
+  // they pick some, it shows the newest.
+  const heroPicked = libraryCards.filter((c) => c.heroPlatforms.length > 0);
+  const picking = heroPicked.length > 0;
   const runsOn = (c: LibraryCard, p: string) => c.platforms.some((cp) => cp.toLowerCase() === p.toLowerCase());
-  const platforms =
-    heroPicked.length > 0
-      ? ["All", ...HERO_PLATFORMS.filter((p) => heroPicked.some((c) => runsOn(c, p)))]
-      : allPlatforms(libraryCards);
-  const heroCards =
-    heroPicked.length === 0
-      ? libraryCards
-      : platform === "All"
-        ? [...heroPicked].sort((a, b) => (heroRank.get(a.key) ?? 0) - (heroRank.get(b.key) ?? 0))
-        : heroPicked;
+  const inTab = (c: LibraryCard, p: string) => (picking ? c.heroPlatforms.includes(p) : runsOn(c, p));
+  const platforms = picking
+    ? ["All", ...HERO_PLATFORMS.filter((p) => heroPicked.some((c) => c.heroPlatforms.includes(p)))]
+    : allPlatforms(libraryCards);
+  const heroCards = !picking
+    ? libraryCards
+    : platform === "All"
+      ? [...heroPicked].sort((a, b) => (heroRank.get(a.key) ?? 0) - (heroRank.get(b.key) ?? 0))
+      : heroPicked;
   const heroAds = heroCards
-    .filter((c) => platform === "All" || runsOn(c, platform))
+    .filter((c) => platform === "All" || inTab(c, platform))
     .slice(0, platform === "All" ? HERO_ALL_TILES : HERO_PER_PLATFORM);
   // The library section shows every ad an admin picked in Admin → Home
   // section; until they pick some, it shows the four newest.
@@ -410,7 +411,7 @@ export default function LandingPage() {
                       {ad.platforms.length > 0 && (
                         <div className="absolute top-2 right-2 bg-white/92 px-[5px] py-[2px] font-mono text-[9px] text-[#161514]">
                           {ad.video && "▶ "}
-                          {platformLabel(platform === "All" ? ad.platforms[0] : platform)}
+                          {platformLabel(platform !== "All" ? platform : (ad.heroPlatforms[0] ?? ad.platforms[0]))}
                         </div>
                       )}
                     </Link>
