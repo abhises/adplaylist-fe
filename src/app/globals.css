@@ -16,6 +16,11 @@
   --color-border: color-mix(in srgb, var(--color-ink) 40%, transparent);
   /* Raised boxes on the page background (ad page takeaways, curator). */
   --color-card: #ffffff;
+  /* Chart series, in this fixed order (validated for colour-blind
+     separation against the card surface in each theme). */
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
 }
 
 :root[data-theme="dark"] {
@@ -25,6 +30,9 @@
   --color-ink-muted: #a9a29d;
   --color-border: #3a3735;
   --color-card: #262422;
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
 }
 
 @theme inline {

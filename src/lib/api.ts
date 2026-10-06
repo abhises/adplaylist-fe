@@ -262,9 +262,62 @@ export type AdminUser = {
   canManageBlog: boolean;
   canManageBrandPages: boolean;
   createdAt: string;
+  // The customer account they belong to; null for staff.
+  billing: {
+    company: string;
+    plan: PlanId;
+    creditVolume: number;
+    billingCycle: BillingCycle;
+    status: Account["status"];
+    currentPeriodEnd?: string | null;
+    // Active, cancelled-but-running or past due: they've paid for this period.
+    paid: boolean;
+    owner: boolean;
+  } | null;
 };
 
 export type Permission = keyof User["permissions"];
+
+export type TransactionRange = 30 | 90 | 365;
+
+// Admin → Transactions: Stripe invoices across every customer.
+export type AdminPayments = {
+  days: TransactionRange;
+  currency: string;
+  totals: { revenue: number; payments: number; average: number };
+  series: { date: string; revenue: number; payments: number }[];
+  payments: {
+    id: string;
+    number: string | null;
+    date: string;
+    company?: string;
+    email?: string;
+    description: string;
+    reason: string | null;
+    amount: number;
+    amountPaid: number;
+    currency: string;
+    status: string | null;
+    receiptUrl: string | null;
+  }[];
+};
+
+// Admin → Transactions: every account's credit movements.
+export type AdminCredits = {
+  days: TransactionRange;
+  totals: { granted: number; used: number; expired: number; entries: number };
+  series: { date: string; granted: number; used: number; expired: number }[];
+  entries: {
+    id: number;
+    date: string;
+    company: string;
+    email?: string;
+    reason: string;
+    delta: number;
+    balance: number;
+    note?: string;
+  }[];
+};
 
 export type NewUserInput = {
   fullName: string;
@@ -599,6 +652,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  getAdminPayments: (days: TransactionRange) =>
+    request<AdminPayments>(`/api/admin/transactions/payments?days=${days}`),
+
+  getAdminCredits: (days: TransactionRange) =>
+    request<AdminCredits>(`/api/admin/transactions/credits?days=${days}`),
 
   getNotifications: () =>
     request<{ notifications: AppNotification[]; unread: number }>("/api/notifications"),

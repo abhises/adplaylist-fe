@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import AppHeader from "@/components/AppHeader";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { Avatar, FilterTiles } from "@/components/DataTable";
 import Modal from "@/components/Modal";
 import Pagination, { usePagination } from "@/components/Pagination";
 import Spinner from "@/components/Spinner";
@@ -85,6 +86,62 @@ function formatDate(iso: string) {
   });
 }
 
+const cell =
+  "border-b border-ink/10 px-4 py-3 max-md:flex max-md:items-center max-md:justify-between max-md:gap-4 max-md:border-0 max-md:px-0 max-md:py-1.5 max-md:before:shrink-0 max-md:before:text-[11px] max-md:before:tracking-[0.08em] max-md:before:text-ink-muted max-md:before:uppercase max-md:before:content-[attr(data-label)]";
+
+const FILTERS = ["All", "Paid", "Trial", "Staff"] as const;
+type Filter = (typeof FILTERS)[number];
+const FILTER_LABELS: Record<Filter, string> = {
+  All: "All users",
+  Paid: "Paid users",
+  Trial: "On trial",
+  Staff: "Staff",
+};
+
+const ROLE_STYLE: Record<Role, string> = {
+  admin: "bg-ink text-surface",
+  designer: "bg-brand/10 text-brand",
+  editor: "bg-sky-500/15 text-sky-700",
+  client: "bg-ink/[0.07] text-ink",
+};
+
+function matchesFilter(u: AdminUser, filter: Filter) {
+  if (filter === "Paid") return !!u.billing?.paid;
+  if (filter === "Trial") return u.billing?.status === "trial";
+  if (filter === "Staff") return u.role !== "client";
+  return true;
+}
+
+// The Plan cell: a Paid / Trial / Expired tag and the plan they're on.
+function PlanTag({ user }: { user: AdminUser }) {
+  const b = user.billing;
+  if (!b) return <span className="text-xs text-ink-muted">{user.role === "client" ? "No plan" : "Staff"}</span>;
+  const plan = `${b.plan[0].toUpperCase()}${b.plan.slice(1)}`;
+  const detail = `${plan}${b.creditVolume ? ` · ${b.creditVolume} credits` : ""} · ${b.billingCycle}`;
+  const tag = b.paid
+    ? {
+        label:
+          b.status === "cancelled"
+            ? `Paid · ends ${b.currentPeriodEnd ? formatDate(b.currentPeriodEnd) : "soon"}`
+            : b.status === "past_due"
+              ? "Paid · past due"
+              : "Paid",
+        className: "bg-emerald-600/15 text-emerald-700",
+      }
+    : b.status === "trial"
+      ? { label: "Trial", className: "bg-amber-500/15 text-amber-700" }
+      : { label: "Expired", className: "bg-ink/10 text-ink-muted" };
+  return (
+    <div className="flex flex-col items-end gap-0.5 md:items-start">
+      <span className={`px-2 py-0.5 text-xs font-semibold ${tag.className}`}>{tag.label}</span>
+      <span className="text-xs text-ink-muted" title={b.company}>
+        {detail}
+        {b.owner ? "" : " · member"}
+      </span>
+    </div>
+  );
+}
+
 export default function AdminUsersPage() {
   const { user: authUser, ready } = useRequireRole(["admin"]);
   const toast = useToast();
@@ -112,7 +169,9 @@ export default function AdminUsersPage() {
   const [addError, setAddError] = useState<string | null>(null);
   const [addSaving, setAddSaving] = useState(false);
 
-  const pagination = usePagination(users.length, "adplaylist_users_page_size");
+  const [filter, setFilter] = useState<Filter>("All");
+  const shownUsers = users.filter((u) => matchesFilter(u, filter));
+  const pagination = usePagination(shownUsers.length, "adplaylist_users_page_size");
 
   useEffect(() => {
     if (!authUser) return;
@@ -234,7 +293,7 @@ export default function AdminUsersPage() {
         <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
           Admin
         </p>
-        <div className="flex max-w-5xl flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-ink">Users</h1>
             <p className="mt-2 text-sm text-ink-muted">
@@ -261,121 +320,153 @@ export default function AdminUsersPage() {
         {error && <p className="mt-8 text-sm text-brand">{error}</p>}
 
         {!loading && !error && (
-          // Below md each row is laid out as a card: the name on top, the
-          // other cells as labelled lines (their data-label), actions last.
-          <table className="mt-6 w-full max-w-5xl border-collapse text-sm max-md:block">
-            <thead className="max-md:hidden">
-              <tr>
-                {["User", "Email", "Joined", "Role", "Access", ""].map((h) => (
-                  <th
-                    key={h}
-                    className="border-b-2 border-border p-2 text-left text-[11px] tracking-[0.08em] text-ink-muted uppercase"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="max-md:flex max-md:flex-col max-md:gap-3">
-              {users.slice(pagination.start, pagination.end).map((u) => {
-                const isAdmin = u.role === "admin";
-                return (
-                  <tr
-                    key={u.id}
-                    className="hover:bg-surface-2/60 max-md:block max-md:border-2 max-md:border-ink/15 max-md:p-4 max-md:hover:bg-transparent"
-                  >
-                    <td className="border-b border-border p-2 font-semibold text-ink max-md:block max-md:border-0 max-md:p-0 max-md:pb-1 max-md:text-base">
-                      {u.fullName}
-                    </td>
-                    <td data-label="Email" className="border-b border-border p-2 text-ink-muted max-md:flex max-md:items-center max-md:justify-between max-md:gap-4 max-md:border-0 max-md:px-0 max-md:py-1.5 max-md:before:shrink-0 max-md:before:text-[11px] max-md:before:tracking-[0.08em] max-md:before:text-ink-muted max-md:before:uppercase max-md:before:content-[attr(data-label)] max-md:min-w-0 max-md:break-all max-md:text-right">
-                      {u.email}
-                    </td>
-                    <td data-label="Joined" className="border-b border-border p-2 text-ink-muted max-md:flex max-md:items-center max-md:justify-between max-md:gap-4 max-md:border-0 max-md:px-0 max-md:py-1.5 max-md:before:shrink-0 max-md:before:text-[11px] max-md:before:tracking-[0.08em] max-md:before:text-ink-muted max-md:before:uppercase max-md:before:content-[attr(data-label)]">
-                      {formatDate(u.createdAt)}
-                    </td>
-                    <td data-label="Role" className="border-b border-border p-2 max-md:flex max-md:items-center max-md:justify-between max-md:gap-4 max-md:border-0 max-md:px-0 max-md:py-1.5 max-md:before:shrink-0 max-md:before:text-[11px] max-md:before:tracking-[0.08em] max-md:before:text-ink-muted max-md:before:uppercase max-md:before:content-[attr(data-label)] max-md:flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={u.role}
-                          disabled={isAdmin || savingId === u.id}
-                          onChange={(e) =>
-                            handleRoleChange(u.id, e.target.value as Role)
-                          }
-                          title={isAdmin ? "Admins can't have their role changed" : undefined}
-                          className="border border-border bg-surface-2 px-2.5 py-1 text-sm text-ink outline-none disabled:opacity-60"
-                        >
-                          {ROLES.map((r) => (
-                            <option key={r} value={r}>
-                              {r}
-                            </option>
-                          ))}
-                        </select>
-                        {savingId === u.id && (
-                          <span className="text-xs text-ink-muted">Saving…</span>
-                        )}
-                      </div>
-                      {rowError && rowError.id === u.id && (
-                        <p className="mt-1 text-xs text-brand">{rowError.message}</p>
-                      )}
-                    </td>
-                    <td data-label="Access" className="border-b border-border p-2 max-md:flex max-md:items-center max-md:justify-between max-md:gap-4 max-md:border-0 max-md:px-0 max-md:py-1.5 max-md:before:shrink-0 max-md:before:text-[11px] max-md:before:tracking-[0.08em] max-md:before:text-ink-muted max-md:before:uppercase max-md:before:content-[attr(data-label)]">
-                      <div className="flex flex-wrap justify-end gap-1 md:justify-start">
-                        {isAdmin ? (
-                          <span className="bg-ink/10 px-2 py-0.5 text-xs text-ink-muted">
-                            Everything
-                          </span>
-                        ) : u.role !== "editor" ? (
-                          <span className="text-xs text-ink-muted">—</span>
-                        ) : !u.canManageBlog && !u.canManageBrandPages ? (
-                          <button
-                            type="button"
-                            onClick={() => openEdit(u)}
-                            className="text-xs text-brand hover:underline"
-                          >
-                            No access yet: set it
-                          </button>
-                        ) : (
-                          <>
-                            {u.canManageBlog && (
-                              <span className="bg-brand/10 px-2 py-0.5 text-xs text-brand">
-                                Blog
-                              </span>
-                            )}
-                            {u.canManageBrandPages && (
-                              <span className="bg-brand/10 px-2 py-0.5 text-xs text-brand">
-                                Brand pages
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </td>
-                    <td className="border-b border-border p-2 text-right whitespace-nowrap max-md:mt-3 max-md:flex max-md:justify-end max-md:border-0 max-md:border-t max-md:border-ink/10 max-md:px-0 max-md:pt-3 max-md:pb-0">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(u)}
-                        className="text-sm text-ink hover:underline"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget(u)}
-                        disabled={isAdmin}
-                        title={isAdmin ? "Admins can't be deleted" : undefined}
-                        className="ml-4 text-sm text-brand hover:underline disabled:cursor-not-allowed disabled:text-ink-muted disabled:no-underline"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          // The filters, as summary tiles with their counts.
+          <FilterTiles
+            className="mt-6 grid-cols-2 md:grid-cols-4"
+            items={FILTERS.map((f) => ({
+              key: f,
+              label: FILTER_LABELS[f],
+              count: users.filter((u) => matchesFilter(u, f)).length,
+            }))}
+            active={filter}
+            onSelect={setFilter}
+          />
         )}
-        {!loading && !error && users.length > 0 && (
-          <div className="max-w-5xl">
+
+        {!loading && !error && shownUsers.length > 0 && (
+          // Below md each row is laid out as a card: the user on top, the
+          // other cells as labelled lines (their data-label), actions last.
+          <div className="mt-4 border-ink/15 md:border md:bg-card">
+            <table className="w-full border-collapse text-sm max-md:block">
+              <thead className="max-md:hidden">
+                <tr className="bg-surface-2/60">
+                  {["S.N.", "User", "Plan", "Role", "Access", "Joined", ""].map((h) => (
+                    <th
+                      key={h}
+                      className="border-b border-ink/15 px-4 py-2.5 text-left text-[11px] font-medium tracking-[0.08em] text-ink-muted uppercase"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="max-md:flex max-md:flex-col max-md:gap-3">
+                {shownUsers.slice(pagination.start, pagination.end).map((u, i) => {
+                  const isAdmin = u.role === "admin";
+                  return (
+                    <tr
+                      key={u.id}
+                      className="transition-colors hover:bg-surface-2/50 max-md:block max-md:border max-md:border-ink/15 max-md:bg-card max-md:p-4 max-md:hover:bg-card"
+                    >
+                      <td className="w-14 border-b border-ink/10 px-4 py-3 font-mono text-xs text-ink-muted tabular-nums max-md:hidden">
+                        {pagination.start + i + 1}
+                      </td>
+                      <td className="border-b border-ink/10 px-4 py-3 max-md:block max-md:border-0 max-md:p-0 max-md:pb-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={u.fullName} />
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-ink">{u.fullName}</p>
+                            <a
+                              href={`mailto:${u.email}`}
+                              className="block truncate text-xs text-ink-muted hover:text-ink hover:underline"
+                            >
+                              {u.email}
+                            </a>
+                          </div>
+                        </div>
+                      </td>
+                      <td data-label="Plan" className={cell}>
+                        <PlanTag user={u} />
+                      </td>
+                      <td data-label="Role" className={`${cell} max-md:flex-wrap`}>
+                        <div className="flex items-center gap-2">
+                          <span className="relative inline-flex">
+                            <select
+                              value={u.role}
+                              disabled={isAdmin || savingId === u.id}
+                              onChange={(e) => handleRoleChange(u.id, e.target.value as Role)}
+                              title={isAdmin ? "Admins can't have their role changed" : undefined}
+                              className={`cursor-pointer appearance-none py-1 pr-7 pl-2.5 text-xs font-semibold capitalize outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-default ${ROLE_STYLE[u.role]}`}
+                            >
+                              {ROLES.map((r) => (
+                                <option key={r} value={r}>
+                                  {r}
+                                </option>
+                              ))}
+                            </select>
+                            {!isAdmin && (
+                              <span aria-hidden className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[9px] opacity-70">
+                                &#9662;
+                              </span>
+                            )}
+                          </span>
+                          {savingId === u.id && <span className="text-xs text-ink-muted">Saving…</span>}
+                        </div>
+                        {rowError && rowError.id === u.id && (
+                          <p className="mt-1 text-xs text-brand">{rowError.message}</p>
+                        )}
+                      </td>
+                      <td data-label="Access" className={cell}>
+                        <div className="flex flex-wrap justify-end gap-1 md:justify-start">
+                          {isAdmin ? (
+                            <span className="bg-ink/10 px-2 py-0.5 text-xs text-ink-muted">Everything</span>
+                          ) : u.role !== "editor" ? (
+                            <span className="text-xs text-ink-muted">—</span>
+                          ) : !u.canManageBlog && !u.canManageBrandPages ? (
+                            <button
+                              type="button"
+                              onClick={() => openEdit(u)}
+                              className="text-xs text-brand hover:underline"
+                            >
+                              No access yet: set it
+                            </button>
+                          ) : (
+                            <>
+                              {u.canManageBlog && (
+                                <span className="bg-brand/10 px-2 py-0.5 text-xs text-brand">Blog</span>
+                              )}
+                              {u.canManageBrandPages && (
+                                <span className="bg-brand/10 px-2 py-0.5 text-xs text-brand">Brand pages</span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td data-label="Joined" className={`${cell} whitespace-nowrap text-ink-muted`}>
+                        {formatDate(u.createdAt)}
+                      </td>
+                      <td className="border-b border-ink/10 px-4 py-3 text-right whitespace-nowrap max-md:mt-3 max-md:flex max-md:justify-end max-md:gap-2 max-md:border-0 max-md:border-t max-md:border-ink/10 max-md:px-0 max-md:pt-3 max-md:pb-0">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(u)}
+                          className="border border-ink/20 px-3 py-1 text-xs font-semibold text-ink hover:border-ink/60"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(u)}
+                          disabled={isAdmin}
+                          title={isAdmin ? "Admins can't be deleted" : undefined}
+                          className="ml-2 border border-brand/40 px-3 py-1 text-xs font-semibold text-brand hover:bg-brand hover:text-brand-foreground disabled:cursor-not-allowed disabled:border-ink/15 disabled:bg-transparent disabled:text-ink-muted max-md:ml-0"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!loading && !error && shownUsers.length === 0 && (
+          <p className="mt-6 border border-dashed border-ink/20 p-8 text-center text-sm text-ink-muted">
+            No users match this filter.
+          </p>
+        )}
+        {!loading && !error && shownUsers.length > 0 && (
+          <div>
             <Pagination {...pagination.props} />
           </div>
         )}

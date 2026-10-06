@@ -13,6 +13,18 @@ import { useSearchParams } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
 import Spinner from "@/components/Spinner";
+import {
+  EmptyState,
+  FilterTiles,
+  StatusTag,
+  editButton,
+  headRow,
+  row,
+  snCell,
+  tableCard,
+  td,
+  th,
+} from "@/components/DataTable";
 import { api, ApiError, type CreativeRequest } from "@/lib/api";
 import { useAuth, useRequireAuth } from "@/lib/AuthProvider";
 import UpgradePrompt, { type UpgradeReason } from "@/components/UpgradePrompt";
@@ -54,15 +66,6 @@ const SIZE_NEEDED_OPTIONS = [
   "16:9 — Video",
   "All standard sizes",
 ];
-
-// Mirrors the design system's .tag-accent / .tag-neutral / .tag-outline tokens.
-const STATUS_STYLE: Record<string, string> = {
-  Open: "bg-[#f8f4f4] text-[#444141]",
-  "In design": "bg-[#fff2ef] text-[#7c1405]",
-  "Awaiting brief": "bg-[#f8f4f4] text-[#444141]",
-  "In review": "border border-brand text-brand",
-  Delivered: "bg-[#f8f4f4] text-[#444141]",
-};
 
 function shortDate(iso?: string) {
   if (!iso) return "—";
@@ -287,7 +290,7 @@ function Requests() {
     <div className="flex min-h-screen flex-col">
       <AppHeader />
       <main className="grid flex-1 grid-cols-1 lg:grid-cols-[1fr_380px]">
-        <div className="px-8 py-7">
+        <div className="min-w-0 px-4 py-7 sm:px-8">
           <h1 className="text-[30px] leading-tight font-extrabold tracking-[-0.02em] text-ink">
             Requests
           </h1>
@@ -296,23 +299,12 @@ function Requests() {
             Average turnaround 3 working days.
           </p>
 
-          <div className="mt-5 flex max-w-[420px] border border-border">
-            {TABS.map((t, i) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`flex-1 px-3 py-[7px] text-left text-xs ${
-                  i > 0 ? "border-l border-border" : ""
-                } ${
-                  tab === t
-                    ? "bg-brand text-brand-foreground"
-                    : "text-ink hover:bg-surface-2"
-                }`}
-              >
-                {t} &middot; {grouped[t].length}
-              </button>
-            ))}
-          </div>
+          <FilterTiles
+            className="mt-5 grid-cols-3"
+            items={TABS.map((t) => ({ key: t, label: t, count: grouped[t].length }))}
+            active={tab}
+            onSelect={setTab}
+          />
 
           {loading && (
             <div className="mt-8 flex items-center gap-2 text-sm text-ink-muted">
@@ -322,81 +314,64 @@ function Requests() {
           )}
 
           {!loading && tab === "Open" && (
-            grouped.Open.length > 0 ? (
-              <table className="mt-6 w-full border-collapse text-sm">
-                <thead>
-                  <tr>
-                    {["Request", "Type", "Needed by", "Status", ""].map((h) => (
-                      <th
-                        key={h}
-                        className="border-b-2 border-border p-2 text-left text-[11px] tracking-[0.08em] text-ink-muted uppercase"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {grouped.Open.map((req) => (
-                    <tr key={req.id} className="hover:bg-surface-2/60">
-                      <td className="border-b border-border p-2">
-                        <p className="font-semibold text-ink">
-                          {req.title}
-                          {req.attachmentUrl && (
-                            <a suppressHydrationWarning
-                              href={req.attachmentUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="View attachment"
-                              className="ml-1.5 inline-block align-middle text-ink-muted hover:text-brand"
-                            >
-                              <svg
-                                viewBox="0 0 24 24"
-                                width="13"
-                                height="13"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M21.4 11.1 12 20.5a5 5 0 0 1-7-7l8.1-8.1a3.3 3.3 0 0 1 4.7 4.7l-8.1 8.1a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4" />
-                              </svg>
-                            </a>
-                          )}
-                        </p>
-                        <p className="mt-0.5 text-xs text-ink-muted">
-                          Raised by {user.fullName} &middot; {shortDate(req.createdAt)}
-                        </p>
-                      </td>
-                      <td className="border-b border-border p-2 text-ink">{req.type}</td>
-                      <td className="border-b border-border p-2 text-ink">
-                        {shortDate(req.neededBy)}
-                      </td>
-                      <td className="border-b border-border p-2">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-[3px] text-[11px] tracking-[0.02em] ${
-                            STATUS_STYLE[req.status] ?? "bg-[#f8f4f4] text-[#444141]"
-                          }`}
-                        >
-                          {req.status}
-                        </span>
-                      </td>
-                      <td className="border-b border-border p-2 text-right">
-                        <button
-                          onClick={() => setViewingRequest(req)}
-                          className="text-sm text-brand hover:underline"
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="mt-10 text-sm text-ink-muted">
-                No open requests to show yet.
-              </p>
-            )
+            <div className="mt-4">
+              {grouped.Open.length > 0 ? (
+                <div className={tableCard}>
+                  <table className="w-full min-w-[640px] border-collapse text-sm">
+                    <thead>
+                      <tr className={headRow}>
+                        {["S.N.", "Request", "Type", "Needed by", "Status", ""].map((h) => (
+                          <th key={h} className={th}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grouped.Open.map((req, i) => (
+                        <tr key={req.id} className={row}>
+                          <td className={snCell}>{i + 1}</td>
+                          <td className={td}>
+                            <p className="font-semibold text-ink">
+                              {req.title}
+                              {req.attachmentUrl && (
+                                <a
+                                  suppressHydrationWarning
+                                  href={req.attachmentUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title="View attachment"
+                                  className="ml-1.5 inline-block align-middle text-ink-muted hover:text-brand"
+                                >
+                                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21.4 11.1 12 20.5a5 5 0 0 1-7-7l8.1-8.1a3.3 3.3 0 0 1 4.7 4.7l-8.1 8.1a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4" />
+                                  </svg>
+                                </a>
+                              )}
+                            </p>
+                            <p className="mt-0.5 text-xs text-ink-muted">
+                              Raised by {user.fullName} &middot; {shortDate(req.createdAt)}
+                            </p>
+                          </td>
+                          <td className={`${td} whitespace-nowrap text-ink-muted`}>{req.type}</td>
+                          <td className={`${td} whitespace-nowrap text-ink`}>{shortDate(req.neededBy)}</td>
+                          <td className={td}>
+                            <StatusTag status={req.status} />
+                          </td>
+                          <td className={`${td} text-right`}>
+                            <button type="button" onClick={() => setViewingRequest(req)} className={editButton}>
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState>No open requests to show yet.</EmptyState>
+              )}
+            </div>
           )}
 
           {!loading && tab === "Delivered" && (
@@ -456,47 +431,45 @@ function Requests() {
           )}
 
           {!loading && tab === "Declined" && (
-            grouped.Declined.length > 0 ? (
-              <table className="mt-6 w-full border-collapse text-sm">
-                <thead>
-                  <tr>
-                    {["Request", "Type", "Reason", ""].map((h) => (
-                      <th
-                        key={h}
-                        className="border-b-2 border-border p-2 text-left text-[11px] tracking-[0.08em] text-ink-muted uppercase"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {grouped.Declined.map((req) => (
-                    <tr key={req.id} className="hover:bg-surface-2/60">
-                      <td className="border-b border-border p-2">
-                        <p className="font-semibold text-ink">{req.title}</p>
-                        <p className="mt-0.5 text-xs text-ink-muted">
-                          Raised by {user.fullName} &middot; {shortDate(req.createdAt)}
-                        </p>
-                      </td>
-                      <td className="border-b border-border p-2 text-ink">{req.type}</td>
-                      <td className="border-b border-border p-2 leading-snug text-ink-muted">
-                        {req.reason ?? "No reason given"}
-                      </td>
-                      <td className="border-b border-border p-2 text-right">
-                        <button className="text-sm text-brand hover:underline">
-                          Resubmit
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="mt-10 text-sm text-ink-muted">
-                No declined requests to show yet.
-              </p>
-            )
+            <div className="mt-4">
+              {grouped.Declined.length > 0 ? (
+                <div className={tableCard}>
+                  <table className="w-full min-w-[640px] border-collapse text-sm">
+                    <thead>
+                      <tr className={headRow}>
+                        {["S.N.", "Request", "Type", "Reason", "Status"].map((h) => (
+                          <th key={h} className={th}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grouped.Declined.map((req, i) => (
+                        <tr key={req.id} className={row}>
+                          <td className={snCell}>{i + 1}</td>
+                          <td className={td}>
+                            <p className="font-semibold text-ink">{req.title}</p>
+                            <p className="mt-0.5 text-xs text-ink-muted">
+                              Raised by {user.fullName} &middot; {shortDate(req.createdAt)}
+                            </p>
+                          </td>
+                          <td className={`${td} whitespace-nowrap text-ink-muted`}>{req.type}</td>
+                          <td className={`${td} max-w-[320px] leading-snug text-ink-muted`}>
+                            {req.reason ?? "No reason given"}
+                          </td>
+                          <td className={td}>
+                            <StatusTag status="Declined" />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState>No declined requests to show yet.</EmptyState>
+              )}
+            </div>
           )}
         </div>
 
@@ -706,13 +679,9 @@ function Requests() {
                 <h2 className="text-xl leading-tight font-extrabold text-ink">
                   {viewingRequest.title}
                 </h2>
-                <span
-                  className={`mt-2 inline-flex w-fit items-center px-2.5 py-[3px] text-[11px] tracking-[0.02em] ${
-                    STATUS_STYLE[viewingRequest.status] ?? "bg-[#f8f4f4] text-[#444141]"
-                  }`}
-                >
-                  {viewingRequest.status}
-                </span>
+                <div className="mt-2">
+                  <StatusTag status={viewingRequest.status} />
+                </div>
               </div>
               <button
                 onClick={() => setViewingRequest(null)}

@@ -5,18 +5,43 @@ import { useSearchParams } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import Modal from "@/components/Modal";
 import Spinner from "@/components/Spinner";
+import {
+  Avatar,
+  EmptyState,
+  FilterTiles,
+  StatusTag,
+  dangerButton,
+  headRow,
+  primaryButton,
+  row,
+  snCell,
+  tableCard,
+  td,
+  th,
+} from "@/components/DataTable";
 import { api, ApiError, type Ad, type CreativeRequest } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
 import { useNotifications } from "@/lib/NotificationsProvider";
 
 const TABS = ["Open", "Delivered", "Declined"] as const;
+type Tab = (typeof TABS)[number];
 
-const STATUS_STYLE: Record<string, string> = {
-  Open: "bg-[#f8f4f4] text-[#444141]",
-  "In design": "bg-[#fff2ef] text-[#7c1405]",
-  "Awaiting brief": "bg-[#f8f4f4] text-[#444141]",
-  "In review": "border border-brand text-brand",
-  Delivered: "bg-[#f8f4f4] text-[#444141]",
+const TAB_LABELS: Record<Tab, string> = {
+  Open: "Open requests",
+  Delivered: "Delivered",
+  Declined: "Declined",
+};
+
+const COLUMNS: Record<Tab, string[]> = {
+  Open: ["S.N.", "Request", "Requester", "Sent", "Needed by", "Status", ""],
+  Delivered: ["S.N.", "Request", "Requester", "Sent", "Delivered ad", "Status"],
+  Declined: ["S.N.", "Request", "Requester", "Sent", "Reason", "Status"],
+};
+
+const EMPTY: Record<Tab, string> = {
+  Open: "No open requests. New ones appear here live.",
+  Delivered: "No delivered requests yet.",
+  Declined: "No declined requests.",
 };
 
 function shortDate(iso?: string) {
@@ -31,22 +56,43 @@ function tabOf(status: string): (typeof TABS)[number] {
   return status === "Delivered" || status === "Declined" ? status : "Open";
 }
 
-// Who sent a request: name, email and the company account they belong to.
+// Who sent a request: avatar, name, email and the company account they
+// belong to.
 function RequesterCell({ requester }: { requester: CreativeRequest["requester"] }) {
-  if (!requester) return <td className="border-b border-border p-2 text-ink-muted">—</td>;
+  if (!requester) return <td className={`${td} text-ink-muted`}>—</td>;
   const company = requester.company;
   return (
-    <td className="border-b border-border p-2 align-top">
-      <p className="text-ink">{requester.fullName}</p>
-      <a href={`mailto:${requester.email}`} className="block text-xs text-ink-muted hover:text-ink hover:underline">
-        {requester.email}
-      </a>
+    <td className={td}>
+      <div className="flex items-center gap-3">
+        <Avatar name={requester.fullName} />
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-ink">{requester.fullName}</p>
+          <a
+            href={`mailto:${requester.email}`}
+            className="block truncate text-xs text-ink-muted hover:text-ink hover:underline"
+          >
+            {requester.email}
+          </a>
+          <p className="truncate text-xs text-ink-muted">
+            {company
+              ? `${company.name} · ${company.plan}${company.status === "active" ? "" : ` (${company.status})`}${
+                  requester.accountRole === "owner" ? " · owner" : ""
+                }`
+              : `Staff · ${requester.role}`}
+          </p>
+        </div>
+      </div>
+    </td>
+  );
+}
+
+// The request itself: title, type and size.
+function RequestCell({ req }: { req: CreativeRequest }) {
+  return (
+    <td className={td}>
+      <p className="font-semibold text-ink">{req.title}</p>
       <p className="mt-0.5 text-xs text-ink-muted">
-        {company
-          ? `${company.name} · ${company.plan}${company.status === "active" ? "" : ` (${company.status})`}${
-              requester.accountRole === "owner" ? " · owner" : ""
-            }`
-          : `Staff · ${requester.role}`}
+        {req.type} &middot; {req.sizeNeeded ?? "Any size"}
       </p>
     </td>
   );
@@ -314,7 +360,7 @@ function RequestsQueue() {
   }, [highlightedTab, highlightId]);
 
   const rowClass = (id: number) =>
-    id === highlightId ? "bg-brand/10 hover:bg-brand/15" : "hover:bg-surface-2/60";
+    id === highlightId ? "bg-brand/10 hover:bg-brand/15" : row;
 
   function replaceRequest(updated: CreativeRequest) {
     setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
@@ -331,7 +377,7 @@ function RequestsQueue() {
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader />
-      <main className="flex-1 px-10 py-8">
+      <main className="flex-1 px-4 py-8 sm:px-10">
         <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
           Admin
         </p>
@@ -342,23 +388,12 @@ function RequestsQueue() {
           decline with a reason.
         </p>
 
-        <div className="mt-5 flex max-w-[420px] border border-border">
-          {TABS.map((t, i) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 px-3 py-[7px] text-left text-xs ${
-                i > 0 ? "border-l border-border" : ""
-              } ${
-                tab === t
-                  ? "bg-brand text-brand-foreground"
-                  : "text-ink hover:bg-surface-2"
-              }`}
-            >
-              {t} &middot; {grouped[t].length}
-            </button>
-          ))}
-        </div>
+        <FilterTiles
+          className="mt-6 grid-cols-3"
+          items={TABS.map((t) => ({ key: t, label: TAB_LABELS[t], count: grouped[t].length }))}
+          active={tab}
+          onSelect={setTab}
+        />
 
         {loading && (
           <div className="mt-8 flex items-center gap-2 text-sm text-ink-muted">
@@ -368,145 +403,86 @@ function RequestsQueue() {
         )}
         {loadError && <p className="mt-8 text-sm text-brand">{loadError}</p>}
 
-        {!loading && !loadError && tab === "Open" && (
-          grouped.Open.length > 0 ? (
-            <table className="mt-6 w-full max-w-4xl border-collapse text-sm">
-              <thead>
-                <tr>
-                  {["Request", "Requester", "Needed by", "Status", ""].map((h) => (
-                    <th
-                      key={h}
-                      className="border-b-2 border-border p-2 text-left text-[11px] tracking-[0.08em] text-ink-muted uppercase"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {grouped.Open.map((req) => (
-                  <tr key={req.id} id={`request-${req.id}`} className={rowClass(req.id)}>
-                    <td className="border-b border-border p-2">
-                      <p className="font-semibold text-ink">{req.title}</p>
-                      <p className="mt-0.5 text-xs text-ink-muted">
-                        {req.type} &middot; {req.sizeNeeded ?? "Any size"} &middot; sent{" "}
-                        {shortDate(req.createdAt)}
-                      </p>
-                    </td>
-                    <RequesterCell requester={req.requester} />
-                    <td className="border-b border-border p-2 text-ink">
-                      {shortDate(req.neededBy)}
-                    </td>
-                    <td className="border-b border-border p-2">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-[3px] text-[11px] tracking-[0.02em] ${
-                          STATUS_STYLE[req.status] ?? "bg-[#f8f4f4] text-[#444141]"
-                        }`}
-                      >
-                        {req.status}
-                      </span>
-                    </td>
-                    <td className="border-b border-border p-2 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => setDelivering(req)}
-                        className="text-sm text-brand hover:underline"
-                      >
-                        Deliver
-                      </button>
-                      <button
-                        onClick={() => setDeclining(req)}
-                        className="ml-4 text-sm text-ink hover:underline"
-                      >
-                        Decline
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="mt-10 text-sm text-ink-muted">No open requests.</p>
-          )
-        )}
-
-        {!loading && !loadError && tab === "Delivered" && (
-          grouped.Delivered.length > 0 ? (
-            <table className="mt-6 w-full max-w-4xl border-collapse text-sm">
-              <thead>
-                <tr>
-                  {["Request", "Requester", "Ad", "Delivered"].map((h) => (
-                    <th
-                      key={h}
-                      className="border-b-2 border-border p-2 text-left text-[11px] tracking-[0.08em] text-ink-muted uppercase"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {grouped.Delivered.map((req) => (
-                  <tr key={req.id} id={`request-${req.id}`} className={rowClass(req.id)}>
-                    <td className="border-b border-border p-2 font-semibold text-ink">
-                      {req.title}
-                    </td>
-                    <RequesterCell requester={req.requester} />
-                    <td className="border-b border-border p-2">
-                      {req.ad ? (
-                        <a suppressHydrationWarning
-                          href={`/ads/${req.ad.id}`}
-                          className="text-brand hover:underline"
-                        >
-                          {req.ad.title}
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="border-b border-border p-2 text-ink-muted">
-                      {shortDate(req.createdAt)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="mt-10 text-sm text-ink-muted">No delivered requests yet.</p>
-          )
-        )}
-
-        {!loading && !loadError && tab === "Declined" && (
-          grouped.Declined.length > 0 ? (
-            <table className="mt-6 w-full max-w-4xl border-collapse text-sm">
-              <thead>
-                <tr>
-                  {["Request", "Requester", "Reason"].map((h) => (
-                    <th
-                      key={h}
-                      className="border-b-2 border-border p-2 text-left text-[11px] tracking-[0.08em] text-ink-muted uppercase"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {grouped.Declined.map((req) => (
-                  <tr key={req.id} id={`request-${req.id}`} className={rowClass(req.id)}>
-                    <td className="border-b border-border p-2 font-semibold text-ink">
-                      {req.title}
-                    </td>
-                    <RequesterCell requester={req.requester} />
-                    <td className="border-b border-border p-2 leading-snug text-ink-muted">
-                      {req.reason ?? "No reason given"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="mt-10 text-sm text-ink-muted">No declined requests.</p>
-          )
+        {!loading && !loadError && (
+          <div className="mt-4">
+            {grouped[tab].length === 0 ? (
+              <EmptyState>{EMPTY[tab]}</EmptyState>
+            ) : (
+              <div className={tableCard}>
+                <table className="w-full min-w-[860px] border-collapse text-sm">
+                  <thead>
+                    <tr className={headRow}>
+                      {COLUMNS[tab].map((h) => (
+                        <th key={h} className={`${th} ${h === "" ? "text-right" : ""}`}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grouped[tab].map((req, i) => (
+                      <tr key={req.id} id={`request-${req.id}`} className={rowClass(req.id)}>
+                        <td className={snCell}>{i + 1}</td>
+                        <RequestCell req={req} />
+                        <RequesterCell requester={req.requester} />
+                        <td className={`${td} whitespace-nowrap text-ink-muted`}>{shortDate(req.createdAt)}</td>
+                        {tab === "Open" && (
+                          <>
+                            <td className={`${td} whitespace-nowrap text-ink`}>{shortDate(req.neededBy)}</td>
+                            <td className={td}>
+                              <StatusTag status={req.status} />
+                            </td>
+                            <td className={`${td} text-right whitespace-nowrap`}>
+                              <button type="button" onClick={() => setDelivering(req)} className={primaryButton}>
+                                Deliver
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeclining(req)}
+                                className={`ml-2 ${dangerButton}`}
+                              >
+                                Decline
+                              </button>
+                            </td>
+                          </>
+                        )}
+                        {tab === "Delivered" && (
+                          <>
+                            <td className={td}>
+                              {req.ad ? (
+                                <a
+                                  suppressHydrationWarning
+                                  href={`/ads/${req.ad.id}`}
+                                  className="font-semibold text-brand hover:underline"
+                                >
+                                  {req.ad.title}
+                                </a>
+                              ) : (
+                                <span className="text-ink-muted">—</span>
+                              )}
+                            </td>
+                            <td className={td}>
+                              <StatusTag status="Delivered" />
+                            </td>
+                          </>
+                        )}
+                        {tab === "Declined" && (
+                          <>
+                            <td className={`${td} max-w-[360px] leading-snug text-ink-muted`}>
+                              {req.reason ?? "No reason given"}
+                            </td>
+                            <td className={td}>
+                              <StatusTag status="Declined" />
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
       </main>
 

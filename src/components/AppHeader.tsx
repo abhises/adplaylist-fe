@@ -132,6 +132,7 @@ export default function AppHeader() {
         { href: "/admin/feedback", label: "Feedback" },
         { href: "/admin/contact", label: "Contact" },
         { href: "/admin/pricing", label: "Pricing" },
+        { href: "/admin/transactions", label: "Transactions" },
       ]
     : [];
 
