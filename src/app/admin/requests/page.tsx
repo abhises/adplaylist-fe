@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import Modal from "@/components/Modal";
+import Pagination, { usePagination } from "@/components/Pagination";
 import Spinner from "@/components/Spinner";
 import {
   Avatar,
@@ -50,6 +51,14 @@ function shortDate(iso?: string) {
     day: "numeric",
     month: "short",
   });
+}
+
+function groupRequests(requests: CreativeRequest[]): Record<Tab, CreativeRequest[]> {
+  return {
+    Open: requests.filter((r) => r.status !== "Delivered" && r.status !== "Declined"),
+    Delivered: requests.filter((r) => r.status === "Delivered"),
+    Declined: requests.filter((r) => r.status === "Declined"),
+  };
 }
 
 function tabOf(status: string): (typeof TABS)[number] {
@@ -327,15 +336,6 @@ function RequestsQueue() {
   const [delivering, setDelivering] = useState<CreativeRequest | null>(null);
   const [declining, setDeclining] = useState<CreativeRequest | null>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    api
-      .getRequestsQueue()
-      .then(({ requests }) => setRequests(requests))
-      .catch(() => setLoadError("Couldn't load requests."))
-      .finally(() => setLoading(false));
-  }, [user]);
-
   // New and updated requests arrive live; new ones go on top.
   useEffect(
     () =>
@@ -366,13 +366,29 @@ function RequestsQueue() {
     setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
   }
 
-  if (!ready || !user) return null;
+  const grouped = groupRequests(requests);
+  const pagination = usePagination(grouped[tab].length, "adplaylist_queue_page_size");
 
-  const grouped = {
-    Open: requests.filter((r) => r.status !== "Delivered" && r.status !== "Declined"),
-    Delivered: requests.filter((r) => r.status === "Delivered"),
-    Declined: requests.filter((r) => r.status === "Declined"),
-  };
+  useEffect(() => {
+    if (!user) return;
+    api
+      .getRequestsQueue()
+      .then(({ requests }) => {
+        setRequests(requests);
+        // Arriving from a notification: open the page that request is on.
+        const target = requests.find((r) => r.id === highlightId);
+        if (target) {
+          const index = groupRequests(requests)[tabOf(target.status)].indexOf(target);
+          pagination.setPage(Math.floor(index / pagination.props.pageSize) + 1);
+        }
+      })
+      .catch(() => setLoadError("Couldn't load requests."))
+      .finally(() => setLoading(false));
+    // Only when the user loads; highlightId comes from the URL it opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  if (!ready || !user) return null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -392,7 +408,10 @@ function RequestsQueue() {
           className="mt-6 grid-cols-3"
           items={TABS.map((t) => ({ key: t, label: TAB_LABELS[t], count: grouped[t].length }))}
           active={tab}
-          onSelect={setTab}
+          onSelect={(t) => {
+            setTab(t);
+            pagination.setPage(1);
+          }}
         />
 
         {loading && (
@@ -420,9 +439,9 @@ function RequestsQueue() {
                     </tr>
                   </thead>
                   <tbody>
-                    {grouped[tab].map((req, i) => (
+                    {grouped[tab].slice(pagination.start, pagination.end).map((req, i) => (
                       <tr key={req.id} id={`request-${req.id}`} className={rowClass(req.id)}>
-                        <td className={snCell}>{i + 1}</td>
+                        <td className={snCell}>{pagination.start + i + 1}</td>
                         <RequestCell req={req} />
                         <RequesterCell requester={req.requester} />
                         <td className={`${td} whitespace-nowrap text-ink-muted`}>{shortDate(req.createdAt)}</td>
@@ -482,6 +501,7 @@ function RequestsQueue() {
                 </table>
               </div>
             )}
+            {grouped[tab].length > 0 && <Pagination {...pagination.props} />}
           </div>
         )}
       </main>
