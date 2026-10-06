@@ -5,6 +5,7 @@ import Link from "@/components/Link";
 import { usePathname } from "next/navigation";
 import AccountMenu from "@/components/AccountMenu";
 import AccountBanner from "@/components/AccountBanner";
+import NotificationBell from "@/components/NotificationBell";
 import { useAuth } from "@/lib/AuthProvider";
 import { slugify } from "@/lib/slug";
 
@@ -112,7 +113,10 @@ export default function AppHeader() {
   const contentLinks: NavLink[] = [
     ...(canPublish ? [{ href: "/add-ad", label: "Add ad" }] : []),
     ...(canPublish
-      ? [{ href: "/admin/requests", label: "Requests queue" }]
+      ? [
+          { href: "/admin/requests", label: "Requests queue" },
+          { href: "/notifications", label: "Notifications" },
+        ]
       : []),
     ...(user?.permissions?.brandPages
       ? [{ href: "/admin/brand-pages", label: "Brand pages" }]
@@ -184,6 +188,7 @@ export default function AppHeader() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
+          <NotificationBell />
           <Link
             href="/requests"
             className="flex items-center gap-1.5 bg-brand px-[14px] py-[10px] text-sm font-bold whitespace-nowrap text-brand-foreground lg:px-4 lg:py-2"

@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
 const TOKEN_KEY = "adplaylist_token";
 
 export type Ad = {
@@ -287,7 +287,31 @@ export type CreativeRequest = {
   attachmentUrl?: string;
   attachmentName?: string;
   ad?: Ad;
-  requester?: { fullName: string; email: string };
+  // Only sent to staff: who raised it, and their company account.
+  requester?: {
+    id: number;
+    fullName: string;
+    email: string;
+    role: Role;
+    accountRole?: string;
+    company?: { name: string; plan: string; status: string };
+  };
+  createdAt: string;
+};
+
+// An entry under the bell: for this person, or for their role (e.g. a new
+// request for staff, a delivered request for the customer who asked).
+export type AppNotification = {
+  id: number;
+  // e.g. request.created, request.delivered, contact.created, payment.received
+  type: string;
+  title: string;
+  body?: string;
+  // The page it opens.
+  link?: string;
+  requestId?: number;
+  actor?: { fullName: string; email: string };
+  read: boolean;
   createdAt: string;
 };
 
@@ -575,6 +599,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  getNotifications: () =>
+    request<{ notifications: AppNotification[]; unread: number }>("/api/notifications"),
+
+  markNotificationRead: (id: number) =>
+    request<{ ok: true }>(`/api/notifications/${id}/read`, { method: "POST" }),
+
+  markAllNotificationsRead: () =>
+    request<{ ok: true }>("/api/notifications/read-all", { method: "POST" }),
 
   getRequestsQueue: () =>
     request<{ requests: CreativeRequest[] }>("/api/requests/queue"),

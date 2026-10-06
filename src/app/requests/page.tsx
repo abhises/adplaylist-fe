@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useEffect,
   useRef,
   useState,
@@ -8,6 +9,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
 import Spinner from "@/components/Spinner";
@@ -16,6 +18,7 @@ import { useAuth, useRequireAuth } from "@/lib/AuthProvider";
 import UpgradePrompt, { type UpgradeReason } from "@/components/UpgradePrompt";
 import { can } from "@/lib/plans";
 import { useToast } from "@/lib/ToastProvider";
+import { useNotifications } from "@/lib/NotificationsProvider";
 
 // Kept in sync with the backend's multer fileFilter in adplaylist-be/src/routes/uploads.ts
 const SUPPORTED_ATTACHMENT_TYPES =
@@ -119,11 +122,24 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
 }
 
 export default function RequestsPage() {
+  return (
+    <Suspense>
+      <Requests />
+    </Suspense>
+  );
+}
+
+function Requests() {
   const { user, ready } = useRequireAuth();
   const { refresh } = useAuth();
+  const { onNotification } = useNotifications();
   const toast = useToast();
   const [upgrade, setUpgrade] = useState<UpgradeReason | null>(null);
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Open");
+  // A notification links to ?tab=Delivered (or Declined); clicking a tab
+  // overrides it.
+  const tabParam = useSearchParams().get("tab");
+  const [chosenTab, setTab] = useState<(typeof TABS)[number] | null>(null);
+  const tab = chosenTab ?? TABS.find((t) => t === tabParam) ?? "Open";
   const [requests, setRequests] = useState<CreativeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -156,6 +172,18 @@ export default function RequestsPage() {
       .then(({ requests }) => setRequests(requests))
       .finally(() => setLoading(false));
   }, [user]);
+
+  // When a request is delivered or declined, show it straight away. A
+  // decline refunds the credit, so the balance is reloaded too.
+  useEffect(
+    () =>
+      onNotification((n) => {
+        if (n.type !== "request.delivered" && n.type !== "request.declined") return;
+        api.getRequests().then(({ requests }) => setRequests(requests)).catch(() => {});
+        if (n.type === "request.declined") refresh();
+      }),
+    [onNotification, refresh]
+  );
 
   const grouped = {
     Open: requests.filter(

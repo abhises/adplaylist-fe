@@ -3,6 +3,7 @@ import { Archivo, JetBrains_Mono } from "next/font/google";
 import ImageGuard from "@/components/ImageGuard";
 import { AuthProvider } from "@/lib/AuthProvider";
 import { ThemeProvider } from "@/lib/ThemeProvider";
+import { NotificationsProvider } from "@/lib/NotificationsProvider";
 import { ToastProvider } from "@/lib/ToastProvider";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
@@ -57,7 +58,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider>
           <AuthProvider>
             <ImageGuard />
-            <ToastProvider>{children}</ToastProvider>
+            <ToastProvider>
+              <NotificationsProvider>{children}</NotificationsProvider>
+            </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import Modal from "@/components/Modal";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type Ad, type CreativeRequest } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
+import { useNotifications } from "@/lib/NotificationsProvider";
 
 const TABS = ["Open", "Delivered", "Declined"] as const;
 
@@ -23,6 +25,31 @@ function shortDate(iso?: string) {
     day: "numeric",
     month: "short",
   });
+}
+
+function tabOf(status: string): (typeof TABS)[number] {
+  return status === "Delivered" || status === "Declined" ? status : "Open";
+}
+
+// Who sent a request: name, email and the company account they belong to.
+function RequesterCell({ requester }: { requester: CreativeRequest["requester"] }) {
+  if (!requester) return <td className="border-b border-border p-2 text-ink-muted">—</td>;
+  const company = requester.company;
+  return (
+    <td className="border-b border-border p-2 align-top">
+      <p className="text-ink">{requester.fullName}</p>
+      <a href={`mailto:${requester.email}`} className="block text-xs text-ink-muted hover:text-ink hover:underline">
+        {requester.email}
+      </a>
+      <p className="mt-0.5 text-xs text-ink-muted">
+        {company
+          ? `${company.name} · ${company.plan}${company.status === "active" ? "" : ` (${company.status})`}${
+              requester.accountRole === "owner" ? " · owner" : ""
+            }`
+          : `Staff · ${requester.role}`}
+      </p>
+    </td>
+  );
 }
 
 function DeliverModal({
@@ -233,8 +260,20 @@ function DeclineModal({
 }
 
 export default function RequestsQueuePage() {
+  return (
+    <Suspense>
+      <RequestsQueue />
+    </Suspense>
+  );
+}
+
+function RequestsQueue() {
   const { user, ready } = useRequireRole(["designer", "admin"]);
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Open");
+  const { onRequest } = useNotifications();
+  // Set when arriving from a notification: that request is highlighted.
+  const highlightId = Number(useSearchParams().get("request")) || null;
+  // Null until a tab is clicked: then it shows the highlighted request's tab.
+  const [chosenTab, setTab] = useState<(typeof TABS)[number] | null>(null);
   const [requests, setRequests] = useState<CreativeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -250,6 +289,32 @@ export default function RequestsQueuePage() {
       .catch(() => setLoadError("Couldn't load requests."))
       .finally(() => setLoading(false));
   }, [user]);
+
+  // New and updated requests arrive live; new ones go on top.
+  useEffect(
+    () =>
+      onRequest((incoming) =>
+        setRequests((prev) =>
+          prev.some((r) => r.id === incoming.id)
+            ? prev.map((r) => (r.id === incoming.id ? incoming : r))
+            : [incoming, ...prev]
+        )
+      ),
+    [onRequest]
+  );
+
+  // Open the tab holding the highlighted request and scroll to it.
+  const highlighted = requests.find((r) => r.id === highlightId);
+  const highlightedTab = highlighted ? tabOf(highlighted.status) : null;
+  const tab = chosenTab ?? highlightedTab ?? "Open";
+  useEffect(() => {
+    if (highlightedTab) {
+      document.getElementById(`request-${highlightId}`)?.scrollIntoView({ block: "center" });
+    }
+  }, [highlightedTab, highlightId]);
+
+  const rowClass = (id: number) =>
+    id === highlightId ? "bg-brand/10 hover:bg-brand/15" : "hover:bg-surface-2/60";
 
   function replaceRequest(updated: CreativeRequest) {
     setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
@@ -272,8 +337,9 @@ export default function RequestsQueuePage() {
         </p>
         <h1 className="text-3xl font-extrabold text-ink">Requests queue</h1>
         <p className="mt-2 text-sm text-ink-muted">
-          Every creative request raised across all clients. Deliver by linking a
-          finished ad, or decline with a reason.
+          Every creative request raised across all clients, with who sent it.
+          New requests appear here live. Deliver by linking a finished ad, or
+          decline with a reason.
         </p>
 
         <div className="mt-5 flex max-w-[420px] border border-border">
@@ -319,16 +385,15 @@ export default function RequestsQueuePage() {
               </thead>
               <tbody>
                 {grouped.Open.map((req) => (
-                  <tr key={req.id} className="hover:bg-surface-2/60">
+                  <tr key={req.id} id={`request-${req.id}`} className={rowClass(req.id)}>
                     <td className="border-b border-border p-2">
                       <p className="font-semibold text-ink">{req.title}</p>
                       <p className="mt-0.5 text-xs text-ink-muted">
-                        {req.sizeNeeded ?? "Any size"} &middot; {shortDate(req.createdAt)}
+                        {req.type} &middot; {req.sizeNeeded ?? "Any size"} &middot; sent{" "}
+                        {shortDate(req.createdAt)}
                       </p>
                     </td>
-                    <td className="border-b border-border p-2 text-ink-muted">
-                      {req.requester?.fullName ?? "—"}
-                    </td>
+                    <RequesterCell requester={req.requester} />
                     <td className="border-b border-border p-2 text-ink">
                       {shortDate(req.neededBy)}
                     </td>
@@ -381,13 +446,11 @@ export default function RequestsQueuePage() {
               </thead>
               <tbody>
                 {grouped.Delivered.map((req) => (
-                  <tr key={req.id} className="hover:bg-surface-2/60">
+                  <tr key={req.id} id={`request-${req.id}`} className={rowClass(req.id)}>
                     <td className="border-b border-border p-2 font-semibold text-ink">
                       {req.title}
                     </td>
-                    <td className="border-b border-border p-2 text-ink-muted">
-                      {req.requester?.fullName ?? "—"}
-                    </td>
+                    <RequesterCell requester={req.requester} />
                     <td className="border-b border-border p-2">
                       {req.ad ? (
                         <a suppressHydrationWarning
@@ -429,13 +492,11 @@ export default function RequestsQueuePage() {
               </thead>
               <tbody>
                 {grouped.Declined.map((req) => (
-                  <tr key={req.id} className="hover:bg-surface-2/60">
+                  <tr key={req.id} id={`request-${req.id}`} className={rowClass(req.id)}>
                     <td className="border-b border-border p-2 font-semibold text-ink">
                       {req.title}
                     </td>
-                    <td className="border-b border-border p-2 text-ink-muted">
-                      {req.requester?.fullName ?? "—"}
-                    </td>
+                    <RequesterCell requester={req.requester} />
                     <td className="border-b border-border p-2 leading-snug text-ink-muted">
                       {req.reason ?? "No reason given"}
                     </td>
