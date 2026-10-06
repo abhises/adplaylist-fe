@@ -105,11 +105,12 @@ function Avatar({ author, size }: { author: Author; size: "sm" | "lg" }) {
 const eyebrow = "text-[13px] font-semibold tracking-[0.13em] text-ink-muted uppercase lg:text-sm";
 
 // The two actions under the ad's title. Labels never wrap: the buttons stack
-// instead (see where they're rendered).
+// instead (see where they're rendered). h-full keeps the pair the same height
+// when one has two lines ("Request Canva Edit" and its credit note).
 const canvaButton =
-  "flex w-full items-center justify-center gap-1.5 whitespace-nowrap bg-brand px-3 py-3 text-base font-bold text-brand-foreground lg:py-4 lg:text-[17px]";
+  "flex h-full w-full items-center justify-center gap-1.5 whitespace-nowrap bg-brand px-3 py-3 text-base font-bold text-brand-foreground lg:py-4 lg:text-[17px]";
 const downloadButton =
-  "flex w-full items-center justify-center gap-2 whitespace-nowrap border border-ink/25 bg-card px-4 py-3 text-base font-bold text-ink hover:border-ink/60 lg:justify-between lg:py-4 lg:text-[17px]";
+  "flex h-full w-full items-center justify-center gap-2 whitespace-nowrap border border-ink/25 bg-card px-4 py-3 text-base font-bold text-ink hover:border-ink/60 lg:justify-between lg:py-4 lg:text-[17px]";
 
 function DetailRow({
   label,
@@ -313,9 +314,6 @@ export default function AdDetailView({
       >
         &#128274; Edit in Canva
       </button>
-    ) : user?.role === "designer" || user?.role === "admin" ? (
-      // Staff add the link themselves from the ad's edit page.
-      <span className={`${canvaButton} opacity-60`}>&#9998; Edit in Canva</span>
     ) : canvaRequested ? (
       <span className={`${canvaButton} opacity-60`}>&#10003; Canva edit requested</span>
     ) : (
