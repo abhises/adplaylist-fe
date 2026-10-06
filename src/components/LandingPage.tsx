@@ -209,8 +209,8 @@ export default function LandingPage() {
   const [requestType, setRequestType] = useState("New market");
   // null while the first fetch is in flight; [] if it failed.
   const [liveAds, setLiveAds] = useState<LibraryAd[] | null>(null);
-  // A random position per ad, drawn once per visit, so the hero's All tab
-  // shows a different mix each time without reshuffling on every render.
+  // A random position per ad, drawn once per visit, so the hero's picks show
+  // in a different order each visit without reshuffling on every render.
   const [heroRank, setHeroRank] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
@@ -240,8 +240,8 @@ export default function LandingPage() {
       : ADS.map((ad) => fromSample(ad, "/library"));
   // The hero panel shows the ads an admin picked for it in Admin → Home
   // section: a tab each for Meta, Google and LinkedIn with the ads picked for
-  // that tab (up to six), and an All tab with nine picks at random. Until
-  // they pick some, it shows the newest.
+  // that tab (up to six), and an All tab with nine picks. Picks show in a
+  // random order on every tab. Until they pick some, it shows the newest.
   const heroPicked = libraryCards.filter((c) => c.heroPlatforms.length > 0);
   const picking = heroPicked.length > 0;
   const runsOn = (c: LibraryCard, p: string) => c.platforms.some((cp) => cp.toLowerCase() === p.toLowerCase());
@@ -249,11 +249,9 @@ export default function LandingPage() {
   const platforms = picking
     ? ["All", ...HERO_PLATFORMS.filter((p) => heroPicked.some((c) => c.heroPlatforms.includes(p)))]
     : allPlatforms(libraryCards);
-  const heroCards = !picking
-    ? libraryCards
-    : platform === "All"
-      ? [...heroPicked].sort((a, b) => (heroRank.get(a.key) ?? 0) - (heroRank.get(b.key) ?? 0))
-      : heroPicked;
+  const heroCards = picking
+    ? [...heroPicked].sort((a, b) => (heroRank.get(a.key) ?? 0) - (heroRank.get(b.key) ?? 0))
+    : libraryCards;
   const heroAds = heroCards
     .filter((c) => platform === "All" || inTab(c, platform))
     .slice(0, platform === "All" ? HERO_ALL_TILES : HERO_PER_PLATFORM);
