@@ -18,6 +18,11 @@ import { HERO_PER_PLATFORM, HERO_PLATFORMS, shuffle } from "@/lib/ads";
 // platform's picks, up to HERO_PER_PLATFORM.
 const HERO_ALL_TILES = 6;
 
+// The library row advances one card this often, and holds still this long
+// after someone touches, scrolls or clicks it.
+const LIBRARY_AUTOPLAY_MS = 2000;
+const LIBRARY_IDLE_MS = 6000;
+
 // The landing page keeps its own fixed light palette (it doesn't follow the
 // app's dark theme), so colors here are literal rather than theme tokens.
 const RED = "#EC3016";
@@ -200,6 +205,10 @@ export default function LandingPage() {
   const [platform, setPlatform] = useState("All");
   const [category, setCategory] = useState("All");
   const libraryRow = useRef<HTMLDivElement>(null);
+  // Autoplay pauses while the pointer is over the row, and until this time
+  // after someone interacts with it.
+  const libraryHover = useRef(false);
+  const libraryPausedUntil = useRef(0);
   const [requestType, setRequestType] = useState<RequestType>("market");
   // null while the first fetch is in flight; [] if it failed.
   const [liveAds, setLiveAds] = useState<LibraryAd[] | null>(null);
@@ -255,6 +264,42 @@ export default function LandingPage() {
   const sectionCards = featuredCards.length > 0 ? featuredCards : libraryCards.slice(0, 4);
   const categories = topCategories(sectionCards);
   const libraryAds = sectionCards.filter((c) => category === "All" || c.category === category);
+
+  // Slides the library row on by one card at a time, back to the start after
+  // the last. Off for visitors who prefer reduced motion, and only while the
+  // row is on screen and has somewhere to scroll.
+  const libraryCount = libraryAds.length;
+  useEffect(() => {
+    const row = libraryRow.current;
+    if (!row || libraryCount < 2) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let visible = false;
+    const io = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+    });
+    io.observe(row);
+
+    const timer = window.setInterval(() => {
+      if (!visible || document.hidden || libraryHover.current || performance.now() < libraryPausedUntil.current) return;
+      if (row.scrollWidth <= row.clientWidth) return;
+      const card = row.firstElementChild as HTMLElement | null;
+      if (!card) return;
+      const step = card.offsetWidth + parseFloat(getComputedStyle(row).columnGap || "0");
+      const atEnd = row.scrollLeft + row.clientWidth >= row.scrollWidth - 4;
+      row.scrollTo({ left: atEnd ? 0 : row.scrollLeft + step, behavior: "smooth" });
+    }, LIBRARY_AUTOPLAY_MS);
+
+    return () => {
+      window.clearInterval(timer);
+      io.disconnect();
+    };
+  }, [libraryCount, category]);
+
+  // Event timestamps share performance.now()'s clock.
+  function pauseLibrary(e: { timeStamp: number }) {
+    libraryPausedUntil.current = e.timeStamp + LIBRARY_IDLE_MS;
+  }
 
   function handleSignup(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -465,7 +510,8 @@ export default function LandingPage() {
                     key={dir}
                     type="button"
                     aria-label={dir < 0 ? t.library.prev : t.library.next}
-                    onClick={() => {
+                    onClick={(e) => {
+                      pauseLibrary(e);
                       const row = libraryRow.current;
                       row?.scrollBy({ left: dir * row.clientWidth * 0.8, behavior: "smooth" });
                     }}
@@ -482,6 +528,15 @@ export default function LandingPage() {
               wider screens show several fixed-width cards snapping to the left. */}
           <div
             ref={libraryRow}
+            onPointerEnter={(e) => {
+              if (e.pointerType === "mouse") libraryHover.current = true;
+            }}
+            onPointerLeave={() => {
+              libraryHover.current = false;
+            }}
+            onTouchStart={pauseLibrary}
+            onWheel={pauseLibrary}
+            onFocus={pauseLibrary}
             className="mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto [scrollbar-width:none] max-[699px]:-mx-[clamp(20px,4vw,32px)] max-[699px]:px-[12.5%] max-[699px]:[mask-image:linear-gradient(to_right,transparent,#000_10%,#000_90%,transparent)] min-[700px]:mt-12 min-[700px]:gap-5 min-[700px]:[mask-image:linear-gradient(to_right,#000_92%,transparent)] [&::-webkit-scrollbar]:hidden"
           >
             {liveAds === null
