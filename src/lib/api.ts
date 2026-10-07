@@ -254,6 +254,30 @@ export type User = {
   account: Account | null;
 };
 
+// The library's "Tell us about your brand" questionnaire.
+export type OnboardingAnswers = {
+  niche: string;
+  product: string;
+  brand: string;
+  website: string;
+  libraryType: "meta" | "google";
+  libraryUrl: string;
+  competitors: string[];
+  completedAt: string | null;
+  skippedAt: string | null;
+  updatedAt: string;
+};
+
+export type OnboardingFields = Omit<
+  OnboardingAnswers,
+  "completedAt" | "skippedAt" | "updatedAt"
+>;
+
+export type AdminOnboardingAnswers = OnboardingAnswers & {
+  id: number;
+  user: { id: number; fullName: string; email: string };
+};
+
 export type AdminUser = {
   id: number;
   email: string;
@@ -729,6 +753,21 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
+
+  getOnboarding: () =>
+    request<{ answers: OnboardingAnswers | null }>("/api/profile/onboarding"),
+
+  // Only the fields passed are changed.
+  saveOnboarding: (
+    data: Partial<OnboardingFields> & { action?: "complete" | "skip" }
+  ) =>
+    request<{ answers: OnboardingAnswers }>("/api/profile/onboarding", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  getAllOnboarding: () =>
+    request<{ answers: AdminOnboardingAnswers[] }>("/api/admin/onboarding"),
 
   getUsers: () => request<{ users: AdminUser[] }>("/api/admin/users"),
 

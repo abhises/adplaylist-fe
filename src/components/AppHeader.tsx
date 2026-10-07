@@ -130,6 +130,7 @@ export default function AppHeader() {
         { href: "/admin/tags", label: "Tags" },
         { href: "/admin/home-section", label: "Home section" },
         { href: "/admin/feedback", label: "Feedback" },
+        { href: "/admin/brand-answers", label: "Brand answers" },
         { href: "/admin/contact", label: "Contact" },
         { href: "/admin/pricing", label: "Pricing" },
         { href: "/admin/transactions", label: "Transactions" },

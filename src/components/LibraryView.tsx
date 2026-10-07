@@ -9,6 +9,7 @@ import SignUpPrompt from "@/components/SignUpPrompt";
 import AdCard from "@/components/AdCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import FeedbackPanel from "@/components/FeedbackPanel";
+import OnboardingPopup from "@/components/OnboardingQuestionnaire";
 import Pagination, { usePagination } from "@/components/Pagination";
 import Spinner from "@/components/Spinner";
 import UpgradePrompt from "@/components/UpgradePrompt";
@@ -1026,6 +1027,7 @@ export default function LibraryView({
       />
 
       {user && <FeedbackPanel user={user} />}
+      {user && <OnboardingPopup user={user} />}
       <UpgradePrompt reason={saveLocked ? "save" : null} onClose={() => setSaveLocked(false)} />
       <SignUpPrompt reason={signUpPrompt} onClose={() => setSignUpPrompt(null)} />
     </div>

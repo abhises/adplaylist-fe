@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import AppHeader from "@/components/AppHeader";
-import { api, ApiError, type User } from "@/lib/api";
+import {
+  ONBOARDING_STEPS,
+  OnboardingQuestion,
+  onboardingFields,
+  onboardingStepValid,
+} from "@/components/OnboardingQuestionnaire";
+import { api, ApiError, type OnboardingFields, type User } from "@/lib/api";
 import { LANGUAGE_OPTIONS } from "@/lib/ads";
 import { useAuth, useRequireAuth } from "@/lib/AuthProvider";
 import { useToast } from "@/lib/ToastProvider";
@@ -90,6 +96,92 @@ function formFromUser(user: User) {
     gridDensity: user.gridDensity,
     emailPreferences: { ...user.emailPreferences },
   };
+}
+
+// The library's brand questionnaire, all on one page and saved on its own.
+function BrandAnswers() {
+  const toast = useToast();
+  const [saved, setSaved] = useState<OnboardingFields | null>(null);
+  const [value, setValue] = useState<OnboardingFields | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .getOnboarding()
+      .then(({ answers }) => {
+        const fields = onboardingFields(answers);
+        setSaved(fields);
+        setValue(fields);
+      })
+      .catch(() => setError("Couldn't load your answers."));
+  }, []);
+
+  if (!value || !saved) {
+    return error ? <p className="mt-2 text-sm text-brand">{error}</p> : null;
+  }
+
+  const steps = Array.from({ length: ONBOARDING_STEPS }, (_, i) => i + 1);
+  // The popup needs steps 1 and 2 before it counts as finished.
+  const complete = onboardingStepValid(1, value) && onboardingStepValid(2, value);
+  const changed = JSON.stringify(value) !== JSON.stringify(saved);
+
+  async function handleSave() {
+    if (!value) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const { answers } = await api.saveOnboarding({
+        ...value,
+        ...(complete ? { action: "complete" as const } : {}),
+      });
+      const fields = onboardingFields(answers);
+      setSaved(fields);
+      setValue(fields);
+      toast.success("Brand details saved.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't save.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="mt-2 grid grid-cols-1 gap-8 border border-ink/15 p-6 lg:grid-cols-2">
+        {steps.map((step) => (
+          <OnboardingQuestion
+            key={step}
+            step={step}
+            value={value}
+            onChange={setValue}
+          />
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={saving || !changed}
+          className="bg-brand px-5 py-2.5 text-sm font-bold text-brand-foreground disabled:opacity-60"
+        >
+          {saving ? "Saving…" : "Save brand details"}
+        </button>
+        {changed && (
+          <button
+            onClick={() => setValue(saved)}
+            className="border border-border px-5 py-2.5 text-sm font-bold text-ink"
+          >
+            Discard
+          </button>
+        )}
+        {error && (
+          <span role="alert" className="text-sm text-brand">
+            {error}
+          </span>
+        )}
+      </div>
+    </>
+  );
 }
 
 export default function ProfilePage() {
@@ -271,6 +363,19 @@ export default function ProfilePage() {
               ))}
             </div>
           </div>
+
+          {authUser.role === "client" && (
+            <div className="mt-10">
+              <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+                Your brand
+              </p>
+              <p className="mt-1 text-sm text-ink-muted">
+                We use this to surface ads from your niche and track what your
+                competitors are running.
+              </p>
+              <BrandAnswers />
+            </div>
+          )}
 
           <div className="mt-10 border border-brand p-6">
             <p className="text-xs font-medium tracking-[1px] text-brand uppercase">
