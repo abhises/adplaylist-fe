@@ -5,8 +5,8 @@ import Link from "@/components/Link";
 import AppHeader from "@/components/AppHeader";
 import TagPicker from "@/components/TagPicker";
 import AdSeoEditor from "@/components/AdSeoEditor";
+import CategorySelect from "@/components/CategorySelect";
 import {
-  CATEGORY_OPTIONS,
   DOMINANT_COLORS,
   LANGUAGE_OPTIONS,
   MARKET_OPTIONS,
@@ -416,15 +416,11 @@ export default function AdEditor({
                 value={draft.category}
                 editing={editing}
                 edit={
-                  <select
+                  <CategorySelect
                     value={draft.category}
-                    onChange={(e) => update({ category: e.target.value })}
+                    onChange={(category) => update({ category })}
                     className={inputClass}
-                  >
-                    {CATEGORY_OPTIONS.map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
+                  />
                 }
               />
               <Row

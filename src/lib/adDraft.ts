@@ -1,6 +1,5 @@
 import {
   AD_FORMAT_OPTIONS,
-  CATEGORY_OPTIONS,
   DOMINANT_COLORS,
   LANGUAGE_OPTIONS,
   MARKET_OPTIONS,
@@ -8,6 +7,7 @@ import {
   SIZE_OPTIONS,
   type Ad,
 } from "@/lib/ads";
+import { findCategory } from "@/lib/categories";
 import type { AdContent, Author } from "@/lib/api";
 
 // An ad that has been filled from the Add ad page but not yet published.
@@ -171,7 +171,7 @@ export function emptyDraft(): AdDraft {
     sub: "",
     cta: "",
     description: "",
-    category: CATEGORY_OPTIONS[0],
+    category: "Other",
     market: MARKET_OPTIONS[1],
     language: LANGUAGE_OPTIONS[0],
     platforms: ["META"],
@@ -644,7 +644,7 @@ function recordToDraft(
     }
   }
   const categoryVal = row.category
-    ? findOption(CATEGORY_OPTIONS, row.category)
+    ? findCategory(row.category)
     : undefined;
   if (categoryVal) {
     draft.category = categoryVal;

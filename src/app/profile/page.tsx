@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import AppHeader from "@/components/AppHeader";
 import {
   ONBOARDING_STEPS,
@@ -45,10 +45,56 @@ const EMAIL_PREFS: {
   },
 ];
 
-function Toggle({
+// Small line icons for the email preference cards.
+const PREF_ICONS: Record<keyof User["emailPreferences"], ReactNode> = {
+  onboarding: <path d="M12 3 2 8l10 5 10-5-10-5Zm-6 7.5V15c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5" />,
+  product: <path d="M12 2v4m0 12v4M4.9 4.9l2.8 2.8m8.6 8.6 2.8 2.8M2 12h4m12 0h4M4.9 19.1l2.8-2.8m8.6-8.6 2.8-2.8" />,
+  promotions: (
+    <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8ZM7.5 7.5h.01" />
+  ),
+  brand: <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9Zm4.3 13a2 2 0 0 0 3.4 0" />,
+  newsletter: (
+    <path d="M4 4h13v16H6a2 2 0 0 1-2-2V4Zm13 4h3v10a2 2 0 0 1-2 2M8 8h5m-5 4h5m-5 4h3" />
+  ),
+};
+
+function Toggle({ on }: { on: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors duration-200 ${
+        on ? "bg-brand" : "bg-ink/20"
+      }`}
+    >
+      <span
+        className={`flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.3)] transition-transform duration-200 ease-out ${
+          on ? "translate-x-[23px]" : "translate-x-[3px]"
+        }`}
+      >
+        <svg
+          viewBox="0 0 12 12"
+          className={`h-3 w-3 text-brand transition-opacity duration-200 ${on ? "opacity-100" : "opacity-0"}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="m2.5 6.5 2.3 2.3 4.7-5" />
+        </svg>
+      </span>
+    </span>
+  );
+}
+
+function PrefCard({
+  id,
+  title,
+  desc,
   on,
   onToggle,
 }: {
+  id: keyof User["emailPreferences"];
+  title: string;
+  desc: string;
   on: boolean;
   onToggle: () => void;
 }) {
@@ -57,16 +103,46 @@ function Toggle({
       type="button"
       role="switch"
       aria-checked={on}
+      aria-label={title}
       onClick={onToggle}
-      className={`relative h-6 w-11 shrink-0 transition-colors ${
-        on ? "bg-brand" : "bg-surface-2 border border-border"
+      className={`group flex w-full items-start gap-4 border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+        on
+          ? "border-brand/50 bg-brand/[0.04]"
+          : "border-ink/15 bg-card hover:border-ink/40"
       }`}
     >
       <span
-        className={`absolute top-0.5 h-5 w-5 bg-white transition-transform ${
-          on ? "translate-x-[22px]" : "translate-x-0.5"
+        className={`flex h-10 w-10 shrink-0 items-center justify-center transition-colors ${
+          on ? "bg-brand text-brand-foreground" : "bg-surface-2 text-ink-muted"
         }`}
-      />
+      >
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          {PREF_ICONS[id]}
+        </svg>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="text-sm font-bold text-ink">{title}</span>
+          <span
+            className={`text-[10px] font-bold tracking-[1px] uppercase ${on ? "text-brand" : "text-ink-muted"}`}
+          >
+            {on ? "On" : "Off"}
+          </span>
+        </span>
+        <span className="mt-1 block text-xs leading-relaxed text-ink-muted">
+          {desc}
+        </span>
+      </span>
+      <Toggle on={on} />
     </button>
   );
 }
@@ -334,32 +410,41 @@ export default function ProfilePage() {
           </div>
 
           <div className="mt-10">
-            <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
-              Email preferences
-            </p>
-            <div className="mt-2 divide-y divide-ink/10 border-t border-b border-ink/15">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+                  Email preferences
+                </p>
+                <p className="mt-1 text-sm text-ink-muted">
+                  Choose which emails you get from us. Changes apply when you
+                  save.
+                </p>
+              </div>
+              <p className="text-xs text-ink-muted">
+                <span className="font-bold text-ink">
+                  {EMAIL_PREFS.filter((p) => form.emailPreferences[p.id]).length}
+                </span>{" "}
+                of {EMAIL_PREFS.length} on
+              </p>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
               {EMAIL_PREFS.map((pref) => (
-                <div
+                <PrefCard
                   key={pref.id}
-                  className="flex items-center justify-between gap-6 py-4"
-                >
-                  <div>
-                    <p className="text-sm font-bold text-ink">{pref.title}</p>
-                    <p className="mt-1 text-xs text-ink-muted">{pref.desc}</p>
-                  </div>
-                  <Toggle
-                    on={form.emailPreferences[pref.id]}
-                    onToggle={() =>
-                      setForm({
-                        ...form,
-                        emailPreferences: {
-                          ...form.emailPreferences,
-                          [pref.id]: !form.emailPreferences[pref.id],
-                        },
-                      })
-                    }
-                  />
-                </div>
+                  id={pref.id}
+                  title={pref.title}
+                  desc={pref.desc}
+                  on={form.emailPreferences[pref.id]}
+                  onToggle={() =>
+                    setForm({
+                      ...form,
+                      emailPreferences: {
+                        ...form.emailPreferences,
+                        [pref.id]: !form.emailPreferences[pref.id],
+                      },
+                    })
+                  }
+                />
               ))}
             </div>
           </div>

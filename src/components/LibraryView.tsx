@@ -7,6 +7,7 @@ import Link from "@/components/Link";
 import LandingHeader from "@/components/LandingHeader";
 import SignUpPrompt from "@/components/SignUpPrompt";
 import AdCard from "@/components/AdCard";
+import CategoryFilter from "@/components/CategoryFilter";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import FeedbackPanel from "@/components/FeedbackPanel";
 import OnboardingPopup from "@/components/OnboardingQuestionnaire";
@@ -23,6 +24,7 @@ import {
   shuffle,
 } from "@/lib/ads";
 import { api, ApiError, type Ad, type User } from "@/lib/api";
+import { findCategory } from "@/lib/categories";
 
 const ADDED_OPTIONS = [
   { label: "Any time", days: null },
@@ -82,9 +84,9 @@ export default function LibraryView({
   const [mediaTypes, setMediaTypes] = useState<string[]>([]);
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    initialCategory ? [initialCategory] : []
+    // Links from before the current categories carry an old name.
+    initialCategory ? [findCategory(initialCategory) ?? initialCategory] : []
   );
-  const [catOpen, setCatOpen] = useState(false);
   const [country, setCountry] = useState("");
   const [language, setLanguage] = useState("");
   const [addedDays, setAddedDays] = useState<number | null>(null);
@@ -190,12 +192,10 @@ export default function LibraryView({
   const imageCount = ads.filter((ad) => ad.mediaType === "image").length;
   const videoCount = ads.filter((ad) => ad.mediaType === "video").length;
 
-  const categoryOptions = useMemo(() => {
-    const names = [...new Set(ads.map((ad) => ad.category))].sort();
-    return names.map((name) => ({
-      name,
-      count: ads.filter((ad) => ad.category === name).length,
-    }));
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const ad of ads) counts.set(ad.category, (counts.get(ad.category) ?? 0) + 1);
+    return counts;
   }, [ads]);
 
   const formatOptions = useMemo(() => {
@@ -217,7 +217,6 @@ export default function LibraryView({
     setMediaTypes([]);
     setPlatforms([]);
     setSelectedCategories([]);
-    setCatOpen(false);
     setCountry("");
     setLanguage("");
     setAddedDays(null);
@@ -371,13 +370,6 @@ export default function LibraryView({
     selectedLengths.length +
     selectedColors.length +
     selectedTags.length;
-
-  const catSummary =
-    selectedCategories.length === 0
-      ? "All categories"
-      : selectedCategories.length === 1
-        ? selectedCategories[0]
-        : `${selectedCategories.length} selected`;
 
   useEffect(() => {
     if (!filtersOpen) return;
@@ -600,72 +592,11 @@ export default function LibraryView({
             </div>
           </div>
 
-          <div className="mt-6">
-            <div className="mb-3 flex items-baseline gap-2">
-              <p className="text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
-                Category
-              </p>
-              {selectedCategories.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategories([])}
-                  className="ml-auto text-xs text-brand hover:underline"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-
-            {selectedCategories.length > 0 && (
-              <div className="mb-2.5 flex flex-wrap gap-1.5">
-                {selectedCategories.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => toggle(selectedCategories, cat, setSelectedCategories)}
-                    className="flex items-center gap-1.5 border border-brand/30 bg-brand/10 px-2 py-1 text-xs text-brand"
-                  >
-                    {cat}
-                    <span aria-hidden>×</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setCatOpen((v) => !v)}
-                className="flex w-full items-center gap-2 border border-border bg-surface-2 px-2.5 py-1.5 text-left text-sm text-ink outline-none"
-              >
-                <span className="min-w-0 flex-1 truncate">{catSummary}</span>
-                <span className="text-[11px] text-ink-muted">{catOpen ? "▲" : "▼"}</span>
-              </button>
-              {catOpen && (
-                <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto border border-border bg-surface p-2 shadow-lg">
-                  <div className="flex flex-col gap-2">
-                    {categoryOptions.map((c) => (
-                      <label
-                        key={c.name}
-                        className="flex items-center gap-2 text-sm text-ink"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedCategories.includes(c.name)}
-                          onChange={() =>
-                            toggle(selectedCategories, c.name, setSelectedCategories)
-                          }
-                          className="h-[15px] w-[15px] shrink-0 accent-brand"
-                        />
-                        <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                        <span className="text-xs text-ink-muted">{c.count}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <CategoryFilter
+            counts={categoryCounts}
+            selected={selectedCategories}
+            onChange={setSelectedCategories}
+          />
 
           <div className="mt-6">
             <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">

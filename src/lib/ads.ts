@@ -31,28 +31,8 @@ export const SIZE_OPTIONS = [
   { name: "300 × 250", dims: "300 × 250" },
 ];
 
-export const CATEGORY_OPTIONS = [
-  "E-commerce / DTC",
-  "Fashion & Apparel",
-  "Luxury Fashion",
-  "Jewelry & Accessories",
-  "Beauty & Skincare",
-  "Personal care / Grooming",
-  "Health & Fitness",
-  "Mental Wellness",
-  "Food & Beverage",
-  "Home & Living",
-  "Parenting & Baby",
-  "Pets",
-  "Sustainability & Eco",
-  "Travel",
-  "Automotive",
-  "SaaS & Tech",
-  "Apps & Subscriptions",
-  "Gaming & Creator",
-  "Finance & Fintech",
-  "Education & E-learning",
-];
+// The full list (and its groups) lives in ./categories.
+export { CATEGORY_OPTIONS } from "./categories";
 
 export const MARKET_OPTIONS = ["All markets", "UK", "DE", "NL", "FR", "BE", "IT", "ES", "US"];
 
