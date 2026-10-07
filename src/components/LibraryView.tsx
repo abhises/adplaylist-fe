@@ -92,7 +92,8 @@ export default function LibraryView({
   const [addedDays, setAddedDays] = useState<number | null>(null);
   const [addedCutoff, setAddedCutoff] = useState<number | null>(null);
   const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
-  const [editableOnly, setEditableOnly] = useState(false);
+  // Whether the ad has a Canva template link; "" shows both.
+  const [canvaFilter, setCanvaFilter] = useState<"" | "editable" | "non-editable">("");
   const [selectedLengths, setSelectedLengths] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   // Taken from the page's searchParams rather than window.location, which
@@ -222,7 +223,7 @@ export default function LibraryView({
     setAddedDays(null);
     setAddedCutoff(null);
     setSelectedFormats([]);
-    setEditableOnly(false);
+    setCanvaFilter("");
     setSelectedLengths([]);
     setSelectedColors([]);
     setSelectedTags([]);
@@ -268,7 +269,8 @@ export default function LibraryView({
       if (selectedFormats.length && !selectedFormats.includes(ad.format)) {
         return false;
       }
-      if (editableOnly && !ad.editable) return false;
+      if (canvaFilter === "editable" && !ad.hasEditableCopy) return false;
+      if (canvaFilter === "non-editable" && ad.hasEditableCopy) return false;
       if (
         selectedLengths.length &&
         !(ad.videoLength && selectedLengths.includes(ad.videoLength))
@@ -293,7 +295,7 @@ export default function LibraryView({
     language,
     addedCutoff,
     selectedFormats,
-    editableOnly,
+    canvaFilter,
     selectedLengths,
     selectedColors,
     selectedTags,
@@ -310,7 +312,7 @@ export default function LibraryView({
     language,
     addedCutoff,
     selectedFormats,
-    editableOnly,
+    canvaFilter,
     selectedLengths,
     selectedColors,
     selectedTags,
@@ -366,7 +368,7 @@ export default function LibraryView({
     (language ? 1 : 0) +
     (addedDays !== null ? 1 : 0) +
     selectedFormats.length +
-    (editableOnly ? 1 : 0) +
+    (canvaFilter ? 1 : 0) +
     selectedLengths.length +
     selectedColors.length +
     selectedTags.length;
@@ -676,15 +678,30 @@ export default function LibraryView({
                 <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
                   Canva
                 </p>
-                <label className="flex items-center gap-2 text-sm text-ink">
-                  <input
-                    type="checkbox"
-                    checked={editableOnly}
-                    onChange={() => setEditableOnly((v) => !v)}
-                    className="h-[15px] w-[15px] accent-brand"
-                  />
-                  Editable only
-                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      ["editable", "Editable"],
+                      ["non-editable", "Non-editable"],
+                    ] as const
+                  ).map(([value, label]) => {
+                    const active = canvaFilter === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setCanvaFilter(active ? "" : value)}
+                        className={`border px-2.5 py-1 text-xs ${
+                          active
+                            ? "border-brand/30 bg-brand/10 text-brand"
+                            : "border-border text-ink hover:bg-surface-2"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="mt-6">
