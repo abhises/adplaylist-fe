@@ -37,7 +37,7 @@ export const CATEGORY_OPTIONS = [
   "Luxury Fashion",
   "Jewelry & Accessories",
   "Beauty & Skincare",
-  "Grooming",
+  "Personal care / Grooming",
   "Health & Fitness",
   "Mental Wellness",
   "Food & Beverage",

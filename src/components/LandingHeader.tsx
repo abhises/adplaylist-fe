@@ -3,9 +3,8 @@
 import { useState } from "react";
 import Link from "@/components/Link";
 import { useAuth } from "@/lib/AuthProvider";
-import { useI18n, useLanguageLinks } from "@/lib/I18nProvider";
+import { useI18n } from "@/lib/I18nProvider";
 import type { Dictionary } from "@/lib/dictionaries";
-import { LOCALE_NAMES } from "@/lib/i18n";
 
 // Links to the landing page's sections and the public pages beside it. On
 // the landing page itself the sections are in-page anchors; elsewhere (e.g.
@@ -31,7 +30,6 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
   const signedIn = ready && !!user;
   const [menuOpen, setMenuOpen] = useState(false);
   const { t } = useI18n();
-  const languages = useLanguageLinks();
 
   const base = onLanding ? "" : "/";
   // The landing page's sign-up form is in its hero; elsewhere, go to /signup.
@@ -49,11 +47,6 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
           {NAV_LINKS.map((l) => (
             <a suppressHydrationWarning key={l.label} href={linkHref(l)}>
               {t.header[l.label]}
-            </a>
-          ))}
-          {languages.map((l) => (
-            <a key={l.locale} href={l.href} hrefLang={l.locale} title={LOCALE_NAMES[l.locale]} className="font-mono text-[13px] tracking-[0.08em] uppercase">
-              {l.locale}
             </a>
           ))}
           {signedIn ? (
@@ -103,15 +96,10 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
             </a>
           ))}
           {!signedIn && (
-            <Link href="/login" onClick={() => setMenuOpen(false)} className="border-b border-white/25 py-4 text-[18px] font-semibold">
+            <Link href="/login" onClick={() => setMenuOpen(false)} className="py-4 text-[18px] font-semibold">
               {t.common.signIn}
             </Link>
           )}
-          {languages.map((l) => (
-            <a key={l.locale} href={l.href} hrefLang={l.locale} className="py-4 text-[18px] font-semibold">
-              {LOCALE_NAMES[l.locale]}
-            </a>
-          ))}
         </nav>
       )}
     </header>
