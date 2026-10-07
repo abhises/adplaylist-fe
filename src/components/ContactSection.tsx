@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/AuthProvider";
 import { useToast } from "@/lib/ToastProvider";
+import { useI18n } from "@/lib/I18nProvider";
 
 const mono = "font-mono text-[12px] tracking-[0.08em]";
 const h2 = "text-[clamp(36px,4.5vw,56px)] leading-none font-extrabold tracking-[-0.03em]";
@@ -11,13 +12,17 @@ const field =
   "w-full border border-[#e0ddd9] bg-white px-3 py-[11px] text-[15px] text-[#161514] outline-none focus:border-[#161514]";
 const label = "text-[13px] font-semibold text-[#55524e]";
 
-const VOLUMES = ["150–250", "250–500", "500–1,000", "1,000+", "Not sure yet"];
+// The last option, "Not sure yet", is translated; the API stores whichever
+// label was picked.
+const VOLUMES = ["150–250", "250–500", "500–1,000", "1,000+"];
 
 // #contact on the landing page, where the pricing section's "Custom volume,
 // custom price" box points. Enquiries reach admins under Admin → Feedback.
 export default function ContactSection() {
   const { user } = useAuth();
   const toast = useToast();
+  const { t: dict } = useI18n();
+  const t = dict.contact;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
@@ -44,9 +49,9 @@ export default function ContactSection() {
         website,
       });
       setSent(true);
-      toast.success("Thanks! We'll get back to you within one working day.");
+      toast.success(t.thanksToast);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't send your message.");
+      setError(err instanceof ApiError ? err.message : t.sendFailed);
     } finally {
       setSending(false);
     }
@@ -59,20 +64,13 @@ export default function ContactSection() {
         style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))" }}
       >
         <div>
-          <div className={`${mono} text-[#EC3016]`}>ENTERPRISE</div>
-          <h2 className={`${h2} mt-[14px] text-balance`}>Custom volume, custom price.</h2>
+          <div className={`${mono} text-[#EC3016]`}>{t.eyebrow}</div>
+          <h2 className={`${h2} mt-[14px] text-balance`}>{t.title}</h2>
           <p className="mt-6 max-w-[500px] text-[18px] leading-[1.55] text-pretty text-[#55524e]">
-            Need more than 150 ads a month, several brands under one account, or a setup
-            we don&rsquo;t list? Tell us what you need and we&rsquo;ll put together a plan
-            and price for you.
+            {t.lead}
           </p>
           <ul className="mt-8 flex flex-col gap-3 text-[16px] text-[#161514]">
-            {[
-              "Any monthly volume of custom ads",
-              "More brands and team seats",
-              "A dedicated creative lead",
-              "Invoiced billing",
-            ].map((item) => (
+            {t.points.map((item) => (
               <li key={item} className="flex gap-3">
                 <span className="font-bold text-[#1f8a4c]">✓</span>
                 {item}
@@ -83,10 +81,9 @@ export default function ContactSection() {
 
         {sent ? (
           <div className="flex flex-col gap-3 border border-[#e0ddd9] bg-white p-[clamp(20px,5vw,32px)]">
-            <div className="text-[20px] font-bold">Thanks, we&rsquo;ve got it.</div>
+            <div className="text-[20px] font-bold">{t.thanksTitle}</div>
             <p className="text-[16px] leading-[1.55] text-[#55524e]">
-              Someone from the team will reply to {email.trim() || user?.email} within one
-              working day.
+              {t.thanksBody(email.trim() || user?.email || "")}
             </p>
           </div>
         ) : (
@@ -94,33 +91,33 @@ export default function ContactSection() {
             onSubmit={handleSubmit}
             className="flex flex-col gap-5 border border-[#e0ddd9] bg-white p-[clamp(20px,5vw,32px)]"
           >
-            <div className="text-[20px] font-bold">Talk to us</div>
+            <div className="text-[20px] font-bold">{t.formTitle}</div>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <label className="flex flex-col gap-2">
-                <span className={label}>Name</span>
+                <span className={label}>{t.name}</span>
                 <input
                   required={!user}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder={user?.fullName ?? "Your name"}
+                  placeholder={user?.fullName ?? t.namePlaceholder}
                   autoComplete="name"
                   className={field}
                 />
               </label>
               <label className="flex flex-col gap-2">
-                <span className={label}>Work email</span>
+                <span className={label}>{t.email}</span>
                 <input
                   type="email"
                   required={!user}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={user?.email ?? "you@company.com"}
+                  placeholder={user?.email ?? dict.hero.emailPlaceholder}
                   autoComplete="email"
                   className={field}
                 />
               </label>
               <label className="flex flex-col gap-2">
-                <span className={label}>Company</span>
+                <span className={label}>{t.company}</span>
                 <input
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
@@ -129,23 +126,23 @@ export default function ContactSection() {
                 />
               </label>
               <label className="flex flex-col gap-2">
-                <span className={label}>Custom ads per month</span>
+                <span className={label}>{t.volume}</span>
                 <select value={volume} onChange={(e) => setVolume(e.target.value)} className={field}>
-                  <option value="">Choose…</option>
-                  {VOLUMES.map((v) => (
+                  <option value="">{t.choose}</option>
+                  {[...VOLUMES, t.notSure].map((v) => (
                     <option key={v}>{v}</option>
                   ))}
                 </select>
               </label>
             </div>
             <label className="flex flex-col gap-2">
-              <span className={label}>What do you need?</span>
+              <span className={label}>{t.message}</span>
               <textarea
                 required
                 rows={4}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Brands, markets, formats, how often you need new ads…"
+                placeholder={t.messagePlaceholder}
                 className={field}
               />
             </label>
@@ -165,7 +162,7 @@ export default function ContactSection() {
               disabled={sending}
               className="bg-[#161514] px-5 py-[15px] text-[16px] font-bold text-white hover:bg-[#EC3016] disabled:opacity-60"
             >
-              {sending ? "Sending…" : "Send message"}
+              {sending ? t.sending : t.send}
             </button>
           </form>
         )}

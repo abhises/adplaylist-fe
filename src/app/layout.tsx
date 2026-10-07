@@ -5,7 +5,11 @@ import { AuthProvider } from "@/lib/AuthProvider";
 import { ThemeProvider } from "@/lib/ThemeProvider";
 import { NotificationsProvider } from "@/lib/NotificationsProvider";
 import { ToastProvider } from "@/lib/ToastProvider";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { I18nProvider } from "@/lib/I18nProvider";
+import { LOCALE_TAGS } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/serverLocale";
+import { DICTIONARIES } from "@/lib/dictionaries";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const archivo = Archivo({
@@ -20,22 +24,29 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["500"],
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
-  description: SITE_DESCRIPTION,
-  applicationName: SITE_NAME,
-  openGraph: {
-    type: "website",
-    siteName: SITE_NAME,
-    locale: "en_US",
-    description: SITE_DESCRIPTION,
-  },
-  twitter: { card: "summary_large_image" },
-  // Set NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION to verify with Search Console
-  // via meta tag (not needed when verifying the domain through DNS).
-  verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { locale } = await getRequestLocale();
+  const { description } = DICTIONARIES[locale].meta;
+  return {
+    // Relative canonicals resolve against the English site on every
+    // subdomain: only pages with their own translation (the home page) set
+    // an absolute canonical on their language's subdomain.
+    metadataBase: new URL(SITE_URL),
+    title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
+    description,
+    applicationName: SITE_NAME,
+    openGraph: {
+      type: "website",
+      siteName: SITE_NAME,
+      locale: LOCALE_TAGS[locale].og,
+      description,
+    },
+    twitter: { card: "summary_large_image" },
+    // Set NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION to verify with Search Console
+    // via meta tag (not needed when verifying the domain through DNS).
+    verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION },
+  };
+}
 
 const noFlashScript = `
 try {
@@ -44,10 +55,11 @@ try {
 } catch (e) {}
 `;
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const { locale, base } = await getRequestLocale();
   return (
     <html
-      lang="en"
+      lang={LOCALE_TAGS[locale].lang}
       className={`${archivo.variable} ${jetbrainsMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
@@ -55,14 +67,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: noFlashScript }} />
       </head>
       <body className="min-h-full flex flex-col font-sans">
-        <ThemeProvider>
-          <AuthProvider>
-            <ImageGuard />
-            <ToastProvider>
-              <NotificationsProvider>{children}</NotificationsProvider>
-            </ToastProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <I18nProvider locale={locale} baseHost={base}>
+          <ThemeProvider>
+            <AuthProvider>
+              <ImageGuard />
+              <ToastProvider>
+                <NotificationsProvider>{children}</NotificationsProvider>
+              </ToastProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </I18nProvider>
       </body>
     </html>
   );

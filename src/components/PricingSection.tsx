@@ -5,51 +5,38 @@ import Link from "@/components/Link";
 import type { PlanId } from "@/lib/api";
 import { creditsOf, fmtUsd as fmt, monthlyPrice, volumesOf, yearlySaving } from "@/lib/plans";
 import { usePlanPrices } from "@/lib/usePlanPrices";
+import { useI18n } from "@/lib/I18nProvider";
+import type { Dictionary } from "@/lib/dictionaries";
 
+// Plan names are product names and stay in English; each plan's
+// description and "Great for" list are in the dictionary under pricing.plans.
 type Plan = {
   id: PlanId;
   name: string;
-  desc: string;
-  goodFor: string[];
   popular?: boolean;
 };
 
 const PLANS: Plan[] = [
-  {
-    id: "starter",
-    name: "Starter",
-    desc: "For marketers who want to browse and save what the team has already made.",
-    goodFor: ["Individuals", "Occasional campaigns"],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    desc: "For marketers and in-house teams who need a steady flow of fresh creatives.",
-    goodFor: ["Small businesses", "In-house ad teams"],
-    popular: true,
-  },
-  {
-    id: "agency",
-    name: "Agency",
-    desc: "For agencies producing ads for many clients at once.",
-    goodFor: ["Agencies", "High-volume ad teams"],
-  },
+  { id: "starter", name: "Starter" },
+  { id: "pro", name: "Pro", popular: true },
+  { id: "agency", name: "Agency" },
 ];
 
 // A string per plan is shown as-is; a boolean per plan is a ✓ or —.
-// "credits" follows whatever each plan's dropdown is set to.
-const FEATURES: [string, "credits" | string[] | boolean[]][] = [
-  ["Custom ads per month", "credits"],
-  ["Brands", ["1", "2", "5"]],
-  ["Team seats", ["1", "2", "5"]],
-  ["Turnaround", ["—", "3 days", "48 hours"]],
-  ["Full ad library access", [true, true, true]],
-  ["Editable copies", [false, true, true]],
-  ["All platform sizes", [true, true, true]],
-  ["Localisation into new markets", [false, true, true]],
-  ["Brand kit and templates", [false, false, true]],
-  ["Animated and video ads", [false, false, true]],
-  ["Dedicated creative lead", [false, false, true]],
+// "credits" follows whatever each plan's dropdown is set to, and
+// "turnaround" comes from the dictionary. Labels are dictionary keys.
+const FEATURES: [keyof Dictionary["pricing"]["features"], "credits" | "turnaround" | string[] | boolean[]][] = [
+  ["credits", "credits"],
+  ["brands", ["1", "2", "5"]],
+  ["seats", ["1", "2", "5"]],
+  ["turnaround", "turnaround"],
+  ["library", [true, true, true]],
+  ["editable", [false, true, true]],
+  ["sizes", [true, true, true]],
+  ["localisation", [false, true, true]],
+  ["brandKit", [false, false, true]],
+  ["video", [false, false, true]],
+  ["lead", [false, false, true]],
 ];
 
 // Rows up to here are the headline numbers, set in bold.
@@ -97,6 +84,8 @@ function Toggle<T extends string | boolean>({
 export default function PricingSection({ signedIn }: { signedIn: boolean }) {
   // Admins can change prices, so they come from the API.
   const prices = usePlanPrices();
+  const { t: dict } = useI18n();
+  const t = dict.pricing;
   const [yearly, setYearly] = useState(false);
   const [credits, setCredits] = useState<Record<PlanId, number>>({
     starter: 0,
@@ -118,19 +107,18 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
       <div className="mx-auto max-w-[1320px] px-[clamp(20px,4vw,32px)] py-[clamp(64px,9vw,100px)]">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <div className={`${mono} text-[#EC3016]`}>PRICING</div>
+            <div className={`${mono} text-[#EC3016]`}>{t.eyebrow}</div>
             <h2 className={`${h2} mt-[14px] max-w-[720px] text-balance`}>
-              Pick a plan. Request custom ads when you need them.
+              {t.title}
             </h2>
             <p className="mt-5 max-w-[600px] text-[18px] leading-[1.55] text-pretty text-[#55524e]">
-              Every plan includes the full ad library. On Pro and Agency, one
-              credit is one new custom creative from the design team.
+              {t.lead}
             </p>
           </div>
           <Toggle
             options={[
-              { label: "Monthly", value: false },
-              { label: "Yearly · save 20%", value: true },
+              { label: t.monthly, value: false },
+              { label: t.yearly, value: true },
             ]}
             value={yearly}
             onChange={setYearly}
@@ -155,23 +143,23 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
               >
                 {p.popular && (
                   <div className="absolute right-[-2px] bottom-full left-[-2px] bg-[#EC3016] py-[7px] text-center font-mono text-[11px] tracking-[0.08em] text-white">
-                    MOST POPULAR
+                    {t.mostPopular}
                   </div>
                 )}
                 <div>
                   <h3 className="text-[24px] font-extrabold tracking-[-0.02em]">{p.name}</h3>
-                  <p className="mt-2 text-[15px] leading-[1.5] text-pretty text-[#55524e]">{p.desc}</p>
+                  <p className="mt-2 text-[15px] leading-[1.5] text-pretty text-[#55524e]">{t.plans[p.id].desc}</p>
                 </div>
                 <div className="flex flex-col gap-[6px]">
-                  <span className="text-[13px] font-bold">Great for</span>
-                  {p.goodFor.map((g) => (
+                  <span className="text-[13px] font-bold">{t.greatFor}</span>
+                  {t.plans[p.id].goodFor.map((g) => (
                     <span key={g} className="text-[15px] text-[#55524e]">
                       ✓ {g}
                     </span>
                   ))}
                 </div>
                 <div className="mt-auto flex flex-col gap-2">
-                  <span className="text-[13px] font-bold">Custom ads per month</span>
+                  <span className="text-[13px] font-bold">{t.features.credits}</span>
                   {tierKeys.length > 1 ? (
                     <select
                       value={c}
@@ -180,31 +168,31 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
                     >
                       {tierKeys.map((k) => (
                         <option key={k} value={k}>
-                          {creditsOf(prices, p.id, k)} ads / month
+                          {t.adsPerMonth(creditsOf(prices, p.id, k))}
                         </option>
                       ))}
                     </select>
                   ) : (
                     <span className="flex h-12 items-center border-[1.5px] border-[#161514] px-3 text-[16px] font-semibold">
-                      {c ? `${creditsOf(prices, p.id, c)} ads / month` : "Library only, no custom ads"}
+                      {c ? t.adsPerMonth(creditsOf(prices, p.id, c)) : t.libraryOnly}
                     </span>
                   )}
                 </div>
                 <div>
                   <div className="flex items-baseline gap-[6px]">
                     <span className="text-[56px] leading-none font-extrabold tracking-[-0.04em]">{fmt(price)}</span>
-                    <span className="text-[15px] text-[#55524e]">/mo</span>
+                    <span className="text-[15px] text-[#55524e]">{t.perMonth}</span>
                   </div>
                   <div className="mt-2 flex min-h-5 flex-wrap gap-[10px] text-[14px]">
                     {yearly ? (
                       <>
                         <span className="text-[#8a8783] line-through">{fmt(monthly)}</span>
                         <span className="font-bold text-[#EC3016]">
-                          Save {fmt(yearlySaving(prices, p.id, c))} a year
+                          {t.save(fmt(yearlySaving(prices, p.id, c)))}
                         </span>
                       </>
                     ) : (
-                      <span className="text-[#55524e]">Billed monthly. Cancel anytime.</span>
+                      <span className="text-[#55524e]">{t.billedMonthly}</span>
                     )}
                   </div>
                 </div>
@@ -216,12 +204,12 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
                       : "border-[#161514] bg-white text-[#161514]"
                   }`}
                 >
-                  Start free trial
+                  {t.startTrial}
                 </Link>
                 <span className="-mt-2 text-center text-[13px] text-[#6b6864]">
                   {c
-                    ? `$${(price / c).toFixed(2)} per ad${yearly ? ", billed yearly" : ""}`
-                    : "Upgrade anytime to request ads"}
+                    ? t.perAd(`$${(price / c).toFixed(2)}`, yearly)
+                    : t.upgradeAnytime}
                 </span>
               </div>
             );
@@ -229,7 +217,7 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
         </div>
 
         <div className="mt-12 flex flex-col gap-3 min-[820px]:hidden">
-          <span className="text-[20px] font-extrabold">Compare plans</span>
+          <span className="text-[20px] font-extrabold">{t.compare}</span>
           <Toggle
             options={PLANS.map((p, i) => ({ label: p.name, value: String(i) }))}
             value={String(compare)}
@@ -249,10 +237,17 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
                     ri < BOLD_ROWS ? "font-bold" : "font-medium"
                   }`}
                 >
-                  {label}
+                  {t.features[label]}
                 </div>
                 {PLANS.map((p, ci) => {
-                  const raw = values === "credits" ? (credits[p.id] ? String(creditsOf(prices, p.id, credits[p.id])) : "—") : values[ci];
+                  const raw =
+                    values === "credits"
+                      ? credits[p.id]
+                        ? String(creditsOf(prices, p.id, credits[p.id]))
+                        : "—"
+                      : values === "turnaround"
+                        ? t.turnaround[ci]
+                        : values[ci];
                   const isBool = typeof raw === "boolean";
                   const pop = p.popular;
                   return (
@@ -283,25 +278,23 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
         {/* Enterprise: above the biggest Agency tier, talk to the team. */}
         <div className="mt-8 flex flex-wrap items-center justify-between gap-6 bg-[#161514] p-[clamp(24px,4vw,40px)] text-white">
           <div className="flex max-w-[640px] flex-col gap-2.5">
-            <div className={`${mono} text-[#FF6A52]`}>ENTERPRISE</div>
+            <div className={`${mono} text-[#FF6A52]`}>{t.enterpriseEyebrow}</div>
             <h3 className="m-0 text-[clamp(26px,3vw,36px)] leading-[1.1] font-extrabold tracking-[-0.02em]">
-              Custom volume, custom price.
+              {t.enterpriseTitle}
             </h3>
             <p className="m-0 text-[17px] leading-[1.55] text-pretty text-[#d8d5d1]">
-              Need more than 150 ads a month or a setup we don&rsquo;t list? Tell us what
-              you need and we&rsquo;re happy to solve it with you.
+              {t.enterpriseLead}
             </p>
           </div>
           <a suppressHydrationWarning
             href="#contact"
             className="shrink-0 bg-white px-6 py-[15px] text-[16px] font-bold whitespace-nowrap text-[#161514] hover:bg-[#EC3016] hover:text-white"
           >
-            Talk to us
+            {t.talkToUs}
           </a>
         </div>
         <p className="mt-5 text-[14px] text-[#6b6864]">
-          Every plan starts with a 7-day free trial. Pro and Agency trials
-          include 2 free ad requests. Prices in USD, excluding tax.
+          {t.footnote}
         </p>
       </div>
     </section>

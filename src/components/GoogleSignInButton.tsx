@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useI18n } from "@/lib/I18nProvider";
 
 declare global {
   interface Window {
@@ -41,6 +42,10 @@ export function GoogleSignInButton({
   const [scriptReady, setScriptReady] = useState(false);
   const [scale, setScale] = useState<[number, number]>([1, 1]);
   const overlay = Boolean(children);
+  // Fixed for the page's lifetime (it comes from the subdomain), so having
+  // these in the effect's dependencies doesn't re-initialize GSI.
+  const { locale, t } = useI18n();
+  const failedMessage = t.common.googleFailed;
 
   // Keep the latest callbacks in refs, rather than the effect's dependency
   // array, so a re-render of the parent (e.g. typing in a form field, which
@@ -63,7 +68,7 @@ export function GoogleSignInButton({
         if (response.credential) {
           onCredentialRef.current(response.credential);
         } else {
-          onErrorRef.current?.("Google sign-in failed.");
+          onErrorRef.current?.(failedMessage);
         }
       },
     });
@@ -74,8 +79,10 @@ export function GoogleSignInButton({
       size: "large",
       width: overlay ? 400 : el.offsetWidth || 400,
       text: "continue_with",
+      // Google translates its own button.
+      locale,
     });
-  }, [scriptReady, overlay]);
+  }, [scriptReady, overlay, locale, failedMessage]);
 
   // Stretch the invisible GSI button (rendered at a fixed 400x40, the "large"
   // size) over the custom one as it resizes.

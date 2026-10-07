@@ -10,6 +10,7 @@ import PricingSection from "@/components/PricingSection";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useAuth } from "@/lib/AuthProvider";
 import { useToast } from "@/lib/ToastProvider";
+import { useI18n } from "@/lib/I18nProvider";
 import { ApiError, api, type Ad as LibraryAd } from "@/lib/api";
 import { HERO_PER_PLATFORM, HERO_PLATFORMS, shuffle } from "@/lib/ads";
 
@@ -45,19 +46,10 @@ const ADS: Ad[] = [
   { name: "Ranked season", tag: "RANKED", headline: "Climb or be climbed.", cta: "PLAY NOW", bg: "linear-gradient(180deg,#0e3b2e,#000)", fg: "#fff", platform: "TikTok", cat: "Gaming", meta: "TikTok · 9:16 · EN-US" },
 ];
 
-const REQUEST_TYPES = ["New size", "New market", "Brand-new ad"];
-
-const REQUEST_NOTES: Record<string, string> = {
-  "New size": "Need a 9:16 version for Stories, same copy.",
-  "New market": "Localise for DE-DE. Keep the offer, swap the price to €.",
-  "Brand-new ad": "Launch ad for the autumn range. Same tone as this one.",
-};
-
-const STEPS = [
-  { n: "01", title: "Browse the library", desc: "Every ad the team has ever shipped, filterable by platform, category, market, and language." },
-  { n: "02", title: "Open an editable copy", desc: "Swap the headline, offer, or market. The original stays untouched, so anyone on the team can still use it." },
-  { n: "03", title: "Save and ship", desc: "Bookmark creatives for this quarter's campaigns. Saving never locks an ad." },
-];
+// The request form's options; their labels and sample notes are in the
+// dictionary under request.types.
+const REQUEST_TYPES = ["size", "market", "fresh"] as const;
+type RequestType = (typeof REQUEST_TYPES)[number];
 
 const mono = "font-mono text-[12px] tracking-[0.08em]";
 const container = "mx-auto max-w-[1320px] px-[clamp(20px,4vw,32px)]";
@@ -202,12 +194,13 @@ export default function LandingPage() {
   const { user, ready, loginWithGoogle } = useAuth();
   const toast = useToast();
   const signedIn = ready && !!user;
+  const { t, locale } = useI18n();
 
   const [email, setEmail] = useState("");
   const [platform, setPlatform] = useState("All");
   const [category, setCategory] = useState("All");
   const libraryRow = useRef<HTMLDivElement>(null);
-  const [requestType, setRequestType] = useState("New market");
+  const [requestType, setRequestType] = useState<RequestType>("market");
   // null while the first fetch is in flight; [] if it failed.
   const [liveAds, setLiveAds] = useState<LibraryAd[] | null>(null);
   // A random position per ad, drawn once per visit, so the hero's picks show
@@ -272,10 +265,10 @@ export default function LandingPage() {
   async function handleGoogleCredential(credential: string) {
     try {
       await loginWithGoogle(credential);
-      toast.success("Signed in with Google. Welcome!");
+      toast.success(t.common.googleWelcome);
       router.push("/library");
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Google sign-in failed.");
+      toast.error(err instanceof ApiError ? err.message : t.common.googleFailed);
     }
   }
 
@@ -292,23 +285,22 @@ export default function LandingPage() {
           <div className="md:-mt-12">
             <div className={`${mono} hidden items-center gap-[10px] uppercase sm:flex`}>
               <span className="h-2 w-2 rounded-full bg-white" />
-              <span>The ad library for your whole team</span>
+              <span>{t.hero.eyebrow}</span>
             </div>
             <h1 className="text-[clamp(36px,4.8vw,62px)] sm:mt-4 leading-[0.95] font-extrabold tracking-[-0.035em] text-balance">
-              Steal the strategy, not the ad.
+              {t.hero.title}
             </h1>
             <p className="mt-3 max-w-[520px] text-[clamp(17px,2.2vw,20px)] sm:mt-6 leading-[1.5] text-pretty">
-              We study ads that are working worldwide and create fresh, original versions you can make your own in
-              Canva.
+              {t.hero.lead}
             </p>
 
             {signedIn ? (
               <div id="signup" className="mt-5 sm:mt-9 flex flex-wrap gap-3">
                 <Link href="/library" className="shrink-0 bg-white px-7 py-4 text-[17px] font-bold whitespace-nowrap text-[#EC3016]">
-                  Go to Library
+                  {t.common.goToLibrary}
                 </Link>
                 <Link href="/requests" className="shrink-0 border-[1.5px] border-white px-7 py-4 text-[17px] font-bold whitespace-nowrap">
-                  Request a creative
+                  {t.hero.requestCreative}
                 </Link>
               </div>
             ) : (
@@ -317,12 +309,12 @@ export default function LandingPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
-                  aria-label="Work email"
+                  placeholder={t.hero.emailPlaceholder}
+                  aria-label={t.hero.emailLabel}
                   className="min-w-0 border-0 sm:flex-[1_1_220px] bg-transparent p-[14px] text-[17px] text-[#161514] outline-0 placeholder:text-[#8a8783]"
                 />
                 <button type="submit" className="border-0 bg-[#161514] px-6 py-[14px] text-[16px] font-bold text-white hover:bg-black">
-                  Sign up free
+                  {t.common.signUpFree}
                 </button>
               </form>
             )}
@@ -339,16 +331,18 @@ export default function LandingPage() {
                       <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" />
                       <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
                     </svg>
-                    Continue with Google
+                    {t.hero.continueWithGoogle}
                   </div>
                 </GoogleSignInButton>
               </div>
             )}
 
             <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[14px] opacity-95">
-              <span>✓ Free to join</span>
-              <span>✓ Set up in under a minute</span>
-              <span className="max-sm:hidden">✓ No design skills needed</span>
+              {t.hero.perks.map((perk, i) => (
+                <span key={perk} className={i === 2 ? "max-sm:hidden" : undefined}>
+                  ✓ {perk}
+                </span>
+              ))}
             </div>
           </div>
 
@@ -358,16 +352,16 @@ export default function LandingPage() {
               <div className="flex min-w-0 flex-1 items-center gap-[10px] bg-[#F3F2F0] px-[14px] py-[10px] text-[14px] text-[#6b6864]">
                 <span className="h-3 w-3 shrink-0 rounded-full border-2 border-[#6b6864]" />
                 <span className="truncate">
-                  {liveAds?.length ? `Search ${liveAds.length.toLocaleString()} creatives…` : "Search creatives…"}
+                  {liveAds?.length ? t.hero.search(liveAds.length.toLocaleString(locale)) : t.hero.searchEmpty}
                 </span>
               </div>
-              <span className="bg-[#EC3016] px-[14px] py-[9px] text-[13px] font-bold whitespace-nowrap text-white">+ Request</span>
+              <span className="bg-[#EC3016] px-[14px] py-[9px] text-[13px] font-bold whitespace-nowrap text-white">{t.hero.request}</span>
             </div>
             <div className={`${chipRow} px-[18px] py-[14px]`}>
               {platforms.map((p) => (
                 <Chip
                   key={p}
-                  label={platformLabel(p)}
+                  label={p === "All" ? t.common.all : platformLabel(p)}
                   active={platform === p}
                   onClick={() => setPlatform(p)}
                   className="px-3 py-[7px] text-[13px]"
@@ -423,17 +417,19 @@ export default function LandingPage() {
         id="how"
         className={`scroll-mt-[72px] ${container} pt-[clamp(100px,12vw,140px)] pb-[clamp(64px,9vw,100px)]`}
       >
-        <div className={`${mono} text-[#EC3016]`}>HOW IT WORKS</div>
+        <div className={`${mono} text-[#EC3016]`}>{t.how.eyebrow}</div>
         <h2 className={`${h2} mt-[14px] max-w-[720px] text-balance`}>
-          From brief to live ad without starting from scratch.
+          {t.how.title}
         </h2>
         <div
           className="mt-14 grid gap-[clamp(8px,3vw,40px)]"
           style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,280px),1fr))" }}
         >
-          {STEPS.map((s) => (
-            <div key={s.n} className="border-t-2 border-[#161514] py-7">
-              <div className="text-[48px] leading-none sm:text-[64px] font-extrabold tracking-[-0.04em] text-[#EC3016]">{s.n}</div>
+          {t.how.steps.map((s, i) => (
+            <div key={i} className="border-t-2 border-[#161514] py-7">
+              <div className="text-[48px] leading-none sm:text-[64px] font-extrabold tracking-[-0.04em] text-[#EC3016]">
+                {String(i + 1).padStart(2, "0")}
+              </div>
               <h3 className="mt-6 mb-[10px] text-[24px] font-bold">{s.title}</h3>
               <p className="text-[16px] leading-[1.55] text-pretty text-[#55524e]">{s.desc}</p>
             </div>
@@ -446,15 +442,15 @@ export default function LandingPage() {
         <div className={`${container} py-[clamp(64px,9vw,100px)]`}>
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <div className={`${mono} text-[#ff7a5c]`}>A PEEK INSIDE</div>
-              <h2 className={`${h2} mt-[14px]`}>What&rsquo;s in the library</h2>
+              <div className={`${mono} text-[#ff7a5c]`}>{t.library.eyebrow}</div>
+              <h2 className={`${h2} mt-[14px]`}>{t.library.title}</h2>
             </div>
             <div className="flex min-w-0 items-center gap-3 max-sm:w-full">
               <div className={`${chipRow} min-w-0 max-sm:w-full`}>
                 {categories.map((c) => (
                   <Chip
                     key={c}
-                    label={c}
+                    label={c === "All" ? t.common.all : c}
                     active={category === c}
                     onClick={() => setCategory(c)}
                     dark
@@ -468,7 +464,7 @@ export default function LandingPage() {
                   <button
                     key={dir}
                     type="button"
-                    aria-label={dir < 0 ? "Previous creatives" : "Next creatives"}
+                    aria-label={dir < 0 ? t.library.prev : t.library.next}
                     onClick={() => {
                       const row = libraryRow.current;
                       row?.scrollBy({ left: dir * row.clientWidth * 0.8, behavior: "smooth" });
@@ -518,7 +514,7 @@ export default function LandingPage() {
                       )}
                       {ad.video && (
                         <span className="absolute top-3 right-3 bg-white/92 px-[6px] py-[3px] font-mono text-[10px] text-[#161514]">
-                          &#9654; VIDEO
+                          &#9654; {t.library.video}
                         </span>
                       )}
                     </Link>
@@ -531,7 +527,7 @@ export default function LandingPage() {
                         href={ad.href}
                         className="border border-[#4a4744] px-3 py-2 text-center text-[13px] font-semibold whitespace-nowrap hover:border-[#EC3016] hover:bg-[#EC3016]"
                       >
-                        Edit copy →
+                        {t.library.editCopy}
                       </Link>
                     </div>
                   </div>
@@ -540,11 +536,11 @@ export default function LandingPage() {
           <div className="mt-14 flex justify-center">
             {signedIn ? (
               <Link href="/library" className="shrink-0 bg-[#EC3016] px-7 py-4 text-[17px] font-bold whitespace-nowrap">
-                Open the full library
+                {t.library.open}
               </Link>
             ) : (
               <Link href="/library" className="shrink-0 bg-[#EC3016] px-7 py-4 text-[17px] font-bold whitespace-nowrap">
-                Explore the full library
+                {t.library.explore}
               </Link>
             )}
           </div>
@@ -562,25 +558,25 @@ export default function LandingPage() {
           style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))" }}
         >
           <div>
-            <div className={`${mono} text-[#EC3016]`}>CAN&rsquo;T FIND IT?</div>
-            <h2 className={`${h2} mt-[14px] text-balance`}>Request a new creative. Get it in about 3 days.</h2>
+            <div className={`${mono} text-[#EC3016]`}>{t.request.eyebrow}</div>
+            <h2 className={`${h2} mt-[14px] text-balance`}>{t.request.title}</h2>
             <p className="mt-6 max-w-[500px] text-[18px] leading-[1.55] text-pretty text-[#55524e]">
-              Ask the creative team for a new size, a market, or a brand-new ad. Average turnaround is 3 working days.
+              {t.request.lead}
             </p>
             <div className="mt-8">
               <div className="text-[48px] font-extrabold tracking-[-0.03em]">3</div>
-              <div className="text-[14px] text-[#55524e]">working days, on average</div>
+              <div className="text-[14px] text-[#55524e]">{t.request.daysLabel}</div>
             </div>
           </div>
           <div className="flex flex-col gap-5 border border-[#e0ddd9] bg-white p-[clamp(20px,5vw,32px)]">
-            <div className="text-[20px] font-bold">New request</div>
+            <div className="text-[20px] font-bold">{t.request.formTitle}</div>
             <div className="flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[#55524e]">What do you need?</span>
+              <span className="text-[13px] font-semibold text-[#55524e]">{t.request.whatDoYouNeed}</span>
               <div className="flex flex-wrap gap-2">
                 {REQUEST_TYPES.map((r) => (
                   <Chip
                     key={r}
-                    label={r}
+                    label={t.request.types[r].label}
                     active={requestType === r}
                     onClick={() => setRequestType(r)}
                     className="px-[14px] py-[10px] text-[14px]"
@@ -589,26 +585,26 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[#55524e]">Based on</span>
+              <span className="text-[13px] font-semibold text-[#55524e]">{t.request.basedOn}</span>
               <div className="flex items-center gap-3 border border-[#e0ddd9] p-[10px]">
                 <div className="h-[50px] w-10 bg-[linear-gradient(160deg,#ffa6cf,#ff6b8a)]" />
                 <div className="flex flex-col gap-[2px]">
-                  <span className="text-[15px] font-semibold">Ten drops. One week.</span>
+                  <span className="text-[15px] font-semibold">{t.request.sampleHeadline}</span>
                   <span className="font-mono text-[12px] text-[#8a8783]">Meta · 4:5 · EN-US</span>
                 </div>
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[#55524e]">Notes for the creative team</span>
+              <span className="text-[13px] font-semibold text-[#55524e]">{t.request.notes}</span>
               <div className="min-h-[72px] border border-[#e0ddd9] p-3 text-[15px] text-[#55524e]">
-                {REQUEST_NOTES[requestType]}
+                {t.request.types[requestType].note}
               </div>
             </div>
             <a suppressHydrationWarning
               href={signedIn ? "/requests" : "#signup"}
               className="bg-[#161514] px-5 py-[15px] text-center text-[16px] font-bold text-white hover:bg-[#EC3016]"
             >
-              Send request
+              {t.request.send}
             </a>
           </div>
         </div>
@@ -619,22 +615,22 @@ export default function LandingPage() {
         <div className={`${container} flex flex-wrap items-center justify-between gap-10 py-[clamp(64px,9vw,100px)]`}>
           <div>
             <h2 className="max-w-[760px] text-[clamp(40px,6vw,80px)] leading-[0.95] font-extrabold tracking-[-0.035em] text-balance">
-              Stop rebuilding ads you already have.
+              {t.finalCta.title}
             </h2>
-            <p className="mt-5 text-[19px]">Create an account and start browsing in under a minute.</p>
+            <p className="mt-5 text-[19px]">{t.finalCta.lead}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             {signedIn ? (
               <Link href="/library" className="shrink-0 bg-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap text-[#EC3016]">
-                Go to Library
+                {t.common.goToLibrary}
               </Link>
             ) : (
               <>
                 <a suppressHydrationWarning href="#top" className="shrink-0 bg-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap text-[#EC3016]">
-                  Sign up free
+                  {t.common.signUpFree}
                 </a>
                 <Link href="/login" className="shrink-0 border-[1.5px] border-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap">
-                  Sign in
+                  {t.common.signIn}
                 </Link>
               </>
             )}

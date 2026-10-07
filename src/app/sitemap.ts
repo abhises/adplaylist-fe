@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { connection } from "next/server";
 import { api } from "@/lib/api";
+import { LOCALES, LOCALE_TAGS, siteUrlFor } from "@/lib/i18n";
 import { SITE_URL } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -22,7 +23,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
 
   return [
-    { url: SITE_URL, changeFrequency: "weekly", priority: 1 },
+    // The home page is the one page translated so far: one entry per
+    // language subdomain, each listing the others.
+    ...LOCALES.map((locale) => ({
+      url: `${siteUrlFor(locale)}/`,
+      changeFrequency: "weekly" as const,
+      priority: 1,
+      alternates: {
+        languages: Object.fromEntries(LOCALES.map((l) => [LOCALE_TAGS[l].lang, `${siteUrlFor(l)}/`])),
+      },
+    })),
     { url: `${SITE_URL}/library`, changeFrequency: "daily", priority: 0.9 },
     ...ads.map((ad) => ({
       url: `${SITE_URL}/ads/${ad.id}`,

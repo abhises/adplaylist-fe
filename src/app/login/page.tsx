@@ -7,11 +7,13 @@ import { useAuth } from "@/lib/AuthProvider";
 import { ApiError } from "@/lib/api";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useToast } from "@/lib/ToastProvider";
+import { useI18n } from "@/lib/I18nProvider";
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, loginWithGoogle } = useAuth();
   const toast = useToast();
+  const { t } = useI18n();
   const [email, setEmail] = useState("anna.smith@atlasmedia.co");
   const [password, setPassword] = useState("");
   const [keepSignedIn, setKeepSignedIn] = useState(true);
@@ -24,11 +26,11 @@ export default function LoginPage() {
     setError(null);
     try {
       await login(email, password);
-      toast.success("Signed in. Welcome back!");
+      toast.success(t.auth.login.welcome);
       router.push("/library");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Something went wrong."
+        err instanceof ApiError ? err.message : t.common.somethingWentWrong
       );
     } finally {
       setSubmitting(false);
@@ -39,11 +41,11 @@ export default function LoginPage() {
     setError(null);
     try {
       await loginWithGoogle(credential);
-      toast.success("Signed in with Google. Welcome back!");
+      toast.success(t.common.googleWelcomeBack);
       router.push("/library");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Something went wrong."
+        err instanceof ApiError ? err.message : t.common.somethingWentWrong
       );
     }
   }
@@ -60,12 +62,11 @@ export default function LoginPage() {
 
         <div className="max-w-md">
           <h1 className="text-[56px] leading-[0.98] font-extrabold text-brand-foreground">
-            Your next ad is here.
+            {t.auth.sideTitle}
           </h1>
           <div className="mt-6 h-px w-full bg-brand-foreground/30" />
           <p className="mt-6 text-base text-brand-foreground">
-            Browse the creatives in adplaylist, then open any one as an
-            editable copy.
+            {t.auth.sideLead}
           </p>
         </div>
 
@@ -75,10 +76,10 @@ export default function LoginPage() {
       <div className="flex items-center justify-center bg-surface px-10 py-12">
         <form onSubmit={handleSubmit} className="w-full max-w-[400px]">
           <div className="text-[12px] font-normal tracking-[1.44px] text-ink-muted uppercase">
-            Sign in
+            {t.common.signIn}
           </div>
           <h2 className="mt-1 text-[32px] font-extrabold text-ink">
-            Get to your ads
+            {t.auth.login.title}
           </h2>
 
           <div className="mt-6">
@@ -90,13 +91,13 @@ export default function LoginPage() {
 
           <div className="mt-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-ink-muted uppercase">or</span>
+            <span className="text-xs text-ink-muted uppercase">{t.common.or}</span>
             <div className="h-px flex-1 bg-border" />
           </div>
 
           <div className="mt-6">
             <label htmlFor="email" className="mb-[5px] block text-xs text-ink/70">
-              Work email
+              {t.auth.email}
             </label>
             <input
               id="email"
@@ -113,7 +114,7 @@ export default function LoginPage() {
 
           <div className="mt-4">
             <label htmlFor="password" className="mb-[5px] block text-xs text-ink/70">
-              Password
+              {t.auth.password}
             </label>
             <input
               id="password"
@@ -135,10 +136,10 @@ export default function LoginPage() {
                 onChange={(e) => setKeepSignedIn(e.target.checked)}
                 className="h-4 w-4 accent-brand"
               />
-              Keep me signed in
+              {t.auth.login.keepSignedIn}
             </label>
             <a href="#" className="text-[13px] text-brand" suppressHydrationWarning>
-              Reset password
+              {t.auth.login.reset}
             </a>
           </div>
 
@@ -153,13 +154,13 @@ export default function LoginPage() {
             disabled={submitting}
             className="mt-6 w-full bg-brand py-2 text-sm font-extrabold text-brand-foreground disabled:opacity-60"
           >
-            {submitting ? "Signing in…" : "Sign in"}
+            {submitting ? t.auth.login.submitting : t.common.signIn}
           </button>
 
           <p className="mt-4 text-center text-sm text-ink-muted">
-            Don&rsquo;t have an account?{" "}
+            {t.auth.login.noAccount}{" "}
             <Link href="/signup" className="font-medium text-brand">
-              Sign up
+              {t.common.signUp}
             </Link>
           </p>
         </form>

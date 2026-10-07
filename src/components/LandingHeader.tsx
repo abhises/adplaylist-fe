@@ -3,18 +3,22 @@
 import { useState } from "react";
 import Link from "@/components/Link";
 import { useAuth } from "@/lib/AuthProvider";
+import { useI18n, useLanguageLinks } from "@/lib/I18nProvider";
+import type { Dictionary } from "@/lib/dictionaries";
+import { LOCALE_NAMES } from "@/lib/i18n";
 
 // Links to the landing page's sections and the public pages beside it. On
 // the landing page itself the sections are in-page anchors; elsewhere (e.g.
 // /terms) they lead back to it. "Library" is the landing page's preview of
 // the library.
-const NAV_LINKS = [
-  { hash: "#how", label: "How it works" },
-  { hash: "#library", label: "Library" },
-  { hash: "#pricing", label: "Pricing" },
-  { href: "/blog", label: "Blog" },
-  { href: "/brands", label: "Brands" },
-  { href: "/about", label: "About us" },
+type NavLabel = keyof Dictionary["header"];
+const NAV_LINKS: (({ hash: string } | { href: string }) & { label: NavLabel })[] = [
+  { hash: "#how", label: "how" },
+  { hash: "#library", label: "library" },
+  { hash: "#pricing", label: "pricing" },
+  { href: "/blog", label: "blog" },
+  { href: "/brands", label: "brands" },
+  { href: "/about", label: "about" },
 ];
 
 const container = "mx-auto max-w-[1320px] px-[clamp(20px,4vw,32px)]";
@@ -26,6 +30,8 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
   const { user, ready } = useAuth();
   const signedIn = ready && !!user;
   const [menuOpen, setMenuOpen] = useState(false);
+  const { t } = useI18n();
+  const languages = useLanguageLinks();
 
   const base = onLanding ? "" : "/";
   // The landing page's sign-up form is in its hero; elsewhere, go to /signup.
@@ -42,18 +48,23 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
         <nav className="hidden flex-wrap items-center gap-7 text-[15px] font-medium min-[820px]:flex">
           {NAV_LINKS.map((l) => (
             <a suppressHydrationWarning key={l.label} href={linkHref(l)}>
-              {l.label}
+              {t.header[l.label]}
+            </a>
+          ))}
+          {languages.map((l) => (
+            <a key={l.locale} href={l.href} hrefLang={l.locale} title={LOCALE_NAMES[l.locale]} className="font-mono text-[13px] tracking-[0.08em] uppercase">
+              {l.locale}
             </a>
           ))}
           {signedIn ? (
             <Link href="/library" className="bg-white px-[18px] py-[10px] font-bold text-[#EC3016]">
-              Go to Library
+              {t.common.goToLibrary}
             </Link>
           ) : (
             <>
-              <Link href="/login">Sign in</Link>
+              <Link href="/login">{t.common.signIn}</Link>
               <a suppressHydrationWarning href={signupHref} className="bg-white px-[18px] py-[10px] font-bold text-[#EC3016]">
-                Sign up free
+                {t.common.signUpFree}
               </a>
             </>
           )}
@@ -61,16 +72,16 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
         <div className="flex items-center gap-[10px] min-[820px]:hidden">
           {signedIn ? (
             <Link href="/library" className="bg-white px-[14px] py-[10px] text-[14px] font-bold whitespace-nowrap text-[#EC3016]">
-              Go to Library
+              {t.common.goToLibrary}
             </Link>
           ) : (
             <a suppressHydrationWarning href={signupHref} className="bg-white px-[14px] py-[10px] text-[14px] font-bold whitespace-nowrap text-[#EC3016]">
-              Sign up free
+              {t.common.signUpFree}
             </a>
           )}
           <button
             type="button"
-            aria-label="Menu"
+            aria-label={t.header.menu}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
             className="flex h-11 w-11 items-center justify-center border-[1.5px] border-white bg-transparent text-[20px] text-white"
@@ -88,14 +99,19 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
               onClick={() => setMenuOpen(false)}
               className="border-b border-white/25 py-4 text-[18px] font-semibold"
             >
-              {l.label}
+              {t.header[l.label]}
             </a>
           ))}
           {!signedIn && (
-            <Link href="/login" onClick={() => setMenuOpen(false)} className="py-4 text-[18px] font-semibold">
-              Sign in
+            <Link href="/login" onClick={() => setMenuOpen(false)} className="border-b border-white/25 py-4 text-[18px] font-semibold">
+              {t.common.signIn}
             </Link>
           )}
+          {languages.map((l) => (
+            <a key={l.locale} href={l.href} hrefLang={l.locale} className="py-4 text-[18px] font-semibold">
+              {LOCALE_NAMES[l.locale]}
+            </a>
+          ))}
         </nav>
       )}
     </header>

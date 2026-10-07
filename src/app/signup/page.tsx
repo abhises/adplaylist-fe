@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { ApiError } from "@/lib/api";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useToast } from "@/lib/ToastProvider";
+import { useI18n } from "@/lib/I18nProvider";
 
 export default function SignupPage() {
   return (
@@ -20,6 +21,7 @@ function SignupForm() {
   const router = useRouter();
   const { register, loginWithGoogle } = useAuth();
   const toast = useToast();
+  const { t } = useI18n();
   const [fullName, setFullName] = useState("");
   // The landing page's hero form sends visitors here with ?email= prefilled.
   const searchParams = useSearchParams();
@@ -45,22 +47,22 @@ function SignupForm() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Passwords don't match.");
+      setError(t.auth.signup.mismatch);
       return;
     }
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t.auth.signup.tooShort);
       return;
     }
 
     setSubmitting(true);
     try {
       await register(fullName, email, password, "client");
-      toast.success("Account created. Welcome to Adplaylist!");
+      toast.success(t.auth.signup.welcome);
       router.push(next);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Something went wrong."
+        err instanceof ApiError ? err.message : t.common.somethingWentWrong
       );
     } finally {
       setSubmitting(false);
@@ -71,11 +73,11 @@ function SignupForm() {
     setError(null);
     try {
       await loginWithGoogle(credential);
-      toast.success("Signed in with Google. Welcome!");
+      toast.success(t.common.googleWelcome);
       router.push(next);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Something went wrong."
+        err instanceof ApiError ? err.message : t.common.somethingWentWrong
       );
     }
   }
@@ -92,12 +94,11 @@ function SignupForm() {
 
         <div className="max-w-md">
           <h1 className="text-[56px] leading-[0.98] font-extrabold text-brand-foreground">
-            Your next ad is here.
+            {t.auth.sideTitle}
           </h1>
           <div className="mt-6 h-px w-full bg-brand-foreground/30" />
           <p className="mt-6 text-base text-brand-foreground">
-            Browse the creatives in adplaylist, then open any one as an
-            editable copy.
+            {t.auth.sideLead}
           </p>
         </div>
 
@@ -107,10 +108,10 @@ function SignupForm() {
       <div className="flex items-center justify-center bg-surface px-10 py-12">
         <form onSubmit={handleSubmit} className="w-full max-w-[400px]">
           <div className="text-[12px] font-normal tracking-[1.44px] text-ink-muted uppercase">
-            Sign up
+            {t.common.signUp}
           </div>
           <h2 className="mt-1 text-[32px] font-extrabold text-ink">
-            Create your account
+            {t.auth.signup.title}
           </h2>
 
           <div className="mt-6">
@@ -122,7 +123,7 @@ function SignupForm() {
 
           <div className="mt-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-ink-muted uppercase">or</span>
+            <span className="text-xs text-ink-muted uppercase">{t.common.or}</span>
             <div className="h-px flex-1 bg-border" />
           </div>
 
@@ -131,7 +132,7 @@ function SignupForm() {
               htmlFor="fullName"
               className="mb-[5px] block text-xs text-ink/70"
             >
-              Full name
+              {t.auth.signup.fullName}
             </label>
             <input
               id="fullName"
@@ -148,7 +149,7 @@ function SignupForm() {
 
           <div className="mt-4">
             <label htmlFor="email" className="mb-[5px] block text-xs text-ink/70">
-              Work email
+              {t.auth.email}
             </label>
             <input
               id="email"
@@ -165,7 +166,7 @@ function SignupForm() {
 
           <div className="mt-4">
             <label htmlFor="password" className="mb-[5px] block text-xs text-ink/70">
-              Password
+              {t.auth.password}
             </label>
             <input
               id="password"
@@ -177,7 +178,7 @@ function SignupForm() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
             />
-            <p className="mt-1 text-xs text-ink-muted">At least 8 characters.</p>
+            <p className="mt-1 text-xs text-ink-muted">{t.auth.signup.passwordHint}</p>
           </div>
 
           <div className="mt-4">
@@ -185,7 +186,7 @@ function SignupForm() {
               htmlFor="confirmPassword"
               className="mb-[5px] block text-xs text-ink/70"
             >
-              Confirm password
+              {t.auth.signup.confirm}
             </label>
             <input
               id="confirmPassword"
@@ -210,13 +211,13 @@ function SignupForm() {
             disabled={submitting}
             className="mt-6 w-full bg-brand py-2 text-sm font-extrabold text-brand-foreground disabled:opacity-60"
           >
-            {submitting ? "Creating account…" : "Create account"}
+            {submitting ? t.auth.signup.submitting : t.auth.signup.submit}
           </button>
 
           <p className="mt-4 text-center text-sm text-ink-muted">
-            Already have an account?{" "}
+            {t.auth.signup.haveAccount}{" "}
             <Link href="/login" className="font-medium text-brand">
-              Sign in
+              {t.common.signIn}
             </Link>
           </p>
         </form>
