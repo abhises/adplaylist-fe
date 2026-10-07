@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "@/components/Link";
 import LandingFooter from "@/components/LandingFooter";
@@ -206,6 +206,7 @@ export default function LandingPage() {
   const [email, setEmail] = useState("");
   const [platform, setPlatform] = useState("All");
   const [category, setCategory] = useState("All");
+  const libraryRow = useRef<HTMLDivElement>(null);
   const [requestType, setRequestType] = useState("New market");
   // null while the first fetch is in flight; [] if it failed.
   const [liveAds, setLiveAds] = useState<LibraryAd[] | null>(null);
@@ -283,26 +284,26 @@ export default function LandingPage() {
       <LandingHeader onLanding />
 
       {/* HERO */}
-      <section id="top" className="scroll-mt-[72px] flex min-h-[calc(100svh-72px)] flex-col overflow-hidden bg-[#EC3016] text-white">
+      <section id="top" className="scroll-mt-[72px] flex flex-col sm:min-h-[calc(100svh-72px)] overflow-hidden bg-[#EC3016] text-white">
         <div
-          className={`${container} grid w-full flex-1 content-center items-center gap-10 py-[clamp(40px,7vw,64px)]`}
+          className={`${container} grid w-full flex-1 content-center items-center gap-7 py-7 sm:gap-10 sm:py-[clamp(40px,7vw,64px)]`}
           style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,460px),1fr))" }}
         >
           <div className="md:-mt-12">
-            <div className={`${mono} flex items-center gap-[10px] uppercase`}>
+            <div className={`${mono} hidden items-center gap-[10px] uppercase sm:flex`}>
               <span className="h-2 w-2 rounded-full bg-white" />
               <span>The ad library for your whole team</span>
             </div>
-            <h1 className="mt-4 text-[clamp(36px,4.8vw,62px)] leading-[0.95] font-extrabold tracking-[-0.035em] text-balance">
+            <h1 className="text-[clamp(36px,4.8vw,62px)] sm:mt-4 leading-[0.95] font-extrabold tracking-[-0.035em] text-balance">
               Steal the strategy, not the ad.
             </h1>
-            <p className="mt-6 max-w-[520px] text-[clamp(17px,2.2vw,20px)] leading-[1.5] text-pretty">
+            <p className="mt-3 max-w-[520px] text-[clamp(17px,2.2vw,20px)] sm:mt-6 leading-[1.5] text-pretty">
               We study ads that are working worldwide and create fresh, original versions you can make your own in
               Canva.
             </p>
 
             {signedIn ? (
-              <div id="signup" className="mt-9 flex flex-wrap gap-3">
+              <div id="signup" className="mt-5 sm:mt-9 flex flex-wrap gap-3">
                 <Link href="/library" className="shrink-0 bg-white px-7 py-4 text-[17px] font-bold whitespace-nowrap text-[#EC3016]">
                   Go to Library
                 </Link>
@@ -311,16 +312,16 @@ export default function LandingPage() {
                 </Link>
               </div>
             ) : (
-              <form id="signup" onSubmit={handleSignup} className="mt-9 flex max-w-[520px] flex-wrap bg-white p-[6px]">
+              <form id="signup" onSubmit={handleSignup} className="mt-5 flex max-w-[520px] flex-col bg-white p-[6px] sm:mt-9 sm:flex-row sm:flex-wrap">
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
                   aria-label="Work email"
-                  className="min-w-0 flex-[1_1_220px] border-0 bg-transparent p-[14px] text-[17px] text-[#161514] outline-0 placeholder:text-[#8a8783]"
+                  className="min-w-0 border-0 sm:flex-[1_1_220px] bg-transparent p-[14px] text-[17px] text-[#161514] outline-0 placeholder:text-[#8a8783]"
                 />
-                <button type="submit" className="grow border-0 sm:grow-0 bg-[#161514] px-6 py-[14px] text-[16px] font-bold text-white hover:bg-black">
+                <button type="submit" className="border-0 bg-[#161514] px-6 py-[14px] text-[16px] font-bold text-white hover:bg-black">
                   Sign up free
                 </button>
               </form>
@@ -331,7 +332,7 @@ export default function LandingPage() {
                   onCredential={handleGoogleCredential}
                   onError={(message) => toast.error(message)}
                 >
-                  <div className="flex w-full items-center justify-center gap-3 bg-white px-6 py-[20px] text-[16px] font-bold text-[#161514]">
+                  <div className="flex w-full items-center justify-center gap-3 bg-white px-6 py-4 sm:py-[20px] text-[16px] font-bold text-[#161514]">
                     <svg aria-hidden="true" width="20" height="20" viewBox="0 0 48 48">
                       <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
                       <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
@@ -344,10 +345,10 @@ export default function LandingPage() {
               </div>
             )}
 
-            <div className="mt-4 flex flex-wrap gap-5 text-[14px] opacity-95">
+            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[14px] opacity-95">
               <span>✓ Free to join</span>
               <span>✓ Set up in under a minute</span>
-              <span>✓ No design skills needed</span>
+              <span className="max-sm:hidden">✓ No design skills needed</span>
             </div>
           </div>
 
@@ -448,31 +449,54 @@ export default function LandingPage() {
               <div className={`${mono} text-[#ff7a5c]`}>A PEEK INSIDE</div>
               <h2 className={`${h2} mt-[14px]`}>What&rsquo;s in the library</h2>
             </div>
-            <div className={`${chipRow} max-sm:w-full`}>
-              {categories.map((c) => (
-                <Chip
-                  key={c}
-                  label={c}
-                  active={category === c}
-                  onClick={() => setCategory(c)}
-                  dark
-                  className="px-4 py-[9px] text-[14px]"
-                />
-              ))}
+            <div className="flex min-w-0 items-center gap-3 max-sm:w-full">
+              <div className={`${chipRow} min-w-0 max-sm:w-full`}>
+                {categories.map((c) => (
+                  <Chip
+                    key={c}
+                    label={c}
+                    active={category === c}
+                    onClick={() => setCategory(c)}
+                    dark
+                    className="px-4 py-[9px] text-[14px]"
+                  />
+                ))}
+              </div>
+              {/* Mice can't swipe, so wider screens get arrows for the row. */}
+              <div className="hidden shrink-0 gap-2 min-[700px]:flex">
+                {[-1, 1].map((dir) => (
+                  <button
+                    key={dir}
+                    type="button"
+                    aria-label={dir < 0 ? "Previous creatives" : "Next creatives"}
+                    onClick={() => {
+                      const row = libraryRow.current;
+                      row?.scrollBy({ left: dir * row.clientWidth * 0.8, behavior: "smooth" });
+                    }}
+                    className="flex h-[42px] w-[42px] items-center justify-center border border-[#4a4744] text-[18px] hover:border-[#EC3016] hover:bg-[#EC3016]"
+                  >
+                    {dir < 0 ? "←" : "→"}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+          {/* A sideways-scrolling row of cards, faded at the edges. On phones
+              each card snaps to the centre with its neighbours peeking in;
+              wider screens show several fixed-width cards snapping to the left. */}
           <div
-            className="mt-8 grid grid-cols-1 gap-8 min-[700px]:mt-12 min-[700px]:[grid-template-columns:repeat(auto-fill,minmax(260px,1fr))] min-[700px]:gap-5"
+            ref={libraryRow}
+            className="mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto [scrollbar-width:none] max-[699px]:-mx-[clamp(20px,4vw,32px)] max-[699px]:px-[12.5%] max-[699px]:[mask-image:linear-gradient(to_right,transparent,#000_10%,#000_90%,transparent)] min-[700px]:mt-12 min-[700px]:gap-5 min-[700px]:[mask-image:linear-gradient(to_right,#000_92%,transparent)] [&::-webkit-scrollbar]:hidden"
           >
             {liveAds === null
               ? Array.from({ length: 4 }, (_, i) => (
-                  <div key={i} className="flex flex-col gap-[14px]" aria-hidden>
+                  <div key={i} className="flex flex-col gap-[14px] w-[75%] shrink-0 snap-center min-[700px]:w-[300px] min-[700px]:snap-start" aria-hidden>
                     <div className="aspect-square animate-pulse bg-white/10" />
                     <div className="h-[38px] animate-pulse bg-white/5" />
                   </div>
                 ))
               : libraryAds.map((ad) => (
-                  <div key={ad.key} className="flex min-w-0 flex-col gap-[14px]">
+                  <div key={ad.key} className="flex min-w-0 flex-col gap-[14px] w-[75%] shrink-0 snap-center min-[700px]:w-[300px] min-[700px]:snap-start">
                     <Link
                       href={ad.href}
                       className="group relative flex aspect-square flex-col justify-between overflow-hidden p-[18px]"
