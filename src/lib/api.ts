@@ -551,6 +551,24 @@ export const api = {
   getPayments: () =>
     request<{ upcoming: UpcomingPayment | null; payments: Payment[] }>("/api/billing/payments"),
 
+  // The Adplaylist-branded PDF of one invoice, saved as a file.
+  downloadInvoicePdf: async (invoiceId: string, fileName: string) => {
+    const token = getToken();
+    const res = await fetch(`${API_URL}/api/billing/payments/${encodeURIComponent(invoiceId)}/pdf`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(res.status, body.error ?? "Download failed", body);
+    }
+    const url = URL.createObjectURL(await res.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
+
   startPlanNow: () =>
     request<{ account: Account }>("/api/billing/start-now", { method: "POST" }),
 
