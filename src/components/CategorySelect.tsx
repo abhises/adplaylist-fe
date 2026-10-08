@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { CATEGORY_GROUPS, CATEGORY_OPTIONS } from "@/lib/categories";
+import { CATEGORY_GROUPS, CATEGORY_OPTIONS, MAX_CATEGORIES } from "@/lib/categories";
 
 // The category picker for the ad forms: the picked categories as chips (the
 // first is the primary, used for breadcrumbs and page titles), then a search
@@ -38,13 +38,11 @@ export default function CategorySelect({
         : g.categories.filter((c) => c.toLowerCase().includes(q)),
   })).filter((g) => g.categories.length > 0);
   const firstMatch = groups[0]?.categories[0];
+  const full = value.length >= MAX_CATEGORIES;
 
   function toggle(category: string) {
-    onChange(
-      value.includes(category)
-        ? value.filter((c) => c !== category)
-        : [...value, category]
-    );
+    if (value.includes(category)) onChange(value.filter((c) => c !== category));
+    else if (!full) onChange([...value, category]);
   }
 
   // The picker sits inside the ad <form>, so Enter must pick the first match
@@ -53,7 +51,7 @@ export default function CategorySelect({
     if (e.key === "Enter") {
       e.preventDefault();
       if (firstMatch) {
-        if (!value.includes(firstMatch)) onChange([...value, firstMatch]);
+        if (!value.includes(firstMatch) && !full) onChange([...value, firstMatch]);
         setQuery("");
       }
     } else if (e.key === "Escape") {
@@ -104,7 +102,7 @@ export default function CategorySelect({
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
-        placeholder="Search categories…"
+        placeholder={full ? `Up to ${MAX_CATEGORIES} categories — remove one to pick another` : "Search categories…"}
         className="mt-2 w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
       />
 
@@ -123,11 +121,14 @@ export default function CategorySelect({
                 {g.categories.map((c) => (
                   <label
                     key={c}
-                    className="flex cursor-pointer items-center gap-2.5 px-3 py-1 text-sm text-ink hover:bg-surface-2"
+                    className={`flex items-center gap-2.5 px-3 py-1 text-sm text-ink ${
+                      full && !value.includes(c) ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-surface-2"
+                    }`}
                   >
                     <input
                       type="checkbox"
                       checked={value.includes(c)}
+                      disabled={full && !value.includes(c)}
                       onChange={() => toggle(c)}
                       className="h-4 w-4 shrink-0 accent-brand"
                     />

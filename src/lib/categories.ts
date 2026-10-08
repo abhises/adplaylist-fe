@@ -663,6 +663,9 @@ export function categoryGroup(category: string): string | undefined {
   return GROUP_OF.get(category);
 }
 
+// The most categories one ad can be in.
+export const MAX_CATEGORIES = 3;
+
 // All of an ad's categories, primary first. Ads from before multiple
 // categories (or an older API) only have `category`.
 export function adCategories(ad: { category: string; categories?: string[] }): string[] {

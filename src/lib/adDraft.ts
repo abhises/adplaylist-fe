@@ -7,7 +7,7 @@ import {
   SIZE_OPTIONS,
   type Ad,
 } from "@/lib/ads";
-import { findCategory } from "@/lib/categories";
+import { findCategory, MAX_CATEGORIES } from "@/lib/categories";
 import type { AdContent, Author } from "@/lib/api";
 
 // An ad that has been filled from the Add ad page but not yet published.
@@ -648,15 +648,16 @@ function recordToDraft(
       matched++;
     }
   }
-  // One category, or a short list ("Skincare, Beauty"). The blank
-  // template's answer cell lists every option, which doesn't count.
+  // One category, or up to MAX_CATEGORIES ("Skincare, Beauty"), the first
+  // being the primary. More than that (like the blank template's answer
+  // cell, which lists every option) is reported as invalid.
   const categoryList = row.category ? splitList(row.category) : [];
   const categoryVals = categoryList.map(findCategory);
   const categoryVal =
     row.category && findCategory(row.category)
       ? [findCategory(row.category)!]
       : categoryList.length > 0 &&
-          categoryList.length <= 10 &&
+          categoryList.length <= MAX_CATEGORIES &&
           categoryVals.every(Boolean)
         ? [...new Set(categoryVals as string[])]
         : undefined;
@@ -664,7 +665,11 @@ function recordToDraft(
     draft.categories = categoryVal;
     matched++;
   }
-  checkOption("Category", row.category, categoryVal);
+  checkOption(
+    categoryList.length > MAX_CATEGORIES ? `Category (max ${MAX_CATEGORIES})` : "Category",
+    row.category,
+    categoryVal,
+  );
   const marketVal = row.market
     ? findOption(MARKET_OPTIONS, row.market)
     : undefined;
