@@ -6,12 +6,14 @@ import AppHeader from "@/components/AppHeader";
 import Modal from "@/components/Modal";
 import Pagination, { usePagination } from "@/components/Pagination";
 import Spinner from "@/components/Spinner";
+import RequestDetailsModal from "@/components/RequestDetailsModal";
 import {
   Avatar,
   EmptyState,
   FilterTiles,
   StatusTag,
   dangerButton,
+  editButton,
   headRow,
   primaryButton,
   row,
@@ -20,7 +22,7 @@ import {
   td,
   th,
 } from "@/components/DataTable";
-import { api, ApiError, type Ad, type CreativeRequest } from "@/lib/api";
+import { api, ApiError, type CreativeRequest } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
 import { useNotifications } from "@/lib/NotificationsProvider";
 
@@ -35,8 +37,8 @@ const TAB_LABELS: Record<Tab, string> = {
 
 const COLUMNS: Record<Tab, string[]> = {
   Open: ["S.N.", "Request", "Requester", "Sent", "Needed by", "Status", ""],
-  Delivered: ["S.N.", "Request", "Requester", "Sent", "Delivered ad", "Status"],
-  Declined: ["S.N.", "Request", "Requester", "Sent", "Reason", "Status"],
+  Delivered: ["S.N.", "Request", "Requester", "Sent", "Delivered ad", "Status", ""],
+  Declined: ["S.N.", "Request", "Requester", "Sent", "Reason", "Status", ""],
 };
 
 const EMPTY: Record<Tab, string> = {
@@ -127,44 +129,23 @@ function DeliverModal({
   onClose: () => void;
   onDelivered: (request: CreativeRequest) => void;
 }) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Ad[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [selected, setSelected] = useState<Ad | null>(null);
+  const [url, setUrl] = useState("");
+  const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setSearching(true);
-      api
-        .getAds(query ? { q: query } : undefined)
-        .then(({ ads }) => {
-          if (!cancelled) setResults(ads.slice(0, 8));
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, 200);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query]);
+  const trimmed = url.trim();
+  const validUrl = /^https?:\/\/\S+\.\S+/.test(trimmed);
 
   async function handleConfirm() {
-    if (!selected) return;
+    if (!validUrl) return;
     setSubmitting(true);
     setError(null);
     try {
-      const { request: updated } = await api.deliverRequest(
-        request.id,
-        selected.id
-      );
+      const { request: updated } = await api.deliverRequest(request.id, trimmed, note.trim());
       onDelivered(updated);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't link that ad.");
+      setError(err instanceof ApiError ? err.message : "Couldn't deliver that request.");
     } finally {
       setSubmitting(false);
     }
@@ -172,54 +153,37 @@ function DeliverModal({
 
   return (
     <Modal open onClose={onClose} maxWidth="max-w-md">
-      <h2 className="text-lg font-extrabold text-ink">Mark as delivered</h2>
+      <h2 className="text-lg font-extrabold text-ink">Deliver request</h2>
       <p className="mt-1 text-sm text-ink-muted">
-        Link the finished ad to &ldquo;{request.title}&rdquo;.
+        Send the finished creative for &ldquo;{request.title}&rdquo; to{" "}
+        {request.requester?.fullName ?? "the client"}.
       </p>
 
+      <label className="mt-5 mb-[5px] block text-xs text-ink/70">Link to the finished ad</label>
       <input
-        type="text"
+        type="url"
         autoFocus
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setSelected(null);
-        }}
-        placeholder="Search ads by title…"
-        className="mt-4 w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        placeholder="https://www.canva.com/design/…"
+        className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
       />
+      <p className="mt-1 text-[11px] text-ink-muted">
+        A Canva, Google Drive or Adplaylist ad link. An Adplaylist ad link also shows the ad
+        as a card for the client.
+      </p>
 
-      <div className="mt-2 max-h-56 divide-y divide-border overflow-y-auto border border-border">
-        {searching && (
-          <div className="flex items-center gap-2 p-3 text-sm text-ink-muted">
-            <Spinner />
-            Searching…
-          </div>
-        )}
-        {!searching && results.length === 0 && (
-          <p className="p-3 text-sm text-ink-muted">No ads found.</p>
-        )}
-        {!searching &&
-          results.map((ad) => (
-            <button
-              key={ad.id}
-              type="button"
-              onClick={() => setSelected(ad)}
-              className={`flex w-full items-center justify-between gap-3 p-2.5 text-left text-sm hover:bg-surface-2 ${
-                selected?.id === ad.id ? "bg-brand/10" : ""
-              }`}
-            >
-              <span className="min-w-0 truncate text-ink">
-                {ad.title} — {ad.format}
-              </span>
-              {selected?.id === ad.id && (
-                <span className="shrink-0 text-xs font-bold text-brand">
-                  Selected
-                </span>
-              )}
-            </button>
-          ))}
-      </div>
+      <label className="mt-4 mb-[5px] block text-xs text-ink/70">
+        Message to the client <span className="text-ink-muted">(optional)</span>
+      </label>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={3}
+        maxLength={2000}
+        placeholder="Anything they should know: what changed, how to use it…"
+        className="w-full resize-none border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+      />
 
       {error && (
         <p className="mt-3 text-sm text-brand" role="alert">
@@ -227,7 +191,10 @@ function DeliverModal({
         </p>
       )}
 
-      <div className="mt-6 flex justify-end gap-3">
+      <p className="mt-4 text-xs text-ink-muted">
+        The client gets a notification (and an email) with the link.
+      </p>
+      <div className="mt-3 flex justify-end gap-3">
         <button
           type="button"
           onClick={onClose}
@@ -238,10 +205,10 @@ function DeliverModal({
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={!selected || submitting}
+          disabled={!validUrl || submitting}
           className="bg-brand px-4 py-2 text-sm font-bold text-brand-foreground disabled:opacity-60"
         >
-          {submitting ? "Linking…" : "Mark delivered"}
+          {submitting ? "Delivering…" : "Deliver & notify client"}
         </button>
       </div>
     </Modal>
@@ -346,6 +313,7 @@ function RequestsQueue() {
 
   const [delivering, setDelivering] = useState<CreativeRequest | null>(null);
   const [declining, setDeclining] = useState<CreativeRequest | null>(null);
+  const [viewing, setViewing] = useState<CreativeRequest | null>(null);
 
   // New and updated requests arrive live; new ones go on top.
   useEffect(
@@ -463,6 +431,9 @@ function RequestsQueue() {
                               <StatusTag status={req.status} />
                             </td>
                             <td className={`${td} text-right whitespace-nowrap`}>
+                              <button type="button" onClick={() => setViewing(req)} className={`mr-2 ${editButton}`}>
+                                View
+                              </button>
                               <button type="button" onClick={() => setDelivering(req)} className={primaryButton}>
                                 Deliver
                               </button>
@@ -479,7 +450,17 @@ function RequestsQueue() {
                         {tab === "Delivered" && (
                           <>
                             <td className={td}>
-                              {req.ad ? (
+                              {req.deliveredUrl ? (
+                                <a
+                                  href={req.deliveredUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={req.deliveredUrl}
+                                  className="block max-w-[280px] truncate font-semibold text-brand hover:underline"
+                                >
+                                  {req.ad?.title ?? req.deliveredUrl.replace(/^https?:\/\//, "")}
+                                </a>
+                              ) : req.ad ? (
                                 <a
                                   suppressHydrationWarning
                                   href={`/ads/${req.ad.id}`}
@@ -494,6 +475,11 @@ function RequestsQueue() {
                             <td className={td}>
                               <StatusTag status="Delivered" />
                             </td>
+                            <td className={`${td} text-right`}>
+                              <button type="button" onClick={() => setViewing(req)} className={editButton}>
+                                View
+                              </button>
+                            </td>
                           </>
                         )}
                         {tab === "Declined" && (
@@ -503,6 +489,11 @@ function RequestsQueue() {
                             </td>
                             <td className={td}>
                               <StatusTag status="Declined" />
+                            </td>
+                            <td className={`${td} text-right`}>
+                              <button type="button" onClick={() => setViewing(req)} className={editButton}>
+                                View
+                              </button>
                             </td>
                           </>
                         )}
@@ -516,6 +507,59 @@ function RequestsQueue() {
           </div>
         )}
       </main>
+
+      {viewing && (
+        <RequestDetailsModal
+          request={viewing}
+          raisedBy={
+            viewing.requester ? (
+              <>
+                {viewing.requester.fullName}
+                <a
+                  href={`mailto:${viewing.requester.email}`}
+                  className="block text-xs text-ink-muted hover:text-ink hover:underline"
+                >
+                  {viewing.requester.email}
+                </a>
+                <span className="block text-xs text-ink-muted">
+                  {viewing.requester.company
+                    ? `${viewing.requester.company.name} · ${viewing.requester.company.plan}`
+                    : `Staff · ${viewing.requester.role}`}
+                </span>
+              </>
+            ) : (
+              "—"
+            )
+          }
+          onClose={() => setViewing(null)}
+          actions={
+            viewing.status !== "Delivered" && viewing.status !== "Declined" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeclining(viewing);
+                    setViewing(null);
+                  }}
+                  className="border border-brand/40 px-4 py-2 text-sm font-bold text-brand hover:bg-brand hover:text-brand-foreground"
+                >
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDelivering(viewing);
+                    setViewing(null);
+                  }}
+                  className="bg-brand px-4 py-2 text-sm font-bold text-brand-foreground hover:opacity-90"
+                >
+                  Deliver
+                </button>
+              </>
+            ) : null
+          }
+        />
+      )}
 
       {delivering && (
         <DeliverModal

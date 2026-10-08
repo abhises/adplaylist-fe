@@ -360,6 +360,9 @@ export type CreativeRequest = {
   type: string;
   // Link to the ad the request is about.
   adUrl?: string;
+  // Set on delivery: the finished creative's link and a note for the client.
+  deliveredUrl?: string;
+  deliveryNote?: string;
   sizeNeeded?: string;
   neededBy?: string;
   notes?: string;
@@ -720,10 +723,10 @@ export const api = {
   getRequestsQueue: () =>
     request<{ requests: CreativeRequest[] }>("/api/requests/queue"),
 
-  deliverRequest: (id: number, adId: string) =>
+  deliverRequest: (id: number, deliveredUrl: string, note?: string) =>
     request<{ request: CreativeRequest }>(`/api/requests/${id}/deliver`, {
       method: "POST",
-      body: JSON.stringify({ adId }),
+      body: JSON.stringify({ deliveredUrl, note: note || undefined }),
     }),
 
   declineRequest: (id: number, reason: string) =>

@@ -28,6 +28,7 @@ import { adCategories, findCategory } from "@/lib/categories";
 
 const ADDED_OPTIONS = [
   { label: "Any time", days: null },
+  { label: "Last 24 hours", days: 1 },
   { label: "Last 7 days", days: 7 },
   { label: "Last 30 days", days: 30 },
   { label: "Last 6 months", days: 182 },
@@ -375,6 +376,68 @@ export default function LibraryView({
     selectedColors.length +
     selectedTags.length;
 
+  // Every applied filter as a chip with its own remove button, in the order
+  // the sidebar lists them.
+  const without = (list: string[], value: string) => list.filter((v) => v !== value);
+  const activeChips: { key: string; label: string; remove: () => void }[] = [
+    ...(keyword ? [{ key: "q", label: `“${keyword}”`, remove: () => setKeyword("") }] : []),
+    ...platforms.map((p) => ({
+      key: `platform-${p}`,
+      label: p,
+      remove: () => setPlatforms(without(platforms, p)),
+    })),
+    ...mediaTypes.map((m) => ({
+      key: `media-${m}`,
+      label: m === "video" ? "Video" : "Image",
+      remove: () => setMediaTypes(without(mediaTypes, m)),
+    })),
+    ...selectedCategories.map((c) => ({
+      key: `category-${c}`,
+      label: c,
+      remove: () => setSelectedCategories(without(selectedCategories, c)),
+    })),
+    ...(country ? [{ key: "country", label: country, remove: () => setCountry("") }] : []),
+    ...(language ? [{ key: "language", label: language, remove: () => setLanguage("") }] : []),
+    ...(addedDays !== null
+      ? [
+          {
+            key: "added",
+            label: `Added: ${ADDED_OPTIONS.find((o) => o.days === addedDays)?.label.toLowerCase() ?? `last ${addedDays} days`}`,
+            remove: () => handleAddedChange(""),
+          },
+        ]
+      : []),
+    ...selectedFormats.map((f) => ({
+      key: `format-${f}`,
+      label: f,
+      remove: () => setSelectedFormats(without(selectedFormats, f)),
+    })),
+    ...(canvaFilter
+      ? [
+          {
+            key: "canva",
+            label: canvaFilter === "editable" ? "Editable" : "Non-editable",
+            remove: () => setCanvaFilter(""),
+          },
+        ]
+      : []),
+    ...selectedLengths.map((l) => ({
+      key: `length-${l}`,
+      label: l,
+      remove: () => setSelectedLengths(without(selectedLengths, l)),
+    })),
+    ...selectedColors.map((c) => ({
+      key: `color-${c}`,
+      label: c,
+      remove: () => setSelectedColors(without(selectedColors, c)),
+    })),
+    ...selectedTags.map((t) => ({
+      key: `tag-${t}`,
+      label: `#${t}`,
+      remove: () => setSelectedTags(without(selectedTags, t)),
+    })),
+  ];
+
   useEffect(() => {
     if (!filtersOpen) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFiltersOpen(false);
@@ -638,23 +701,6 @@ export default function LibraryView({
             </select>
           </div>
 
-          <div className="mt-6">
-            <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
-              Added
-            </p>
-            <select
-              value={addedDays === null ? "" : addedDays}
-              onChange={(e) => handleAddedChange(e.target.value)}
-              className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none"
-            >
-              {ADDED_OPTIONS.map((opt) => (
-                <option key={opt.label} value={opt.days ?? ""}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <button
             type="button"
             onClick={() => setMoreOpen((v) => !v)}
@@ -676,6 +722,23 @@ export default function LibraryView({
 
           {moreOpen && (
             <>
+              <div className="mt-6">
+                <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
+                  Added
+                </p>
+                <select
+                  value={addedDays === null ? "" : addedDays}
+                  onChange={(e) => handleAddedChange(e.target.value)}
+                  className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none"
+                >
+                  {ADDED_OPTIONS.map((opt) => (
+                    <option key={opt.label} value={opt.days ?? ""}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="mt-6">
                 <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
                   Canva
@@ -838,11 +901,45 @@ export default function LibraryView({
             <span className="text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
               Active
             </span>
-            <span className="text-ink-muted">
-              {activeCount === 0
-                ? "None — showing everything cleared for you"
-                : `${activeCount} filter${activeCount > 1 ? "s" : ""} applied`}
-            </span>
+            {activeCount === 0 ? (
+              <span className="text-ink-muted">None — showing everything cleared for you</span>
+            ) : (
+              <>
+                <span className="text-ink-muted">
+                  {activeCount} filter{activeCount > 1 ? "s" : ""} applied:
+                </span>
+                {activeChips.map((chip) => (
+                  <span
+                    key={chip.key}
+                    className="flex items-center gap-1 border border-brand/30 bg-brand/10 py-0.5 pr-1 pl-2 text-xs text-brand"
+                  >
+                    {chip.label}
+                    <button
+                      type="button"
+                      onClick={chip.remove}
+                      aria-label={`Remove filter ${chip.label}`}
+                      title="Remove filter"
+                      className="px-1 text-sm leading-none opacity-70 hover:opacity-100"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <span className="text-ink-muted">
+                  — <span className="font-bold text-ink tabular-nums">{filtered.length}</span> ad
+                  {filtered.length === 1 ? "" : "s"}
+                </span>
+                {activeChips.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={resetAllFilters}
+                    className="text-xs font-bold text-brand hover:text-brand/80"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </>
+            )}
           </div>
           )}
 
