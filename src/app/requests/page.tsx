@@ -57,15 +57,17 @@ function attachmentKind(nameOrUrl: string | undefined): AttachmentKind {
 
 const TABS = ["Open", "Delivered", "Declined"] as const;
 
+// value is what gets saved on the request; size and use are what the form shows.
 const SIZE_NEEDED_OPTIONS = [
-  "1080 x 1080 — Feed",
-  "1080 x 1920 — Story",
-  "300 x 250 — Display",
-  "728 x 90 — Leaderboard",
-  "970 x 250 — Billboard",
-  "16:9 — Video",
-  "All standard sizes",
+  { value: "1080 x 1080 Feed", size: "1080 × 1080", use: "Feed" },
+  { value: "1080 x 1920 Story", size: "1080 × 1920", use: "Story" },
+  { value: "300 x 250 Display", size: "300 × 250", use: "Display" },
+  { value: "728 x 90 Leaderboard", size: "728 × 90", use: "Leaderboard" },
+  { value: "970 x 250 Billboard", size: "970 × 250", use: "Billboard" },
+  { value: "16:9 Video", size: "16:9", use: "Video" },
+  { value: "All standard sizes", size: "All standard sizes", use: "Every size above" },
 ];
+const ALL_SIZES = "All standard sizes";
 
 function shortDate(iso?: string) {
   if (!iso) return "—";
@@ -237,6 +239,16 @@ function Requests() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [viewingRequest, setViewingRequest] = useState<CreativeRequest | null>(null);
+  const [sizes, setSizes] = useState<string[]>([]);
+
+  // "All standard sizes" stands alone; picking a specific size clears it.
+  function toggleSize(opt: string) {
+    setSizes((prev) => {
+      if (prev.includes(opt)) return prev.filter((s) => s !== opt);
+      if (opt === ALL_SIZES) return [ALL_SIZES];
+      return [...prev.filter((s) => s !== ALL_SIZES), opt];
+    });
+  }
 
   useEffect(() => {
     if (!viewingRequest) return;
@@ -335,7 +347,10 @@ function Requests() {
     try {
       const { request } = await api.createRequest({
         title: String(form.get("title")),
-        sizeNeeded: String(form.get("sizeNeeded") || "") || undefined,
+        sizeNeeded:
+          SIZE_NEEDED_OPTIONS.filter((opt) => sizes.includes(opt.value))
+            .map((opt) => opt.value)
+            .join(", ") || undefined,
         neededBy: String(form.get("neededBy") || "") || undefined,
         notes: String(form.get("notes") || "") || undefined,
         attachmentUrl: attachmentUrl ?? undefined,
@@ -347,6 +362,7 @@ function Requests() {
       // One credit was spent; update the balance shown.
       if (user?.account) refresh();
       formEl.reset();
+      setSizes([]);
       clearAttachment();
       setTab("Open");
     } catch (err) {
@@ -605,14 +621,38 @@ function Requests() {
               <label className="mb-[5px] block text-xs text-ink/70">
                 Sizes needed
               </label>
-              <select
-                name="sizeNeeded"
-                className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none"
-              >
-                {SIZE_NEEDED_OPTIONS.map((opt) => (
-                  <option key={opt}>{opt}</option>
-                ))}
-              </select>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-0.5">
+                {SIZE_NEEDED_OPTIONS.map((opt) => {
+                  const checked = sizes.includes(opt.value);
+                  return (
+                    <label
+                      key={opt.value}
+                      className={`group flex cursor-pointer items-start gap-2.5 ${
+                        opt.value === ALL_SIZES ? "col-span-2" : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleSize(opt.value)}
+                        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-brand"
+                      />
+                      <span className="leading-tight">
+                        <span
+                          className={`block text-sm tabular-nums transition-colors ${
+                            checked ? "font-semibold text-ink" : "text-ink/80 group-hover:text-ink"
+                          }`}
+                        >
+                          {opt.size}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] tracking-[0.04em] text-ink-muted">
+                          {opt.use}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
             <div>
               <label className="mb-[5px] block text-xs text-ink/70">
