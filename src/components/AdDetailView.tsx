@@ -472,7 +472,7 @@ export default function AdDetailView({
               </div>
               {user ? (
                 <Link
-                  href="/requests"
+                  href={`/requests?ad=${encodeURIComponent(ad.id)}`}
                   className="bg-brand px-5 py-3.5 text-base font-bold text-brand-foreground"
                 >
                   Request more sizes

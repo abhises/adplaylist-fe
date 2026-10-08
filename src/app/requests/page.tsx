@@ -221,7 +221,17 @@ function Requests() {
   const [upgrade, setUpgrade] = useState<UpgradeReason | null>(null);
   // A notification links to ?tab=Delivered (or Declined); clicking a tab
   // overrides it.
-  const tabParam = useSearchParams().get("tab");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  // "Request more sizes" on an ad page sends ?ad=<slug> to prefill the ad link.
+  const adParam = searchParams.get("ad");
+  // The form only renders client-side (after auth), so window is safe here.
+  const prefilledAdUrl =
+    adParam && typeof window !== "undefined"
+      ? `${window.location.origin}/ads/${encodeURIComponent(adParam)}`
+      : "";
+  const [typedAdUrl, setAdUrl] = useState<string | null>(null);
+  const adUrl = typedAdUrl ?? prefilledAdUrl;
   const [chosenTab, setTab] = useState<(typeof TABS)[number] | null>(null);
   const tab = chosenTab ?? TABS.find((t) => t === tabParam) ?? "Open";
   const [requests, setRequests] = useState<CreativeRequest[]>([]);
@@ -347,6 +357,7 @@ function Requests() {
     try {
       const { request } = await api.createRequest({
         title: String(form.get("title")),
+        adUrl: adUrl.trim(),
         sizeNeeded:
           SIZE_NEEDED_OPTIONS.filter((opt) => sizes.includes(opt.value))
             .map((opt) => opt.value)
@@ -363,6 +374,7 @@ function Requests() {
       if (user?.account) refresh();
       formEl.reset();
       setSizes([]);
+      setAdUrl("");
       clearAttachment();
       setTab("Open");
     } catch (err) {
@@ -616,6 +628,23 @@ function Requests() {
                 required
                 className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
               />
+            </div>
+            <div>
+              <label className="mb-[5px] block text-xs text-ink/70">
+                Ad link
+              </label>
+              <input
+                type="url"
+                name="adUrl"
+                value={adUrl}
+                onChange={(e) => setAdUrl(e.target.value)}
+                placeholder="https://adplaylist.com/ads/…"
+                required
+                className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+              />
+              <p className="mt-1 text-[11px] text-ink-muted">
+                The ad this request is about. Paste the link from the ad&apos;s page.
+              </p>
             </div>
             <div>
               <label className="mb-[5px] block text-xs text-ink/70">
@@ -876,6 +905,20 @@ function Requests() {
                     )}
                   </DetailRow>
                   <DetailRow label="Sizes needed">{r.sizeNeeded ?? "Any size"}</DetailRow>
+                  {r.adUrl && (
+                    <div className="sm:col-span-2">
+                      <DetailRow label="Ad link">
+                        <a
+                          href={r.adUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="break-all text-brand underline-offset-2 hover:underline"
+                        >
+                          {r.adUrl}
+                        </a>
+                      </DetailRow>
+                    </div>
+                  )}
                   <DetailRow label="Cost">
                     {r.creditCharged ? (
                       r.status === "Declined" ? (

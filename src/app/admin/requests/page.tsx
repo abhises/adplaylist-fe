@@ -95,7 +95,7 @@ function RequesterCell({ requester }: { requester: CreativeRequest["requester"] 
   );
 }
 
-// The request itself: title, type and size.
+// The request itself: title, type, size and the ad it's about.
 function RequestCell({ req }: { req: CreativeRequest }) {
   return (
     <td className={td}>
@@ -103,6 +103,17 @@ function RequestCell({ req }: { req: CreativeRequest }) {
       <p className="mt-0.5 text-xs text-ink-muted">
         {req.type} &middot; {req.sizeNeeded ?? "Any size"}
       </p>
+      {req.adUrl && (
+        <a
+          href={req.adUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={req.adUrl}
+          className="mt-0.5 block max-w-[280px] truncate text-xs text-brand underline-offset-2 hover:underline"
+        >
+          {req.adUrl.replace(/^https?:\/\//, "")}
+        </a>
+      )}
     </td>
   );
 }

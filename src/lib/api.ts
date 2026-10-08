@@ -356,6 +356,8 @@ export type CreativeRequest = {
   id: number;
   title: string;
   type: string;
+  // Link to the ad the request is about.
+  adUrl?: string;
   sizeNeeded?: string;
   neededBy?: string;
   notes?: string;
@@ -668,6 +670,7 @@ export const api = {
 
   createRequest: (data: {
     title: string;
+    adUrl: string;
     sizeNeeded?: string;
     neededBy?: string;
     notes?: string;
