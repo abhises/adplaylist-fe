@@ -9,7 +9,7 @@ import SignUpPrompt, { type SignUpReason } from "@/components/SignUpPrompt";
 import AdCard from "@/components/AdCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import UpgradePrompt, { type UpgradeReason } from "@/components/UpgradePrompt";
-import { SIZE_OPTIONS } from "@/lib/ads";
+import { SIZE_OPTIONS, adMarkets } from "@/lib/ads";
 import {
   adDates,
   adImageAlt,
@@ -50,7 +50,7 @@ function similarity(a: Ad, b: Ad) {
   return (
     sharedTagCount(a, b) * 2 +
     (sharesCategory(a, b) ? 1 : 0) +
-    (a.market === b.market ? 1 : 0)
+    (adMarkets(a).some((m) => adMarkets(b).includes(m)) ? 1 : 0)
   );
 }
 
@@ -846,7 +846,10 @@ export default function AdDetailView({
               />
               <DetailRow label="Aspect ratio" value="1:1 square" />
               <DetailRow label="Language" value={ad.language} />
-              <DetailRow label="Market" value={ad.market} />
+              <DetailRow
+                label={adMarkets(ad).length > 1 ? "Markets" : "Market"}
+                value={adMarkets(ad).join(", ")}
+              />
               {ad.dominantColor && <DetailRow label="Dominant colour" value={ad.dominantColor} />}
               {ad.brandName && (
                 <DetailRow label="Brand" value={ad.brandName} href={libraryQuery("q", ad.brandName)} />

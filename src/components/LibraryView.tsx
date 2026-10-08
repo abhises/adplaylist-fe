@@ -19,6 +19,7 @@ import {
   DOMINANT_COLORS,
   LANGUAGE_OPTIONS,
   MARKET_OPTIONS,
+  adMarkets,
   PLATFORM_OPTIONS,
   VIDEO_LENGTH_OPTIONS,
   shuffle,
@@ -264,7 +265,7 @@ export default function LibraryView({
       ) {
         return false;
       }
-      if (country && ad.market !== country) return false;
+      if (country && !adMarkets(ad).includes(country)) return false;
       if (language && ad.language !== language) return false;
       if (addedCutoff !== null && new Date(ad.createdAt).getTime() < addedCutoff) {
         return false;

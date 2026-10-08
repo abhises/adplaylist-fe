@@ -495,7 +495,7 @@ export default function BulkAddAdsPage() {
                         {[
                           d.categories.join(", "),
                           d.adFormat,
-                          d.market,
+                          d.markets.join(", "),
                         ]
                           .filter(Boolean)
                           .join(" · ")}

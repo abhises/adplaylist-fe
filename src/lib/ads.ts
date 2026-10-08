@@ -34,7 +34,16 @@ export const SIZE_OPTIONS = [
 // The full list (and its groups) lives in ./categories.
 export { CATEGORY_OPTIONS } from "./categories";
 
-export const MARKET_OPTIONS = ["All markets", "UK", "DE", "NL", "FR", "BE", "IT", "ES", "US"];
+export const ALL_MARKETS = "All markets";
+export const MARKET_OPTIONS = [ALL_MARKETS, "UK", "DE", "NL", "FR", "BE", "IT", "ES", "US"];
+// The most markets one ad can be in.
+export const MAX_MARKETS = 3;
+
+// All of an ad's markets, primary first. Ads from before multiple markets
+// (or an older API) only have `market`.
+export function adMarkets(ad: { market: string; markets?: string[] }): string[] {
+  return ad.markets?.length ? ad.markets : [ad.market];
+}
 
 export const LANGUAGE_OPTIONS = [
   "English (EN)",

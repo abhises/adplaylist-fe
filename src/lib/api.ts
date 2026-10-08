@@ -23,6 +23,8 @@ export type Ad = {
   // Every category the ad is in, `category` (the primary) first.
   categories?: string[];
   market: string;
+  // Every market the ad runs in, `market` (the primary) first.
+  markets?: string[];
   language: string;
   photo?: string;
   platforms: string[];

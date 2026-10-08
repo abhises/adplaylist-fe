@@ -2,7 +2,10 @@ import {
   AD_FORMAT_OPTIONS,
   DOMINANT_COLORS,
   LANGUAGE_OPTIONS,
+  ALL_MARKETS,
   MARKET_OPTIONS,
+  MAX_MARKETS,
+  adMarkets,
   PLATFORM_OPTIONS,
   SIZE_OPTIONS,
   type Ad,
@@ -25,7 +28,8 @@ export type AdDraft = {
   description: string;
   // The first is the primary category.
   categories: string[];
-  market: string;
+  // The first is the primary market.
+  markets: string[];
   language: string;
   platforms: string[];
   dominantColor: string;
@@ -173,7 +177,7 @@ export function emptyDraft(): AdDraft {
     cta: "",
     description: "",
     categories: ["Other"],
-    market: MARKET_OPTIONS[1],
+    markets: [MARKET_OPTIONS[1]],
     language: LANGUAGE_OPTIONS[0],
     platforms: ["META"],
     dominantColor: DOMINANT_COLORS[0].name,
@@ -213,10 +217,11 @@ export function loadDraft(): AdDraft | null {
     const stored = JSON.parse(raw);
     // Drafts saved before the SEO fields existed have no content, and ones
     // from before multiple categories have a single `category`.
-    const { category, ...rest } = stored;
+    const { category, market, ...rest } = stored;
     return {
       ...emptyDraft(),
       ...(typeof category === "string" && category ? { categories: [category] } : {}),
+      ...(typeof market === "string" && market ? { markets: [market] } : {}),
       ...rest,
       content: toDraftContent(stored.content),
     };
@@ -251,7 +256,8 @@ export function draftToAd(draft: AdDraft): Omit<Ad, "id" | "createdAt"> {
     light: swatch.light,
     category: draft.categories[0] ?? "Other",
     categories: draft.categories.length ? draft.categories : ["Other"],
-    market: draft.market,
+    market: draft.markets[0] ?? MARKET_OPTIONS[0],
+    markets: draft.markets.length ? draft.markets : [MARKET_OPTIONS[0]],
     language: draft.language,
     platforms: draft.platforms,
     photo: draft.photoUrl,
@@ -298,7 +304,7 @@ export function adToDraft(ad: Ad): AdDraft {
     cta: ad.cta ?? "",
     description: ad.description ?? "",
     categories: ad.categories?.length ? ad.categories : [ad.category],
-    market: ad.market,
+    markets: adMarkets(ad),
     language: ad.language,
     platforms: ad.platforms,
     dominantColor,
@@ -670,14 +676,28 @@ function recordToDraft(
     row.category,
     categoryVal,
   );
-  const marketVal = row.market
-    ? findOption(MARKET_OPTIONS, row.market)
-    : undefined;
+  // One market or up to MAX_MARKETS ("UK, US"), the first being the
+  // primary; "All markets" alongside countries means just "All markets".
+  // More (like the blank template's cell listing every option) is invalid.
+  const marketList = row.market ? splitList(row.market) : [];
+  const marketVals = marketList.map((m) => findOption(MARKET_OPTIONS, m));
+  const marketVal =
+    marketList.length > 0 &&
+    marketList.length <= MAX_MARKETS &&
+    marketVals.every(Boolean)
+      ? marketVals.includes(ALL_MARKETS)
+        ? [ALL_MARKETS]
+        : [...new Set(marketVals as string[])]
+      : undefined;
   if (marketVal) {
-    draft.market = marketVal;
+    draft.markets = marketVal;
     matched++;
   }
-  checkOption("Market", row.market, marketVal);
+  checkOption(
+    marketList.length > MAX_MARKETS ? `Market (max ${MAX_MARKETS})` : "Market",
+    row.market,
+    marketVal,
+  );
   const languageVal = row.language
     ? findOption(LANGUAGE_OPTIONS, row.language)
     : undefined;

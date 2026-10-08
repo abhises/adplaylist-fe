@@ -8,10 +8,10 @@ import AdCard from "@/components/AdCard";
 import TagPicker from "@/components/TagPicker";
 import AdSeoEditor from "@/components/AdSeoEditor";
 import CategorySelect from "@/components/CategorySelect";
+import MarketSelect from "@/components/MarketSelect";
 import {
   DOMINANT_COLORS,
   LANGUAGE_OPTIONS,
-  MARKET_OPTIONS,
   PLATFORM_OPTIONS,
   SIZE_OPTIONS,
 } from "@/lib/ads";
@@ -465,15 +465,10 @@ export default function AddAdPage() {
                     />
                   </Field>
                   <Field label="Market">
-                    <select
-                      value={draft.market}
-                      onChange={(e) => updateFields({ market: e.target.value })}
-                      className={inputClass}
-                    >
-                      {MARKET_OPTIONS.map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
+                    <MarketSelect
+                      value={draft.markets}
+                      onChange={(markets) => updateFields({ markets })}
+                    />
                   </Field>
                   <Field label="Language">
                     <select

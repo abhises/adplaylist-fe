@@ -6,10 +6,10 @@ import AppHeader from "@/components/AppHeader";
 import TagPicker from "@/components/TagPicker";
 import AdSeoEditor from "@/components/AdSeoEditor";
 import CategorySelect from "@/components/CategorySelect";
+import MarketSelect from "@/components/MarketSelect";
 import {
   DOMINANT_COLORS,
   LANGUAGE_OPTIONS,
-  MARKET_OPTIONS,
   PLATFORM_OPTIONS,
   SIZE_OPTIONS,
 } from "@/lib/ads";
@@ -423,19 +423,14 @@ export default function AdEditor({
                 }
               />
               <Row
-                label="Market"
-                value={draft.market}
+                label={draft.markets.length > 1 ? "Markets" : "Market"}
+                value={draft.markets.join(", ")}
                 editing={editing}
                 edit={
-                  <select
-                    value={draft.market}
-                    onChange={(e) => update({ market: e.target.value })}
-                    className={inputClass}
-                  >
-                    {MARKET_OPTIONS.map((m) => (
-                      <option key={m}>{m}</option>
-                    ))}
-                  </select>
+                  <MarketSelect
+                    value={draft.markets}
+                    onChange={(markets) => update({ markets })}
+                  />
                 }
               />
               <Row
