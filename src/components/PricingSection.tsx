@@ -31,8 +31,6 @@ const FEATURES: [keyof Dictionary["pricing"]["features"], "credits" | "turnaroun
   ["seats", ["1", "2", "5"]],
   ["turnaround", "turnaround"],
   ["library", [true, true, true]],
-  ["editable", [false, true, true]],
-  ["sizes", [true, true, true]],
   ["localisation", [false, true, true]],
   ["brandKit", [false, false, true]],
   ["video", [false, false, true]],

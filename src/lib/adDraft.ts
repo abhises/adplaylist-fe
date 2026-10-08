@@ -23,7 +23,8 @@ export type AdDraft = {
   sub: string;
   cta: string;
   description: string;
-  category: string;
+  // The first is the primary category.
+  categories: string[];
   market: string;
   language: string;
   platforms: string[];
@@ -171,7 +172,7 @@ export function emptyDraft(): AdDraft {
     sub: "",
     cta: "",
     description: "",
-    category: "Other",
+    categories: ["Other"],
     market: MARKET_OPTIONS[1],
     language: LANGUAGE_OPTIONS[0],
     platforms: ["META"],
@@ -210,10 +211,13 @@ export function loadDraft(): AdDraft | null {
     const raw = window.sessionStorage.getItem(DRAFT_KEY);
     if (!raw) return null;
     const stored = JSON.parse(raw);
-    // Drafts saved before the SEO fields existed have no content.
+    // Drafts saved before the SEO fields existed have no content, and ones
+    // from before multiple categories have a single `category`.
+    const { category, ...rest } = stored;
     return {
       ...emptyDraft(),
-      ...stored,
+      ...(typeof category === "string" && category ? { categories: [category] } : {}),
+      ...rest,
       content: toDraftContent(stored.content),
     };
   } catch {
@@ -245,7 +249,8 @@ export function draftToAd(draft: AdDraft): Omit<Ad, "id" | "createdAt"> {
     mediaType: draft.mediaType,
     swatch: swatch.bg,
     light: swatch.light,
-    category: draft.category,
+    category: draft.categories[0] ?? "Other",
+    categories: draft.categories.length ? draft.categories : ["Other"],
     market: draft.market,
     language: draft.language,
     platforms: draft.platforms,
@@ -292,7 +297,7 @@ export function adToDraft(ad: Ad): AdDraft {
     sub: ad.sub ?? "",
     cta: ad.cta ?? "",
     description: ad.description ?? "",
-    category: ad.category,
+    categories: ad.categories?.length ? ad.categories : [ad.category],
     market: ad.market,
     language: ad.language,
     platforms: ad.platforms,
@@ -643,11 +648,20 @@ function recordToDraft(
       matched++;
     }
   }
-  const categoryVal = row.category
-    ? findCategory(row.category)
-    : undefined;
+  // One category, or a short list ("Skincare, Beauty"). The blank
+  // template's answer cell lists every option, which doesn't count.
+  const categoryList = row.category ? splitList(row.category) : [];
+  const categoryVals = categoryList.map(findCategory);
+  const categoryVal =
+    row.category && findCategory(row.category)
+      ? [findCategory(row.category)!]
+      : categoryList.length > 0 &&
+          categoryList.length <= 10 &&
+          categoryVals.every(Boolean)
+        ? [...new Set(categoryVals as string[])]
+        : undefined;
   if (categoryVal) {
-    draft.category = categoryVal;
+    draft.categories = categoryVal;
     matched++;
   }
   checkOption("Category", row.category, categoryVal);

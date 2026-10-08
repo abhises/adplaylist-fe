@@ -123,8 +123,6 @@ const nl: Dictionary = {
       seats: "Teamleden",
       turnaround: "Levertijd",
       library: "Toegang tot de volledige bibliotheek",
-      editable: "Bewerkbare kopieën",
-      sizes: "Alle platformformaten",
       localisation: "Lokalisatie naar nieuwe markten",
       brandKit: "Merkkit en templates",
       video: "Geanimeerde en video-advertenties",

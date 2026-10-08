@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { useToast } from "@/lib/ToastProvider";
 import { useI18n } from "@/lib/I18nProvider";
 import { ApiError, api, type Ad as LibraryAd } from "@/lib/api";
+import { adCategories } from "@/lib/categories";
 import { HERO_PER_PLATFORM, HERO_PLATFORMS, shuffle } from "@/lib/ads";
 
 // Tiles in the hero panel's All tab; each platform tab shows that
@@ -70,7 +71,7 @@ type LibraryCard = {
   key: string;
   name: string;
   meta: string;
-  category: string;
+  categories: string[];
   href: string;
   photo?: string;
   video: boolean;
@@ -95,7 +96,7 @@ function fromLibraryAd(ad: LibraryAd, href: string): LibraryCard {
     key: ad.id,
     name: ad.title,
     meta: [ad.platforms[0], ad.format, ad.market].filter(Boolean).join(" · "),
-    category: ad.category,
+    categories: adCategories(ad),
     href,
     photo: ad.photo,
     video: ad.mediaType === "video",
@@ -116,7 +117,7 @@ function fromSample(ad: Ad, href: string): LibraryCard {
     key: ad.name,
     name: ad.name,
     meta: ad.meta,
-    category: ad.cat,
+    categories: [ad.cat],
     href,
     video: false,
     platforms: [ad.platform],
@@ -144,7 +145,9 @@ function platformLabel(platform: string) {
 // "All" plus the library's three biggest categories.
 function topCategories(cards: LibraryCard[]) {
   const counts = new Map<string, number>();
-  for (const c of cards) counts.set(c.category, (counts.get(c.category) ?? 0) + 1);
+  for (const card of cards) {
+    for (const c of card.categories) counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
   const top = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name]) => name);
   return ["All", ...top];
 }
@@ -263,7 +266,7 @@ export default function LandingPage() {
   const featuredCards = libraryCards.filter((c) => c.featured);
   const sectionCards = featuredCards.length > 0 ? featuredCards : libraryCards.slice(0, 4);
   const categories = topCategories(sectionCards);
-  const libraryAds = sectionCards.filter((c) => category === "All" || c.category === category);
+  const libraryAds = sectionCards.filter((c) => category === "All" || c.categories.includes(category));
 
   // Slides the library row on by one card at a time, back to the start after
   // the last. Off for visitors who prefer reduced motion, and only while the

@@ -24,7 +24,7 @@ import {
   shuffle,
 } from "@/lib/ads";
 import { api, ApiError, type Ad, type User } from "@/lib/api";
-import { findCategory } from "@/lib/categories";
+import { adCategories, findCategory } from "@/lib/categories";
 
 const ADDED_OPTIONS = [
   { label: "Any time", days: null },
@@ -195,7 +195,9 @@ export default function LibraryView({
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const ad of ads) counts.set(ad.category, (counts.get(ad.category) ?? 0) + 1);
+    for (const ad of ads) {
+      for (const c of adCategories(ad)) counts.set(c, (counts.get(c) ?? 0) + 1);
+    }
     return counts;
   }, [ads]);
 
@@ -236,7 +238,7 @@ export default function LibraryView({
       const adTags = (ad.tags ?? []).map((t) => t.toLowerCase());
       if (
         kw &&
-        ![ad.headline, ad.title, ad.brandName, ad.adFormat, ad.subcategory, ad.category].some(
+        ![ad.headline, ad.title, ad.brandName, ad.adFormat, ad.subcategory, ...adCategories(ad)].some(
           (v) => v?.toLowerCase().includes(kw)
         ) &&
         !adTags.some((t) => t.includes(kw) || kw.includes(t))
@@ -257,7 +259,7 @@ export default function LibraryView({
       }
       if (
         selectedCategories.length &&
-        !selectedCategories.includes(ad.category)
+        !adCategories(ad).some((c) => selectedCategories.includes(c))
       ) {
         return false;
       }

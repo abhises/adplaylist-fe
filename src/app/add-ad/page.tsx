@@ -460,9 +460,8 @@ export default function AddAdPage() {
                   </Field>
                   <Field label="Category">
                     <CategorySelect
-                      value={draft.category}
-                      onChange={(category) => updateFields({ category })}
-                      className={inputClass}
+                      value={draft.categories}
+                      onChange={(categories) => updateFields({ categories })}
                     />
                   </Field>
                   <Field label="Market">

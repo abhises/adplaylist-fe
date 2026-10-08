@@ -663,6 +663,12 @@ export function categoryGroup(category: string): string | undefined {
   return GROUP_OF.get(category);
 }
 
+// All of an ad's categories, primary first. Ads from before multiple
+// categories (or an older API) only have `category`.
+export function adCategories(ad: { category: string; categories?: string[] }): string[] {
+  return ad.categories?.length ? ad.categories : [ad.category];
+}
+
 // Names that aren't categories themselves but mean one: the 20 categories
 // used before this taxonomy (existing ads were moved over by the
 // 20261007140000_new_categories migration, but old links and CSVs still

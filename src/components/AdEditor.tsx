@@ -412,14 +412,13 @@ export default function AdEditor({
               }`}
             >
               <Row
-                label="Category"
-                value={draft.category}
+                label={draft.categories.length > 1 ? "Categories" : "Category"}
+                value={draft.categories.join(", ")}
                 editing={editing}
                 edit={
                   <CategorySelect
-                    value={draft.category}
-                    onChange={(category) => update({ category })}
-                    className={inputClass}
+                    value={draft.categories}
+                    onChange={(categories) => update({ categories })}
                   />
                 }
               />

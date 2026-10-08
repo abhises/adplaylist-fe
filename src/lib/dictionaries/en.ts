@@ -122,8 +122,6 @@ const en = {
       seats: "Team seats",
       turnaround: "Turnaround",
       library: "Full ad library access",
-      editable: "Editable copies",
-      sizes: "All platform sizes",
       localisation: "Localisation into new markets",
       brandKit: "Brand kit and templates",
       video: "Animated and video ads",

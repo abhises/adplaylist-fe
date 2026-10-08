@@ -20,6 +20,8 @@ export type Ad = {
   swatch: string;
   light?: boolean;
   category: string;
+  // Every category the ad is in, `category` (the primary) first.
+  categories?: string[];
   market: string;
   language: string;
   photo?: string;

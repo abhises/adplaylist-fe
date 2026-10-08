@@ -493,7 +493,7 @@ export default function BulkAddAdsPage() {
                       </p>
                       <p className="truncate text-xs text-ink-muted">
                         {[
-                          d.category,
+                          d.categories.join(", "),
                           d.adFormat,
                           d.market,
                         ]

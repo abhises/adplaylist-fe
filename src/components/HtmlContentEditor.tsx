@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import Modal from "@/components/Modal";
 import { adEmbedSnippet } from "@/lib/adEmbed";
 import type { Ad } from "@/lib/api";
+import { adCategories } from "@/lib/categories";
 import {
   SUPPORTED_IMAGE_ACCEPT,
   uploadImage,
@@ -109,7 +110,7 @@ export default function HtmlContentEditor({
         (ad) =>
           ad.title.toLowerCase().includes(q) ||
           ad.headline.toLowerCase().includes(q) ||
-          ad.category.toLowerCase().includes(q)
+          adCategories(ad).some((c) => c.toLowerCase().includes(q))
       )
     : ads;
 
