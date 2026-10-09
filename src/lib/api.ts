@@ -533,6 +533,17 @@ export interface LibraryFilters {
   tags?: string[];
 }
 
+// Name, address, country (ISO code) and VAT ID printed on invoices.
+export interface BillingDetails {
+  name: string;
+  line1: string;
+  line2: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  vatId: string;
+}
+
 // The "Before you go" discount shown when deleting an account.
 export interface CancelOffer {
   percent: number;
@@ -629,6 +640,16 @@ export const api = {
 
   getPayments: () =>
     request<{ upcoming: UpcomingPayment | null; payments: Payment[] }>("/api/billing/payments"),
+
+  // Null until the account has a Stripe customer (a plan was chosen).
+  getBillingDetails: () =>
+    request<{ details: BillingDetails | null }>("/api/billing/details"),
+
+  saveBillingDetails: (details: BillingDetails) =>
+    request<{ details: BillingDetails }>("/api/billing/details", {
+      method: "PUT",
+      body: JSON.stringify(details),
+    }),
 
   // The Adplaylist-branded PDF of one invoice, saved as a file.
   downloadInvoicePdf: async (invoiceId: string, fileName: string) => {

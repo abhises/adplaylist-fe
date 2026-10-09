@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
+import BillingDetailsCard from "@/components/BillingDetails";
 import { CreditHistory, PaymentHistory } from "@/components/BillingHistory";
 import StartPlanNow, { canStartPlanNow } from "@/components/StartPlanNow";
 import { useAuth, useRequireAuth } from "@/lib/AuthProvider";
@@ -205,6 +206,7 @@ function Billing() {
               planChooser
             )}
 
+            {account.role === "owner" && <BillingDetailsCard />}
             {account.role === "owner" && (
               <PaymentHistory version={`${account.status}-${account.plan}-${account.creditVolume}`} />
             )}
