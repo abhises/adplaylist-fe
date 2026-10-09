@@ -82,8 +82,10 @@ export default async function AdPage({ params }: PageProps<"/ads/[id]">) {
   const { id } = await params;
   const [ad, ads, posts] = await Promise.all([
     getAd(id),
+    // For "More like this" and previous/next: card fields are enough, and
+    // the list is cached for a minute rather than fetched on every visit.
     api
-      .getAds()
+      .getLibraryAds({ next: { revalidate: 60 } })
       .then((res) => res.ads)
       .catch(() => [] as Ad[]),
     api
