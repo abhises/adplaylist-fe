@@ -165,6 +165,9 @@ export default function AdDetailView({
   const [canvaConfirm, setCanvaConfirm] = useState(false);
   const [canvaRequesting, setCanvaRequesting] = useState(false);
   const [canvaRequested, setCanvaRequested] = useState(false);
+  const [similarConfirm, setSimilarConfirm] = useState(false);
+  const [similarRequesting, setSimilarRequesting] = useState(false);
+  const [similarRequested, setSimilarRequested] = useState(false);
 
   // The server renders the ad as a visitor sees it. Once signed in, reload
   // it as this user (their plan may include the editable copy) and their
@@ -224,6 +227,38 @@ export default function AdDetailView({
       else toast.error(err instanceof Error ? err.message : "Couldn't send the request.");
     } finally {
       setCanvaRequesting(false);
+    }
+  }
+
+  // "Request a similar design" on a live ad: the same steps as a Canva edit
+  // (sign up, upgrade or confirm the credit), then the request goes straight
+  // to the team.
+  function startSimilarRequest() {
+    if (!user) return setSignUp("requests");
+    if (!can(user, "requests")) return setUpgrade("requests");
+    if (user.account && user.account.credits < 1) return setUpgrade("outOfCredits");
+    setSimilarConfirm(true);
+  }
+
+  async function requestSimilarDesign() {
+    setSimilarRequesting(true);
+    try {
+      const { alreadyRequested } = await api.requestSimilarDesign(ad.id);
+      setSimilarRequested(true);
+      setSimilarConfirm(false);
+      toast.success(
+        alreadyRequested
+          ? "You've already requested a design like this one. No extra credit was used."
+          : "Request sent. Our team will design something similar for you; 1 credit used."
+      );
+      refresh().catch(() => {});
+    } catch (err) {
+      setSimilarConfirm(false);
+      if (err instanceof ApiError && err.outOfCredits) setUpgrade("outOfCredits");
+      else if (err instanceof ApiError && err.upgrade) setUpgrade("requests");
+      else toast.error(err instanceof Error ? err.message : "Couldn't send the request.");
+    } finally {
+      setSimilarRequesting(false);
     }
   }
 
@@ -356,12 +391,22 @@ export default function AdDetailView({
             This ad is live and shown for inspiration only. Want something similar for your
             business? We&apos;ll design it for you.
           </p>
-          <Link
-            href={user ? `/requests?ad=${encodeURIComponent(ad.id)}` : "/signup"}
-            className="shrink-0 border-b-2 border-brand pb-0.5 font-bold whitespace-nowrap text-white hover:text-white/80"
-          >
-            Request a similar design &rarr;
-          </Link>
+          {similarRequested ? (
+            <Link
+              href="/requests"
+              className="shrink-0 font-bold whitespace-nowrap text-white/80 hover:text-white"
+            >
+              &#10003; Similar design requested
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={startSimilarRequest}
+              className="shrink-0 border-b-2 border-brand pb-0.5 font-bold whitespace-nowrap text-white hover:text-white/80"
+            >
+              Request a similar design &rarr;
+            </button>
+          )}
         </div>
       )}
 
@@ -1103,6 +1148,28 @@ export default function AdDetailView({
         loading={canvaRequesting}
         onConfirm={requestCanvaEdit}
         onCancel={() => setCanvaConfirm(false)}
+      />
+      <ConfirmDialog
+        open={similarConfirm}
+        title="Request a similar design?"
+        message={
+          <>
+            <p>
+              Our team will design an ad like{" "}
+              <span className="font-bold text-ink">{ad.title}</span> for your business.
+              You&apos;ll find it in Requests once it&apos;s done.
+            </p>
+            <p className="mt-2">
+              This will cost <span className="font-bold text-ink">1 credit</span>
+              {user?.account ? ` (you have ${user.account.credits})` : ""}. If we can&apos;t do
+              it, the credit is refunded.
+            </p>
+          </>
+        }
+        confirmLabel={similarRequesting ? "Requesting…" : "Request for 1 credit"}
+        loading={similarRequesting}
+        onConfirm={requestSimilarDesign}
+        onCancel={() => setSimilarConfirm(false)}
       />
       <SignUpPrompt reason={signUp} onClose={() => setSignUp(null)} />
     </div>

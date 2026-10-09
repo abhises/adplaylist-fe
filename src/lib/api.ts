@@ -773,6 +773,13 @@ export const api = {
       body: JSON.stringify({ adId }),
     }),
 
+  // "Request a similar design" on a live ad; costs 1 credit, like any request.
+  requestSimilarDesign: (adId: string) =>
+    request<{ request: CreativeRequest; alreadyRequested: boolean }>("/api/requests/similar", {
+      method: "POST",
+      body: JSON.stringify({ adId }),
+    }),
+
   createRequest: (data: {
     title: string;
     adUrl: string;
