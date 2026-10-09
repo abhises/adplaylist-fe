@@ -12,6 +12,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import FeedbackPanel from "@/components/FeedbackPanel";
 import OnboardingPopup from "@/components/OnboardingQuestionnaire";
 import Pagination, { usePagination } from "@/components/Pagination";
+import SavedFiltersBar from "@/components/SavedFiltersBar";
 import Spinner from "@/components/Spinner";
 import UpgradePrompt from "@/components/UpgradePrompt";
 import { can } from "@/lib/plans";
@@ -24,7 +25,7 @@ import {
   VIDEO_LENGTH_OPTIONS,
   shuffle,
 } from "@/lib/ads";
-import { api, ApiError, type Ad, type User } from "@/lib/api";
+import { api, ApiError, type Ad, type LibraryFilters, type User } from "@/lib/api";
 import { adCategories, findCategory } from "@/lib/categories";
 
 const ADDED_OPTIONS = [
@@ -52,6 +53,7 @@ export default function LibraryView({
   initialQuery,
   initialCategory,
   initialAds,
+  pageSizeOptions = PAGE_SIZE_OPTIONS,
 }: {
   heading: string;
   // Null for visitors on the public /library page: anyone can browse, but
@@ -67,6 +69,8 @@ export default function LibraryView({
   // (popular searches, the category in the details and breadcrumb).
   initialQuery?: string;
   initialCategory?: string;
+  // Rows-per-page choices; the first is the default.
+  pageSizeOptions?: number[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -233,6 +237,38 @@ export default function LibraryView({
     setSelectedTags([]);
   }
 
+  // The filters as a saved preset stores them, and applying one: every
+  // filter is set, so whatever was picked before is replaced.
+  const currentFilters: LibraryFilters = {
+    keyword,
+    mediaTypes,
+    platforms,
+    categories: selectedCategories,
+    country,
+    language,
+    addedDays,
+    formats: selectedFormats,
+    canva: canvaFilter,
+    lengths: selectedLengths,
+    colors: selectedColors,
+    tags: selectedTags,
+  };
+
+  function applyFilters(f: LibraryFilters) {
+    setKeyword(f.keyword ?? "");
+    setMediaTypes(f.mediaTypes ?? []);
+    setPlatforms(f.platforms ?? []);
+    setSelectedCategories(f.categories ?? []);
+    setCountry(f.country ?? "");
+    setLanguage(f.language ?? "");
+    handleAddedChange(f.addedDays == null ? "" : String(f.addedDays));
+    setSelectedFormats(f.formats ?? []);
+    setCanvaFilter(f.canva ?? "");
+    setSelectedLengths(f.lengths ?? []);
+    setSelectedColors(f.colors ?? []);
+    setSelectedTags(f.tags ?? []);
+  }
+
   const filtered = useMemo(() => {
     const kw = keyword.toLowerCase();
     const wantedTags = selectedTags.map((t) => t.toLowerCase());
@@ -322,8 +358,8 @@ export default function LibraryView({
     selectedTags,
   ]);
   const pagination = usePagination(filtered.length, "adplaylist_library_page_size", {
-    options: PAGE_SIZE_OPTIONS,
-    defaultSize: PAGE_SIZE_OPTIONS[0],
+    options: pageSizeOptions,
+    defaultSize: pageSizeOptions[0],
   });
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (filterKey !== prevFilterKey) {
@@ -942,6 +978,16 @@ export default function LibraryView({
               </>
             )}
           </div>
+          )}
+          {user && (
+            <SavedFiltersBar
+              current={currentFilters}
+              hasFilters={activeCount > 0}
+              onApply={applyFilters}
+              // A tag, search or category link opens the library on that,
+              // not on the saved default.
+              applyDefault={initialTags === undefined && !initialQuery && !initialCategory}
+            />
           )}
 
           {loading && (

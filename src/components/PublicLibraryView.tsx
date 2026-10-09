@@ -7,6 +7,9 @@ import { useAuth } from "@/lib/AuthProvider";
 import type { Ad } from "@/lib/api";
 import { slugify } from "@/lib/slug";
 
+// Rows-per-page choices on the public library only; the first is the default.
+const PUBLIC_PAGE_SIZE_OPTIONS = [20, 40];
+
 // /library. Rendered for visitors on the server, so search engines get the
 // whole library. Signed in, clients move on to their own branded library
 // (/library/<name>) and staff get the app header and their controls.
@@ -48,6 +51,7 @@ export default function PublicLibraryView({
       initialTags={initialTags}
       initialQuery={initialQuery}
       initialCategory={initialCategory}
+      pageSizeOptions={PUBLIC_PAGE_SIZE_OPTIONS}
     />
   );
 }

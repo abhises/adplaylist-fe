@@ -502,6 +502,30 @@ class ApiError extends Error {
   }
 }
 
+// The library's filters as saved in a preset. addedDays is relative ("last
+// 7 days" from whenever the preset is applied).
+export interface LibraryFilters {
+  keyword?: string;
+  mediaTypes?: string[];
+  platforms?: string[];
+  categories?: string[];
+  country?: string;
+  language?: string;
+  addedDays?: number | null;
+  formats?: string[];
+  canva?: "" | "editable" | "non-editable";
+  lengths?: string[];
+  colors?: string[];
+  tags?: string[];
+}
+
+export interface SavedFilter {
+  id: number;
+  name: string;
+  filters: LibraryFilters;
+  isDefault: boolean;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -682,6 +706,23 @@ export const api = {
 
   unsaveAd: (id: string) =>
     request<{ saved: boolean }>(`/api/saved/${id}`, { method: "DELETE" }),
+
+  getSavedFilters: () => request<{ filters: SavedFilter[] }>("/api/saved-filters"),
+
+  createSavedFilter: (data: { name: string; filters: LibraryFilters; isDefault?: boolean }) =>
+    request<{ filter: SavedFilter }>("/api/saved-filters", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateSavedFilter: (id: number, data: { name?: string; isDefault?: boolean }) =>
+    request<{ filter: SavedFilter }>(`/api/saved-filters/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  deleteSavedFilter: (id: number) =>
+    request<{ deleted: boolean }>(`/api/saved-filters/${id}`, { method: "DELETE" }),
 
   getRequests: () => request<{ requests: CreativeRequest[] }>("/api/requests"),
 
