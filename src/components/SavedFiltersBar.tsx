@@ -19,6 +19,7 @@ function normalize(f: LibraryFilters) {
     addedDays: f.addedDays ?? null,
     formats: list(f.formats),
     canva: f.canva ?? "",
+    premium: !!f.premium,
     lengths: list(f.lengths),
     colors: list(f.colors),
     tags: list(f.tags),

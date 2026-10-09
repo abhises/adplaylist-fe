@@ -37,6 +37,8 @@ export type AdDraft = {
   creativeDescription: string;
   tags: string[];
   canvaUrl: string;
+  // The Canva copy took extra work ("Premium" badge).
+  canvaPremium?: boolean;
   photoUrl?: string;
   photoDims?: { width: number; height: number };
   csvFileName?: string;
@@ -263,6 +265,8 @@ export function draftToAd(draft: AdDraft): Omit<Ad, "id" | "createdAt"> {
     photo: draft.photoUrl,
     editable: false,
     canvaUrl: draft.canvaUrl || undefined,
+    canvaPremium: !!draft.canvaUrl && !!draft.canvaPremium,
+    premium: !!draft.canvaUrl && !!draft.canvaPremium,
     dominantColor: draft.dominantColor,
     slug: draft.slug || undefined,
     subcategory: draft.subcategory || undefined,
@@ -312,6 +316,7 @@ export function adToDraft(ad: Ad): AdDraft {
     creativeDescription: ad.creativeDescription ?? "",
     tags: ad.tags ?? [],
     canvaUrl: ad.canvaUrl ?? "",
+    canvaPremium: !!ad.premium,
     photoUrl: ad.photo,
     slug: ad.id,
     subcategory: ad.subcategory ?? "",

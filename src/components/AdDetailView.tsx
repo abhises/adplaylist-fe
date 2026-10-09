@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "@/components/Link";
+import PremiumBadge from "@/components/PremiumBadge";
 import AppHeader from "@/components/AppHeader";
 import LandingHeader from "@/components/LandingHeader";
 import LandingFooter from "@/components/LandingFooter";
@@ -432,6 +433,11 @@ export default function AdDetailView({
                   fetchPriority="high"
                   className="ad-creative absolute inset-0 h-full w-full object-contain"
                 />
+              )}
+              {ad.premium && (
+                <span className="absolute top-3 left-3">
+                  <PremiumBadge size="md" />
+                </span>
               )}
             </div>
             {ad.imageCaption && (

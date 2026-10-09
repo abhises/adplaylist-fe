@@ -33,6 +33,10 @@ export type Ad = {
   // hasEditableCopy says whether one exists either way.
   canvaUrl?: string;
   hasEditableCopy?: boolean;
+  // The Canva copy took extra work: shown with a "Premium" badge.
+  premium?: boolean;
+  // Sent when saving an ad (premium comes back on the response).
+  canvaPremium?: boolean;
   dominantColor?: string;
   videoLength?: string;
   // Picked by an admin to show on the landing page: `featured` in the
@@ -514,6 +518,7 @@ export interface LibraryFilters {
   addedDays?: number | null;
   formats?: string[];
   canva?: "" | "editable" | "non-editable";
+  premium?: boolean;
   lengths?: string[];
   colors?: string[];
   tags?: string[];

@@ -55,6 +55,7 @@ export default function AddAdPage() {
   // Fields parsed from the CSV; null until a CSV has been loaded.
   const [csvDraft, setCsvDraft] = useState<AdDraft | null>(null);
   const [canvaUrl, setCanvaUrl] = useState("");
+  const [canvaPremium, setCanvaPremium] = useState(false);
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -83,6 +84,7 @@ export default function AddAdPage() {
         setCsvFileName(stored.csvFileName);
       }
       setCanvaUrl(stored.canvaUrl);
+      setCanvaPremium(!!stored.canvaPremium);
       if (stored.photoUrl) {
         setPhotoUrl(stored.photoUrl);
         setPhotoPreview(stored.photoUrl);
@@ -185,6 +187,7 @@ export default function AddAdPage() {
     return {
       ...csvDraft,
       canvaUrl,
+      canvaPremium,
       photoUrl: photoUrl ?? undefined,
       photoDims: photoDims ?? undefined,
       csvFileName: csvFileName ?? undefined,
@@ -385,6 +388,17 @@ export default function AddAdPage() {
                 placeholder="https://www.canva.com/design/…"
                 className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
               />
+              <label className="mt-2 flex items-center gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={canvaPremium}
+                  disabled={!canvaUrl}
+                  onChange={(e) => setCanvaPremium(e.target.checked)}
+                  className="h-[15px] w-[15px] accent-brand"
+                />
+                Premium
+                <span className="text-xs text-ink-muted">— the Canva copy took extra work</span>
+              </label>
             </div>
           </div>
 

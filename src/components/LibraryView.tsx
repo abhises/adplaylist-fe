@@ -100,6 +100,8 @@ export default function LibraryView({
   const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
   // Whether the ad has a Canva template link; "" shows both.
   const [canvaFilter, setCanvaFilter] = useState<"" | "editable" | "non-editable">("");
+  // Only ads whose Canva copy is marked Premium.
+  const [premiumOnly, setPremiumOnly] = useState(false);
   const [selectedLengths, setSelectedLengths] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   // Taken from the page's searchParams rather than window.location, which
@@ -198,6 +200,7 @@ export default function LibraryView({
 
   const imageCount = ads.filter((ad) => ad.mediaType === "image").length;
   const videoCount = ads.filter((ad) => ad.mediaType === "video").length;
+  const premiumCount = ads.filter((ad) => ad.premium).length;
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -232,6 +235,7 @@ export default function LibraryView({
     setAddedCutoff(null);
     setSelectedFormats([]);
     setCanvaFilter("");
+    setPremiumOnly(false);
     setSelectedLengths([]);
     setSelectedColors([]);
     setSelectedTags([]);
@@ -249,6 +253,7 @@ export default function LibraryView({
     addedDays,
     formats: selectedFormats,
     canva: canvaFilter,
+    premium: premiumOnly,
     lengths: selectedLengths,
     colors: selectedColors,
     tags: selectedTags,
@@ -264,6 +269,7 @@ export default function LibraryView({
     handleAddedChange(f.addedDays == null ? "" : String(f.addedDays));
     setSelectedFormats(f.formats ?? []);
     setCanvaFilter(f.canva ?? "");
+    setPremiumOnly(!!f.premium);
     setSelectedLengths(f.lengths ?? []);
     setSelectedColors(f.colors ?? []);
     setSelectedTags(f.tags ?? []);
@@ -311,6 +317,7 @@ export default function LibraryView({
       }
       if (canvaFilter === "editable" && !ad.hasEditableCopy) return false;
       if (canvaFilter === "non-editable" && ad.hasEditableCopy) return false;
+      if (premiumOnly && !ad.premium) return false;
       if (
         selectedLengths.length &&
         !(ad.videoLength && selectedLengths.includes(ad.videoLength))
@@ -336,6 +343,7 @@ export default function LibraryView({
     addedCutoff,
     selectedFormats,
     canvaFilter,
+    premiumOnly,
     selectedLengths,
     selectedColors,
     selectedTags,
@@ -353,6 +361,7 @@ export default function LibraryView({
     addedCutoff,
     selectedFormats,
     canvaFilter,
+    premiumOnly,
     selectedLengths,
     selectedColors,
     selectedTags,
@@ -409,6 +418,7 @@ export default function LibraryView({
     (addedDays !== null ? 1 : 0) +
     selectedFormats.length +
     (canvaFilter ? 1 : 0) +
+    (premiumOnly ? 1 : 0) +
     selectedLengths.length +
     selectedColors.length +
     selectedTags.length;
@@ -457,6 +467,9 @@ export default function LibraryView({
             remove: () => setCanvaFilter(""),
           },
         ]
+      : []),
+    ...(premiumOnly
+      ? [{ key: "premium", label: "Premium", remove: () => setPremiumOnly(false) }]
       : []),
     ...selectedLengths.map((l) => ({
       key: `length-${l}`,
@@ -803,6 +816,22 @@ export default function LibraryView({
                       </button>
                     );
                   })}
+                  <button
+                    type="button"
+                    onClick={() => setPremiumOnly(!premiumOnly)}
+                    aria-pressed={premiumOnly}
+                    className={`flex items-center gap-1.5 border px-2.5 py-1 text-xs ${
+                      premiumOnly
+                        ? "border-brand/30 bg-brand/10 text-brand"
+                        : "border-border text-ink hover:bg-surface-2"
+                    }`}
+                  >
+                    <svg viewBox="0 0 10 10" aria-hidden="true" className="h-2 w-2">
+                      <path d="M5 0 10 5 5 10 0 5Z" fill="#f5a623" />
+                    </svg>
+                    Premium
+                    <span className="text-ink-muted">{premiumCount}</span>
+                  </button>
                 </div>
               </div>
 

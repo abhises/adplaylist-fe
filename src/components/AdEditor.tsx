@@ -5,6 +5,7 @@ import Link from "@/components/Link";
 import AppHeader from "@/components/AppHeader";
 import TagPicker from "@/components/TagPicker";
 import AdSeoEditor from "@/components/AdSeoEditor";
+import PremiumBadge from "@/components/PremiumBadge";
 import CategorySelect from "@/components/CategorySelect";
 import MarketSelect from "@/components/MarketSelect";
 import {
@@ -502,25 +503,40 @@ export default function AdEditor({
                 label="Canva template"
                 value={
                   draft.canvaUrl && (
-                    <a suppressHydrationWarning
-                      href={draft.canvaUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-brand"
-                    >
-                      Open link
-                    </a>
+                    <span className="inline-flex items-center gap-2">
+                      <a suppressHydrationWarning
+                        href={draft.canvaUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-brand"
+                      >
+                        Open link
+                      </a>
+                      {draft.canvaPremium && <PremiumBadge />}
+                    </span>
                   )
                 }
                 editing={editing}
                 edit={
-                  <input
-                    type="url"
-                    value={draft.canvaUrl}
-                    onChange={(e) => update({ canvaUrl: e.target.value })}
-                    placeholder="https://www.canva.com/design/…"
-                    className={inputClass}
-                  />
+                  <>
+                    <input
+                      type="url"
+                      value={draft.canvaUrl}
+                      onChange={(e) => update({ canvaUrl: e.target.value })}
+                      placeholder="https://www.canva.com/design/…"
+                      className={inputClass}
+                    />
+                    <label className="mt-2 flex items-center gap-2 text-sm text-ink">
+                      <input
+                        type="checkbox"
+                        checked={!!draft.canvaPremium}
+                        disabled={!draft.canvaUrl}
+                        onChange={(e) => update({ canvaPremium: e.target.checked })}
+                        className="h-[15px] w-[15px] accent-brand"
+                      />
+                      Premium
+                    </label>
+                  </>
                 }
               />
             </div>
