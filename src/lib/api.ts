@@ -37,6 +37,10 @@ export type Ad = {
   premium?: boolean;
   // Sent when saving an ad (premium comes back on the response).
   canvaPremium?: boolean;
+  // Copied from a real, running ad ("Live ad") rather than a concept.
+  live?: boolean;
+  // Sent when saving an ad (live comes back on the response).
+  isLive?: boolean;
   dominantColor?: string;
   videoLength?: string;
   // Picked by an admin to show on the landing page: `featured` in the
@@ -519,6 +523,8 @@ export interface LibraryFilters {
   formats?: string[];
   canva?: "" | "editable" | "non-editable";
   premium?: boolean;
+  // "live": copied from real ads; "concept": made for the library.
+  adType?: "" | "live" | "concept";
   lengths?: string[];
   colors?: string[];
   tags?: string[];

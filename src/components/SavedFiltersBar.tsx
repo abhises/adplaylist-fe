@@ -20,6 +20,7 @@ function normalize(f: LibraryFilters) {
     formats: list(f.formats),
     canva: f.canva ?? "",
     premium: !!f.premium,
+    adType: f.adType ?? "",
     lengths: list(f.lengths),
     colors: list(f.colors),
     tags: list(f.tags),

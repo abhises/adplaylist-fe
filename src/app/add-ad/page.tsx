@@ -56,6 +56,7 @@ export default function AddAdPage() {
   const [csvDraft, setCsvDraft] = useState<AdDraft | null>(null);
   const [canvaUrl, setCanvaUrl] = useState("");
   const [canvaPremium, setCanvaPremium] = useState(false);
+  const [isLive, setIsLive] = useState(false);
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -85,6 +86,7 @@ export default function AddAdPage() {
       }
       setCanvaUrl(stored.canvaUrl);
       setCanvaPremium(!!stored.canvaPremium);
+      setIsLive(!!stored.isLive);
       if (stored.photoUrl) {
         setPhotoUrl(stored.photoUrl);
         setPhotoPreview(stored.photoUrl);
@@ -188,6 +190,7 @@ export default function AddAdPage() {
       ...csvDraft,
       canvaUrl,
       canvaPremium,
+      isLive,
       photoUrl: photoUrl ?? undefined,
       photoDims: photoDims ?? undefined,
       csvFileName: csvFileName ?? undefined,
@@ -400,6 +403,17 @@ export default function AddAdPage() {
                 <span className="text-xs text-ink-muted">— the Canva copy took extra work</span>
               </label>
             </div>
+
+            <label className="mt-4 flex items-center gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={isLive}
+                onChange={(e) => setIsLive(e.target.checked)}
+                className="h-[15px] w-[15px] accent-brand"
+              />
+              Live ad
+              <span className="text-xs text-ink-muted">— copied from a real ad</span>
+            </label>
           </div>
 
           <div className="border-2 border-ink/15 p-6">

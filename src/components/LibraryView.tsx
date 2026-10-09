@@ -102,6 +102,8 @@ export default function LibraryView({
   const [canvaFilter, setCanvaFilter] = useState<"" | "editable" | "non-editable">("");
   // Only ads whose Canva copy is marked Premium.
   const [premiumOnly, setPremiumOnly] = useState(false);
+  // "live": copied from real ads; "concept": made for the library.
+  const [adType, setAdType] = useState<"" | "live" | "concept">("");
   const [selectedLengths, setSelectedLengths] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   // Taken from the page's searchParams rather than window.location, which
@@ -201,6 +203,7 @@ export default function LibraryView({
   const imageCount = ads.filter((ad) => ad.mediaType === "image").length;
   const videoCount = ads.filter((ad) => ad.mediaType === "video").length;
   const premiumCount = ads.filter((ad) => ad.premium).length;
+  const liveCount = ads.filter((ad) => ad.live).length;
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -236,6 +239,7 @@ export default function LibraryView({
     setSelectedFormats([]);
     setCanvaFilter("");
     setPremiumOnly(false);
+    setAdType("");
     setSelectedLengths([]);
     setSelectedColors([]);
     setSelectedTags([]);
@@ -254,6 +258,7 @@ export default function LibraryView({
     formats: selectedFormats,
     canva: canvaFilter,
     premium: premiumOnly,
+    adType,
     lengths: selectedLengths,
     colors: selectedColors,
     tags: selectedTags,
@@ -270,6 +275,7 @@ export default function LibraryView({
     setSelectedFormats(f.formats ?? []);
     setCanvaFilter(f.canva ?? "");
     setPremiumOnly(!!f.premium);
+    setAdType(f.adType ?? "");
     setSelectedLengths(f.lengths ?? []);
     setSelectedColors(f.colors ?? []);
     setSelectedTags(f.tags ?? []);
@@ -318,6 +324,8 @@ export default function LibraryView({
       if (canvaFilter === "editable" && !ad.hasEditableCopy) return false;
       if (canvaFilter === "non-editable" && ad.hasEditableCopy) return false;
       if (premiumOnly && !ad.premium) return false;
+      if (adType === "live" && !ad.live) return false;
+      if (adType === "concept" && ad.live) return false;
       if (
         selectedLengths.length &&
         !(ad.videoLength && selectedLengths.includes(ad.videoLength))
@@ -344,6 +352,7 @@ export default function LibraryView({
     selectedFormats,
     canvaFilter,
     premiumOnly,
+    adType,
     selectedLengths,
     selectedColors,
     selectedTags,
@@ -362,6 +371,7 @@ export default function LibraryView({
     selectedFormats,
     canvaFilter,
     premiumOnly,
+    adType,
     selectedLengths,
     selectedColors,
     selectedTags,
@@ -419,6 +429,7 @@ export default function LibraryView({
     selectedFormats.length +
     (canvaFilter ? 1 : 0) +
     (premiumOnly ? 1 : 0) +
+    (adType ? 1 : 0) +
     selectedLengths.length +
     selectedColors.length +
     selectedTags.length;
@@ -470,6 +481,15 @@ export default function LibraryView({
       : []),
     ...(premiumOnly
       ? [{ key: "premium", label: "Premium", remove: () => setPremiumOnly(false) }]
+      : []),
+    ...(adType
+      ? [
+          {
+            key: "adType",
+            label: adType === "live" ? "Live ads" : "Concept ads",
+            remove: () => setAdType(""),
+          },
+        ]
       : []),
     ...selectedLengths.map((l) => ({
       key: `length-${l}`,
@@ -704,6 +724,32 @@ export default function LibraryView({
                   <span className="ml-auto text-xs text-ink-muted">
                     {ads.filter((ad) => ad.platforms.includes(platform)).length}
                   </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* One or the other: ticking both would be the same as neither. */}
+          <div className="mt-6">
+            <p className="mb-3 text-[11px] font-medium tracking-[0.12em] text-ink-muted uppercase">
+              Ad type
+            </p>
+            <div className="flex flex-col gap-2.5">
+              {(
+                [
+                  ["live", "Live ads", liveCount],
+                  ["concept", "Concept ads", ads.length - liveCount],
+                ] as const
+              ).map(([value, label, count]) => (
+                <label key={value} className="flex items-center gap-2 text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    checked={adType === value}
+                    onChange={() => setAdType(adType === value ? "" : value)}
+                    className="h-[15px] w-[15px] accent-brand"
+                  />
+                  {label}
+                  <span className="ml-auto text-xs text-ink-muted">{count}</span>
                 </label>
               ))}
             </div>

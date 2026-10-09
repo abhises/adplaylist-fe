@@ -551,6 +551,35 @@ export default function AdEditor({
                   </>
                 }
               />
+              {/* Same checkbox either way, so it doesn't need "Edit text". */}
+              <Row
+                label="Live ad"
+                value={
+                  <label className="flex items-center gap-2 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={!!draft.isLive}
+                      onChange={(e) => update({ isLive: e.target.checked })}
+                      className="h-[15px] w-[15px] accent-brand"
+                    />
+                    Live ad
+                    <span className="text-xs text-ink-muted">— copied from a real ad</span>
+                  </label>
+                }
+                editing={editing}
+                edit={
+                  <label className="flex items-center gap-2 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={!!draft.isLive}
+                      onChange={(e) => update({ isLive: e.target.checked })}
+                      className="h-[15px] w-[15px] accent-brand"
+                    />
+                    Live ad
+                    <span className="text-xs text-ink-muted">— copied from a real ad</span>
+                  </label>
+                }
+              />
             </div>
           </div>
 

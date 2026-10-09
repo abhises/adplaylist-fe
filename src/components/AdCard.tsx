@@ -1,4 +1,5 @@
 import Link from "@/components/Link";
+import LiveBadge from "@/components/LiveBadge";
 import PremiumBadge from "@/components/PremiumBadge";
 import type { ReactNode } from "react";
 import type { Ad } from "@/lib/ads";
@@ -123,9 +124,10 @@ export default function AdCard({
             </div>
           )}
 
-          {ad.premium && (
-            <span className="absolute top-2 left-2 z-10 sm:top-3 sm:left-3">
-              <PremiumBadge />
+          {(ad.live || ad.premium) && (
+            <span className="absolute top-2 left-2 z-10 flex flex-col items-start gap-1.5 sm:top-3 sm:left-3">
+              {ad.live && <LiveBadge />}
+              {ad.premium && <PremiumBadge />}
             </span>
           )}
           {ad.badge && (

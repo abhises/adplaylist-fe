@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "@/components/Link";
+import LiveBadge from "@/components/LiveBadge";
 import PremiumBadge from "@/components/PremiumBadge";
 import AppHeader from "@/components/AppHeader";
 import LandingHeader from "@/components/LandingHeader";
@@ -352,6 +353,22 @@ export default function AdDetailView({
   return (
     <div className="flex min-h-screen flex-col">
       {user ? <AppHeader /> : <LandingHeader />}
+
+      {ad.live && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-black px-4 py-3 text-sm text-white sm:px-10 lg:px-12">
+          <LiveBadge size="md" />
+          <p className="min-w-0 flex-1">
+            This ad is live and shown for inspiration only. Want something similar for your
+            business? We&apos;ll design it for you.
+          </p>
+          <Link
+            href={user ? `/requests?ad=${encodeURIComponent(ad.id)}` : "/signup"}
+            className="shrink-0 border-b-2 border-brand pb-0.5 font-bold whitespace-nowrap text-white hover:text-white/80"
+          >
+            Request a similar design &rarr;
+          </Link>
+        </div>
+      )}
 
       {/* 1 · Breadcrumbs (BreadcrumbList data is on the server page). */}
       {/* One line on phones, ending in "…"; wraps from sm, where the

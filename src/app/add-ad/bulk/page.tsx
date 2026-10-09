@@ -287,6 +287,18 @@ export default function BulkAddAdsPage() {
     (i) => i.status !== "published" && check(i).errors.length > 0,
   );
   const publishedCount = items.filter((i) => i.status === "published").length;
+  const liveCount = items.filter((i) => i.draft.isLive).length;
+  // "Live ads" in the header ticks or unticks every ad not yet published.
+  const editable = items.filter((i) => i.status !== "published");
+  const allLive = editable.length > 0 && editable.every((i) => i.draft.isLive);
+  const someLive = editable.some((i) => i.draft.isLive);
+  function setAllLive(isLive: boolean) {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.status === "published" ? i : { ...i, draft: { ...i.draft, isLive } },
+      ),
+    );
+  }
 
   // One at a time, so a failure is reported against its own row and the
   // rest of the batch still goes through.
@@ -447,6 +459,7 @@ export default function BulkAddAdsPage() {
               <p className="text-sm text-ink">
                 {items.length} {items.length === 1 ? "ad" : "ads"} ·{" "}
                 {images.length} {images.length === 1 ? "image" : "images"}
+                {liveCount > 0 && ` · ${liveCount} live`}
                 {publishedCount > 0 && ` · ${publishedCount} published`}
                 {blocked.length > 0 && (
                   <span className="text-brand">
@@ -465,7 +478,24 @@ export default function BulkAddAdsPage() {
               </button>
             </div>
 
-            <ul className="mt-3 divide-y divide-border border border-border">
+            <label className="mt-3 flex items-center gap-3 border border-border bg-surface-2 px-4 py-3 text-sm">
+              <input
+                type="checkbox"
+                checked={allLive}
+                ref={(el) => {
+                  if (el) el.indeterminate = someLive && !allLive;
+                }}
+                disabled={publishing || editable.length === 0}
+                onChange={(e) => setAllLive(e.target.checked)}
+                className="h-[18px] w-[18px] accent-ink"
+              />
+              <span className="font-bold text-ink">Live ads</span>
+              <span className="text-ink-muted">
+                {liveCount} of {items.length}
+              </span>
+            </label>
+
+            <ul className="divide-y divide-border border border-t-0 border-border">
               {items.map((item) => {
                 const { errors, warnings } = check(item);
                 const image = item.imageName
@@ -477,6 +507,19 @@ export default function BulkAddAdsPage() {
                     key={item.key}
                     className="flex flex-wrap items-start gap-4 p-4"
                   >
+                    <input
+                      type="checkbox"
+                      checked={!!d.isLive}
+                      disabled={publishing || item.status === "published"}
+                      onChange={(e) =>
+                        updateItem(item.key, {
+                          draft: { ...d, isLive: e.target.checked },
+                        })
+                      }
+                      aria-label={`${d.adName || "This ad"} is a live ad`}
+                      title="Live ad"
+                      className="mt-7 h-[18px] w-[18px] shrink-0 accent-ink"
+                    />
                     <div className="h-20 w-20 shrink-0 border border-border bg-surface-2">
                       {image && (
                         // eslint-disable-next-line @next/next/no-img-element
