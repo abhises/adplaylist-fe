@@ -25,14 +25,17 @@ export const metadata: Metadata = {
 // Signed-in clients are sent on to their own /library/<name> (see
 // PublicLibraryView).
 export default async function LibraryPage({ searchParams }: PageProps<"/library">) {
-  // Per request, so newly published ads are listed straight away.
+  // Per request, for the shuffle below.
   await connection();
   const { tag, q, category } = await searchParams;
   // A new random order on every visit, so the same ads aren't always first.
   // Shuffled here rather than in the browser so the page renders the same
   // order the browser then shows.
+  // The list itself is cached for a minute rather than fetched from the
+  // API on every visit, so a newly published ad can take up to a minute to
+  // appear here (signed-in libraries load it live).
   const ads: Ad[] = await api
-    .getAds()
+    .getLibraryAds({ next: { revalidate: 60 } })
     .then((res) => shuffle(res.ads))
     .catch(() => []);
 

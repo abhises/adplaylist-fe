@@ -3,6 +3,7 @@
 import { use, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import LibraryView from "@/components/LibraryView";
+import LoadingScreen from "@/components/LoadingScreen";
 import { useRequireAuth } from "@/lib/AuthProvider";
 import { slugify } from "@/lib/slug";
 
@@ -29,7 +30,7 @@ export default function ClientLibraryPage({
   }, [ready, user, params.client, expectedSlug, router]);
 
   if (!ready || !user || user.role !== "client" || params.client !== expectedSlug) {
-    return null;
+    return <LoadingScreen label="Loading your library…" />;
   }
 
   return (

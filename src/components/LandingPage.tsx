@@ -8,7 +8,7 @@ import LandingHeader from "@/components/LandingHeader";
 import ContactSection from "@/components/ContactSection";
 import PricingSection from "@/components/PricingSection";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
-import { useAuth } from "@/lib/AuthProvider";
+import { libraryPath, useAuth } from "@/lib/AuthProvider";
 import { useToast } from "@/lib/ToastProvider";
 import { useI18n } from "@/lib/I18nProvider";
 import { ApiError, api, type Ad as LibraryAd } from "@/lib/api";
@@ -312,9 +312,9 @@ export default function LandingPage() {
 
   async function handleGoogleCredential(credential: string) {
     try {
-      await loginWithGoogle(credential);
+      const user = await loginWithGoogle(credential);
       toast.success(t.common.googleWelcome);
-      router.push("/library");
+      router.push(libraryPath(user));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t.common.googleFailed);
     }

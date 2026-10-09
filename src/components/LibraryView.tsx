@@ -13,7 +13,7 @@ import FeedbackPanel from "@/components/FeedbackPanel";
 import OnboardingPopup from "@/components/OnboardingQuestionnaire";
 import Pagination, { usePagination } from "@/components/Pagination";
 import SavedFiltersBar from "@/components/SavedFiltersBar";
-import Spinner from "@/components/Spinner";
+import LoadingScreen from "@/components/LoadingScreen";
 import UpgradePrompt from "@/components/UpgradePrompt";
 import { can } from "@/lib/plans";
 import {
@@ -134,7 +134,7 @@ export default function LibraryView({
   useEffect(() => {
     if (!initialAds) {
       api
-        .getAds()
+        .getLibraryAds()
         // A new random order on each visit (see /library's page).
         .then(({ ads }) => setAds(shuffle(ads)))
         .catch(() => setError("Couldn't load ads from the server."))
@@ -991,10 +991,7 @@ export default function LibraryView({
           )}
 
           {loading && (
-            <div className="mt-10 flex items-center gap-2 text-sm text-ink-muted">
-              <Spinner />
-              Loading ads…
-            </div>
+            <LoadingScreen label="Loading ads…" fullScreen={false} />
           )}
           {error && (
             <p className="mt-10 text-sm text-brand">{error}</p>

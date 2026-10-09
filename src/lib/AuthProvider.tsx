@@ -17,12 +17,13 @@ import {
   type Role,
   type User,
 } from "@/lib/api";
+import { slugify } from "@/lib/slug";
 
 type AuthContextValue = {
   user: User | null;
   ready: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: (credential: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  loginWithGoogle: (credential: string) => Promise<User>;
   register: (
     fullName: string,
     email: string,
@@ -64,12 +65,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { token, user } = await api.login(email, password);
     setToken(token);
     setUser(user);
+    return user;
   }
 
   async function loginWithGoogle(credential: string) {
     const { token, user } = await api.loginWithGoogle(credential);
     setToken(token);
     setUser(user);
+    return user;
   }
 
   async function register(
@@ -122,6 +125,13 @@ export function useRequireAuth({ allowWithoutCard = false } = {}) {
   }, [ready, user, blocked, router]);
 
   return { user, ready: ready && !blocked };
+}
+
+// Where to land after signing in: clients go straight to their own library
+// rather than via /library, which loads every ad on the server only to send
+// them on.
+export function libraryPath(user: User) {
+  return user.role === "client" ? `/library/${slugify(user.fullName)}` : "/library";
 }
 
 // Redirects to /login if signed out, or to /library if signed in with a role

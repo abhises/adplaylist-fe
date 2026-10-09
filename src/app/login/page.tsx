@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "@/components/Link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/AuthProvider";
+import { libraryPath, useAuth } from "@/lib/AuthProvider";
 import { ApiError } from "@/lib/api";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useToast } from "@/lib/ToastProvider";
@@ -25,9 +25,9 @@ export default function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await login(email, password);
+      const user = await login(email, password);
       toast.success(t.auth.login.welcome);
-      router.push("/library");
+      router.push(libraryPath(user));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t.common.somethingWentWrong
@@ -40,9 +40,9 @@ export default function LoginPage() {
   async function handleGoogleCredential(credential: string) {
     setError(null);
     try {
-      await loginWithGoogle(credential);
+      const user = await loginWithGoogle(credential);
       toast.success(t.common.googleWelcomeBack);
-      router.push("/library");
+      router.push(libraryPath(user));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t.common.somethingWentWrong

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import LibraryView from "@/components/LibraryView";
+import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/lib/AuthProvider";
 import type { Ad } from "@/lib/api";
 import { slugify } from "@/lib/slug";
@@ -41,7 +42,8 @@ export default function PublicLibraryView({
     }
   }, [isClient, user, initialTags, initialQuery, initialCategory, router]);
 
-  if (isClient) return null;
+  // Clients are on their way to their own library.
+  if (isClient) return <LoadingScreen label="Loading your library…" />;
 
   return (
     <LibraryView

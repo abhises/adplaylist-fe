@@ -632,6 +632,12 @@ export const api = {
 
   me: () => request<{ user: User }>("/api/auth/me"),
 
+  // The whole library for the grid: card fields only, without the long text
+  // (creativeDescription, primaryText, description, cta…) or credited
+  // people, which only an ad's own page shows.
+  getLibraryAds: (options?: RequestInit) =>
+    request<{ ads: Ad[] }>("/api/ads?view=card", options),
+
   getAds: (params?: Record<string, string>) => {
     const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
     return request<{ ads: Ad[] }>(`/api/ads${qs}`);
