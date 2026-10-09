@@ -11,7 +11,7 @@ import SignUpPrompt, { type SignUpReason } from "@/components/SignUpPrompt";
 import AdCard from "@/components/AdCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import UpgradePrompt, { type UpgradeReason } from "@/components/UpgradePrompt";
-import { SIZE_OPTIONS, adMarkets } from "@/lib/ads";
+import { adMarkets, creativeSize } from "@/lib/ads";
 import {
   adDates,
   adImageAlt,
@@ -29,12 +29,6 @@ import { useAuth } from "@/lib/AuthProvider";
 import { can } from "@/lib/plans";
 import { SITE_URL } from "@/lib/site";
 import { slugify } from "@/lib/slug";
-
-const SQUARE_SIZE = { name: "Square", dims: "1200 × 1200" };
-const SQUARE_INDEX = Math.max(
-  SIZE_OPTIONS.findIndex((s) => s.dims === SQUARE_SIZE.dims),
-  0
-);
 
 function sharedTagCount(a: Ad, b: Ad) {
   const tagsA = new Set((a.tags ?? []).map((t) => t.toLowerCase()));
@@ -261,6 +255,7 @@ export default function AdDetailView({
   const { added, updated } = adDates(ad);
   const platforms = ad.platforms.map(platformLabel);
   const mainPlatform = platforms[0] ?? "Social";
+  const size = creativeSize(ad);
   const isMeta = platforms.includes("Meta");
   const definition = ad.adFormat ? FORMAT_DEFINITIONS[ad.adFormat] : undefined;
   const subject = (ad.adFormat || ad.subcategory || ad.category).toLowerCase();
@@ -340,7 +335,7 @@ export default function AdDetailView({
       <button
         type="button"
         onClick={downloadCreative}
-        title="PNG · 1200 × 1200"
+        title={`${size.fileType} · ${size.dims}`}
         className={downloadButton}
       >
         <span>&#8595; Download</span>
@@ -435,9 +430,14 @@ export default function AdDetailView({
         {/* Left: the creative and the editorial content. */}
         <div className="contents lg:block lg:min-w-0 lg:border-r lg:border-ink/15 lg:px-12 lg:py-10">
           {/* 2 · The creative with alt text, size and caption. */}
-          <figure className="order-2 mx-auto mt-5 w-full lg:order-none lg:mt-0 lg:w-full lg:max-w-[592px]">
+          <figure
+            className={`order-2 mx-auto mt-5 w-full lg:order-none lg:mt-0 lg:w-full ${
+              // A tall creative is kept narrower, so it isn't taller than the screen.
+              size.height > size.width ? "max-w-[420px]" : "lg:max-w-[592px]"
+            }`}
+          >
             <div
-              style={{ aspectRatio: "1 / 1" }}
+              style={{ aspectRatio: size.aspect }}
               className={`relative overflow-hidden ${ad.photo ? "" : ad.swatch}`}
             >
               {ad.photo && (
@@ -445,8 +445,8 @@ export default function AdDetailView({
                 <img
                   src={ad.photo}
                   alt={adImageAlt(ad)}
-                  width={1200}
-                  height={1200}
+                  width={size.width}
+                  height={size.height}
                   fetchPriority="high"
                   className="ad-creative absolute inset-0 h-full w-full object-contain"
                 />
@@ -493,10 +493,10 @@ export default function AdDetailView({
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <div className="border border-ink/15 border-b-2 border-b-brand bg-card px-4 py-3 text-left text-base font-bold text-ink">
                 <span className="block">
-                  {mainPlatform} {SIZE_OPTIONS[SQUARE_INDEX]?.name}
+                  {mainPlatform} {size.name}
                 </span>
                 <span className="block text-sm font-semibold text-ink-muted">
-                  {SIZE_OPTIONS[SQUARE_INDEX]?.dims} · PNG
+                  {size.dims} · {size.fileType}
                 </span>
               </div>
               {user ? (
@@ -660,7 +660,7 @@ export default function AdDetailView({
         <div className="contents lg:block lg:min-w-0 lg:px-12 lg:py-10">
           <div className="order-1 lg:order-none">
             <p className={eyebrow}>
-              {[`${mainPlatform} ad`, SQUARE_SIZE.dims, ad.category].join(" · ")}
+              {[`${mainPlatform} ad`, size.dims, ad.category].join(" · ")}
             </p>
             {/* 4 · One keyword-led H1 and an intro paragraph. */}
             <div className="mt-1 flex items-start justify-between gap-3">
@@ -763,7 +763,7 @@ export default function AdDetailView({
           <div className="mt-6 hidden grid-cols-2 gap-3 lg:grid">
             {canvaAction}
             {/* Signed in, Download opens a menu of the files on offer (just
-                the PNG the ad is stored as). */}
+                the image file the ad is stored as). */}
             {user && download ? (
               <div
                 className="relative"
@@ -793,8 +793,11 @@ export default function AdDetailView({
                       onClick={downloadCreative}
                       className="flex w-full justify-between px-4 py-3 text-[15px] text-ink hover:bg-surface-2"
                     >
-                      <span>PNG{cleanDownload ? "" : " · watermarked"}</span>
-                      <span className="text-ink-muted">1200 × 1200</span>
+                      <span>
+                        {size.fileType}
+                        {cleanDownload ? "" : " · watermarked"}
+                      </span>
+                      <span className="text-ink-muted">{size.dims}</span>
                     </button>
                     {!cleanDownload && (
                       <p className="border-t border-ink/10 px-4 py-2 text-xs text-ink-muted">
@@ -867,7 +870,7 @@ export default function AdDetailView({
                 label="Media type"
                 value={ad.mediaType === "video" ? "Video" : "Static image"}
               />
-              <DetailRow label="Aspect ratio" value="1:1 square" />
+              <DetailRow label="Aspect ratio" value={size.ratioLabel} />
               <DetailRow label="Language" value={ad.language} />
               <DetailRow
                 label={adMarkets(ad).length > 1 ? "Markets" : "Market"}

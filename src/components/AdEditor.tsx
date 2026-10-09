@@ -12,6 +12,7 @@ import {
   LANGUAGE_OPTIONS,
   PLATFORM_OPTIONS,
   SIZE_OPTIONS,
+  creativeSize,
 } from "@/lib/ads";
 import { draftToAd, type AdDraft } from "@/lib/adDraft";
 import { ApiError } from "@/lib/api";
@@ -22,10 +23,6 @@ import {
   validateImageFile,
 } from "@/lib/upload";
 
-// Mirrors the ad detail page (src/app/ads/[id]/page.tsx), which always shows
-// the Marketplace / Messenger tab and a square creative.
-const SQUARE_SIZE =
-  SIZE_OPTIONS.find((s) => s.dims === "1200 × 1200") ?? SIZE_OPTIONS[0];
 
 const inputClass =
   "w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70";
@@ -191,6 +188,7 @@ export default function AdEditor({
   }
 
   const ad = draftToAd(draft);
+  const adSize = creativeSize(ad);
   const hasCopy = !!(draft.brandName || draft.headline || draft.cta);
   const submitButton = (
     <button
@@ -249,7 +247,10 @@ export default function AdEditor({
           <div
             // Kept to 75% of the column and 60% of the screen height so the
             // platform and size buttons below stay in view.
-            style={{ aspectRatio: "1 / 1", width: "min(75%, 60vh)" }}
+            style={{
+              aspectRatio: adSize.aspect,
+              width: `min(75%, calc(60vh * ${adSize.width / adSize.height}))`,
+            }}
             className={`group relative mx-auto overflow-hidden ${
               ad.photo ? "" : ad.swatch
             }`}
@@ -344,9 +345,9 @@ export default function AdEditor({
           ) : (
             <div className="mt-6 flex items-center gap-3">
               <div className="border border-ink/15 border-b-2 border-b-brand px-3 py-3 text-left text-sm font-bold text-ink">
-                <span className="block">{SQUARE_SIZE.name}</span>
+                <span className="block">{adSize.name}</span>
                 <span className="block text-xs text-ink-muted">
-                  {SQUARE_SIZE.dims}
+                  {adSize.dims} · {adSize.fileType}
                 </span>
               </div>
               <span className="bg-brand px-4 py-2.5 text-sm font-bold text-brand-foreground opacity-60">
@@ -358,7 +359,7 @@ export default function AdEditor({
 
         <div className="min-w-0 px-10 py-8 break-words">
           <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
-            Creative &middot; {SQUARE_SIZE.dims}
+            Creative &middot; {adSize.dims}
           </p>
           {editing ? (
             <input

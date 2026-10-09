@@ -31,6 +31,43 @@ export const SIZE_OPTIONS = [
   { name: "300 × 250", dims: "300 × 250" },
 ];
 
+// The size an ad's creative is published in. Live ads are saved from the
+// Facebook Ad Library as 9:16 JPGs at 338 × 600; the rest are 1200 × 1200
+// square PNGs. `aspect` is for CSS aspect-ratio.
+export type CreativeSize = {
+  name: string;
+  dims: string;
+  width: number;
+  height: number;
+  aspect: string;
+  ratioLabel: string;
+  fileType: string;
+};
+
+const LIVE_SIZE: CreativeSize = {
+  name: "Stories/Reels (9:16)",
+  dims: "338 × 600",
+  width: 338,
+  height: 600,
+  aspect: "9 / 16",
+  ratioLabel: "9:16 vertical",
+  fileType: "JPG",
+};
+
+const SQUARE_SIZE: CreativeSize = {
+  name: "Marketplace / Messenger",
+  dims: "1200 × 1200",
+  width: 1200,
+  height: 1200,
+  aspect: "1 / 1",
+  ratioLabel: "1:1 square",
+  fileType: "PNG",
+};
+
+export function creativeSize(ad: { live?: boolean }): CreativeSize {
+  return ad.live ? LIVE_SIZE : SQUARE_SIZE;
+}
+
 // The full list (and its groups) lives in ./categories.
 export { CATEGORY_OPTIONS } from "./categories";
 

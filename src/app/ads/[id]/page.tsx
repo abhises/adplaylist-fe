@@ -11,6 +11,7 @@ import {
   adPageTitle,
   resolveGuides,
 } from "@/lib/adPage";
+import { creativeSize } from "@/lib/ads";
 import { jsonLd, SITE_NAME, SITE_URL } from "@/lib/site";
 
 // Public and indexable: an ad's page is rendered on the server with all its
@@ -32,11 +33,12 @@ export async function generateMetadata({ params }: PageProps<"/ads/[id]">): Prom
   // Always the current slug, so an old URL that redirects here isn't indexed
   // as a second copy.
   const url = `/ads/${ad.id}`;
+  const size = creativeSize(ad);
   const title = adPageTitle(ad);
   const description = adPageDescription(ad);
   const { added, updated } = adDates(ad);
   const image = ad.photo
-    ? [{ url: ad.photo, alt: adImageAlt(ad), width: 1200, height: 1200 }]
+    ? [{ url: ad.photo, alt: adImageAlt(ad), width: size.width, height: size.height }]
     : undefined;
   return {
     title,
@@ -98,6 +100,7 @@ export default async function AdPage({ params }: PageProps<"/ads/[id]">) {
   if (ad.id !== id) permanentRedirect(`/ads/${ad.id}`);
 
   const url = `${SITE_URL}/ads/${ad.id}`;
+  const size = creativeSize(ad);
   const { added, updated } = adDates(ad);
   const image = ad.photo
     ? {
@@ -107,8 +110,8 @@ export default async function AdPage({ params }: PageProps<"/ads/[id]">) {
         name: adPageHeadline(ad),
         caption: ad.imageCaption || adImageAlt(ad),
         description: adImageAlt(ad),
-        width: 1200,
-        height: 1200,
+        width: size.width,
+        height: size.height,
         creditText: ad.brandName || SITE_NAME,
         copyrightNotice: ad.brandName
           ? `${ad.brandName}. Shown for reference; trademarks belong to their owners.`
