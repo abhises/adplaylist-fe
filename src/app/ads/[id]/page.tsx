@@ -85,7 +85,7 @@ export default async function AdPage({ params }: PageProps<"/ads/[id]">) {
     // For "More like this" and previous/next: card fields are enough, and
     // the list is cached for a minute rather than fetched on every visit.
     api
-      .getLibraryAds({ next: { revalidate: 60 } })
+      .getLibraryAds({ cached: true })
       .then((res) => res.ads)
       .catch(() => [] as Ad[]),
     api

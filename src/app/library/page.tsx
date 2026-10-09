@@ -31,11 +31,10 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
   // A new random order on every visit, so the same ads aren't always first.
   // Shuffled here rather than in the browser so the page renders the same
   // order the browser then shows.
-  // The list itself is cached for a minute rather than fetched from the
-  // API on every visit, so a newly published ad can take up to a minute to
-  // appear here (signed-in libraries load it live).
+  // The list itself is cached rather than fetched from the API on every
+  // visit; editing, adding or deleting an ad clears it (refreshLibraryAds).
   const ads: Ad[] = await api
-    .getLibraryAds({ next: { revalidate: 60 } })
+    .getLibraryAds({ cached: true })
     .then((res) => shuffle(res.ads))
     .catch(() => []);
 

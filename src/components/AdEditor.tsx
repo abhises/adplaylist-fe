@@ -5,7 +5,6 @@ import Link from "@/components/Link";
 import AppHeader from "@/components/AppHeader";
 import TagPicker from "@/components/TagPicker";
 import AdSeoEditor from "@/components/AdSeoEditor";
-import PremiumBadge from "@/components/PremiumBadge";
 import CategorySelect from "@/components/CategorySelect";
 import MarketSelect from "@/components/MarketSelect";
 import {
@@ -512,7 +511,17 @@ export default function AdEditor({
                       >
                         Open link
                       </a>
-                      {draft.canvaPremium && <PremiumBadge />}
+                      {/* Ticked here too, so marking a link Premium doesn't
+                          need "Edit text" first. */}
+                      <label className="flex items-center gap-1.5 text-sm text-ink">
+                        <input
+                          type="checkbox"
+                          checked={!!draft.canvaPremium}
+                          onChange={(e) => update({ canvaPremium: e.target.checked })}
+                          className="h-[15px] w-[15px] accent-brand"
+                        />
+                        Premium
+                      </label>
                     </span>
                   )
                 }
@@ -535,6 +544,9 @@ export default function AdEditor({
                         className="h-[15px] w-[15px] accent-brand"
                       />
                       Premium
+                      {!draft.canvaUrl && (
+                        <span className="text-xs text-ink-muted">— add a Canva link first</span>
+                      )}
                     </label>
                   </>
                 }

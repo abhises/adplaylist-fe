@@ -531,6 +531,19 @@ export interface SavedFilter {
   isDefault: boolean;
 }
 
+// The cache tag on the server-side copy of the library's ad list (see
+// getLibraryAds), cleared by refreshLibraryAds after any change to ads.
+export const LIBRARY_ADS_TAG = "library-ads";
+
+// Runs a change to ads, then clears the cached ad list so /library shows it
+// on the next load. A failed refresh only means a short wait for the cache.
+async function changingAds<T>(change: Promise<T>): Promise<T> {
+  const result = await change;
+  const { refreshLibraryAds } = await import("@/lib/libraryCache");
+  await refreshLibraryAds().catch(() => {});
+  return result;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -640,8 +653,13 @@ export const api = {
   // The whole library for the grid: card fields only, without the long text
   // (creativeDescription, primaryText, description, cta…) or credited
   // people, which only an ad's own page shows.
-  getLibraryAds: (options?: RequestInit) =>
-    request<{ ads: Ad[] }>("/api/ads?view=card", options),
+  // `cached`: for server pages, kept for a minute (and cleared as soon as an
+  // ad changes) rather than fetched from the API on every visit.
+  getLibraryAds: ({ cached = false } = {}) =>
+    request<{ ads: Ad[] }>(
+      "/api/ads?view=card",
+      cached ? { next: { revalidate: 60, tags: [LIBRARY_ADS_TAG] } } : {}
+    ),
 
   getAds: (params?: Record<string, string>) => {
     const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
@@ -656,16 +674,20 @@ export const api = {
     request<{ url: string; watermarked: boolean }>(`/api/ads/${id}/download`),
 
   createAd: (data: Partial<Ad>) =>
-    request<{ ad: Ad }>("/api/ads", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+    changingAds(
+      request<{ ad: Ad }>("/api/ads", {
+        method: "POST",
+        body: JSON.stringify(data),
+      })
+    ),
 
   updateAd: (id: string, data: Partial<Ad>) =>
-    request<{ ad: Ad }>(`/api/ads/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
+    changingAds(
+      request<{ ad: Ad }>(`/api/ads/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      })
+    ),
 
   setAdHomeSection: (
     id: string,
@@ -677,7 +699,7 @@ export const api = {
     }),
 
   deleteAd: (id: string) =>
-    request<void>(`/api/ads/${id}`, { method: "DELETE" }),
+    changingAds(request<void>(`/api/ads/${id}`, { method: "DELETE" })),
 
   uploadFile: async (
     file: File,
@@ -893,14 +915,17 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
 
+  // Renaming or deleting a tag changes the ads that carry it.
   renameTag: (id: number, name: string) =>
-    request<{ tag: Tag }>(`/api/tags/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ name }),
-    }),
+    changingAds(
+      request<{ tag: Tag }>(`/api/tags/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+      })
+    ),
 
   deleteTag: (id: number) =>
-    request<void>(`/api/tags/${id}`, { method: "DELETE" }),
+    changingAds(request<void>(`/api/tags/${id}`, { method: "DELETE" })),
 
   getBrandPages: () => request<{ pages: BrandPage[] }>("/api/brand-pages"),
 
