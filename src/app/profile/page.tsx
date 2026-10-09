@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
+import DeleteAccountDialog from "@/components/DeleteAccountDialog";
 import {
   ONBOARDING_STEPS,
   OnboardingQuestion,
@@ -262,8 +264,10 @@ function BrandAnswers() {
 
 export default function ProfilePage() {
   const { user: authUser, ready } = useRequireAuth();
-  const { refresh } = useAuth();
+  const { refresh, logout } = useAuth();
+  const router = useRouter();
   const toast = useToast();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [form, setForm] = useState<ReturnType<typeof formFromUser> | null>(
     null
   );
@@ -462,22 +466,47 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <div className="mt-10 border border-brand p-6">
-            <p className="text-xs font-medium tracking-[1px] text-brand uppercase">
-              Danger zone
-            </p>
-            <div className="mt-4 flex items-center justify-between gap-6">
-              <div>
-                <p className="text-sm font-bold text-ink">Delete account</p>
-                <p className="mt-1 text-xs text-ink-muted">
-                  Permanently delete your account and all associated data.
-                </p>
+          {/* Customers only: staff accounts are managed by an admin. */}
+          {authUser.role === "client" && (
+            <div className="mt-10 border border-brand p-6">
+              <p className="text-xs font-medium tracking-[1px] text-brand uppercase">
+                Danger zone
+              </p>
+              <div className="mt-4 flex items-center justify-between gap-6">
+                <div>
+                  <p className="text-sm font-bold text-ink">Delete account</p>
+                  <p className="mt-1 text-xs text-ink-muted">
+                    Permanently delete your account and all associated data.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDeleteOpen(true)}
+                  className="bg-brand px-4 py-2 text-sm font-bold text-brand-foreground hover:bg-brand/90"
+                >
+                  Delete
+                </button>
               </div>
-              <button className="bg-brand px-4 py-2 text-sm font-bold text-brand-foreground">
-                Delete
-              </button>
+              <DeleteAccountDialog
+                open={deleteOpen}
+                user={authUser}
+                onClose={() => setDeleteOpen(false)}
+                onOfferAccepted={(offer) => {
+                  setDeleteOpen(false);
+                  toast.success(
+                    `${offer.percent}% discount applied to your next ${offer.months} months.`
+                  );
+                  refresh().catch(() => {});
+                }}
+                onDeleted={() => {
+                  setDeleteOpen(false);
+                  logout();
+                  toast.success("Your account has been deleted.");
+                  router.replace("/");
+                }}
+              />
             </div>
-          </div>
+          )}
 
           <div className="mt-8 flex items-center gap-3 border-t-2 border-ink/15 pt-6">
             <button

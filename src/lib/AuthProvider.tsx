@@ -22,8 +22,8 @@ import { slugify } from "@/lib/slug";
 type AuthContextValue = {
   user: User | null;
   ready: boolean;
-  login: (email: string, password: string) => Promise<User>;
-  loginWithGoogle: (credential: string) => Promise<User>;
+  login: (email: string, password: string) => Promise<SignedIn>;
+  loginWithGoogle: (credential: string) => Promise<SignedIn>;
   register: (
     fullName: string,
     email: string,
@@ -62,17 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function login(email: string, password: string) {
-    const { token, user } = await api.login(email, password);
+    const { token, user, welcomeBack } = await api.login(email, password);
     setToken(token);
     setUser(user);
-    return user;
+    return { ...user, welcomeBack: !!welcomeBack };
   }
 
   async function loginWithGoogle(credential: string) {
-    const { token, user } = await api.loginWithGoogle(credential);
+    const { token, user, welcomeBack } = await api.loginWithGoogle(credential);
     setToken(token);
     setUser(user);
-    return user;
+    return { ...user, welcomeBack: !!welcomeBack };
   }
 
   async function register(
@@ -113,10 +113,19 @@ export function needsCard(user: User | null) {
   return user?.role === "client" && user.account?.role === "owner" && !!user.account.needsCard;
 }
 
+// An owner who deleted their account and came back: no new trial, so the
+// app stays on /billing until they subscribe (the server withholds every
+// entitlement too). Their library's ads aren't shown until then.
+export function mustSubscribe(user: User | null) {
+  return (
+    user?.role === "client" && user.account?.role === "owner" && !!user.account.paymentRequired
+  );
+}
+
 export function useRequireAuth({ allowWithoutCard = false } = {}) {
   const { user, ready } = useAuth();
   const router = useRouter();
-  const blocked = !allowWithoutCard && needsCard(user);
+  const blocked = !allowWithoutCard && (needsCard(user) || mustSubscribe(user));
 
   useEffect(() => {
     if (!ready) return;
@@ -131,7 +140,18 @@ export function useRequireAuth({ allowWithoutCard = false } = {}) {
 // rather than via /library, which loads every ad on the server only to send
 // them on.
 export function libraryPath(user: User) {
+  if (mustSubscribe(user)) return "/billing";
   return user.role === "client" ? `/library/${slugify(user.fullName)}` : "/library";
+}
+
+// A signed-in user, and whether signing in just reactivated a deleted account.
+export type SignedIn = User & { welcomeBack: boolean };
+
+// The toast after signing in: a welcome back for a reactivated account.
+export function signedInMessage(user: SignedIn, usual: string) {
+  return user.welcomeBack
+    ? `Welcome back, ${user.fullName.trim().split(/\s+/)[0]}! Your account is active again.`
+    : usual;
 }
 
 // Redirects to /login if signed out, or to /library if signed in with a role

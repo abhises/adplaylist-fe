@@ -12,6 +12,8 @@ export default function AccountBanner() {
   if (!account || account.status === "active") return null;
 
   const owner = account.role === "owner";
+  // A returning owner is held on the billing page, which says it all.
+  if (account.paymentRequired && owner) return null;
   let text: string;
   let action: string | null;
   switch (account.status) {

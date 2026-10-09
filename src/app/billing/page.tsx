@@ -105,6 +105,39 @@ function Billing() {
     />
   );
 
+  // An owner who deleted their account and came back: no second free trial,
+  // so they subscribe (charged today) before the library opens again.
+  if (account?.paymentRequired && account.role === "owner") {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <AppHeader />
+        <main className="mx-auto w-full max-w-[1000px] flex-1 px-4 py-10 sm:px-10">
+          <p className="text-[11px] font-medium tracking-[0.16em] text-ink-muted uppercase">
+            Welcome back, {user.fullName.trim().split(/\s+/)[0]}
+          </p>
+          <h1 className="mt-2 text-[clamp(30px,4vw,44px)] leading-[1.05] font-extrabold tracking-[-0.02em] text-ink">
+            Choose a plan to unlock the library
+          </h1>
+          <p className="mt-3 max-w-[640px] text-base text-ink-muted">
+            Your account is active again and everything you had is still here. Pick a plan to
+            get back to the ads. Your plan starts today. The free trial is only for new
+            accounts.
+          </p>
+          <ul className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink">
+            <li>✓ Your saved ads and requests are still here</li>
+            <li>✓ Change plan any time</li>
+            <li>✓ Cancel any time from Billing</li>
+          </ul>
+          {notice && (
+            <p className="mt-6 border border-ink/15 px-4 py-3 text-sm text-ink">{notice}</p>
+          )}
+          {error && <p className="mt-6 text-sm text-brand">{error}</p>}
+          {planChooser}
+        </main>
+      </div>
+    );
+  }
+
   // New owners (and older card-less trials) land here first: the free trial
   // starts once a card is added, and the rest of the app waits until then.
   if (account?.needsCard && account.role === "owner") {

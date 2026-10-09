@@ -3,7 +3,7 @@
 import { Suspense, useState, type FormEvent } from "react";
 import Link from "@/components/Link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/lib/AuthProvider";
+import { libraryPath, signedInMessage, useAuth } from "@/lib/AuthProvider";
 import { ApiError } from "@/lib/api";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useToast } from "@/lib/ToastProvider";
@@ -72,9 +72,10 @@ function SignupForm() {
   async function handleGoogleCredential(credential: string) {
     setError(null);
     try {
-      await loginWithGoogle(credential);
-      toast.success(t.common.googleWelcome);
-      router.push(next);
+      const user = await loginWithGoogle(credential);
+      toast.success(signedInMessage(user, t.common.googleWelcome));
+      // A returning customer goes where their account needs them (billing).
+      router.push(user.welcomeBack ? libraryPath(user) : next);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t.common.somethingWentWrong

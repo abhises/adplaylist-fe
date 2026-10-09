@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "@/components/Link";
 import { useRouter } from "next/navigation";
-import { libraryPath, useAuth } from "@/lib/AuthProvider";
+import { libraryPath, signedInMessage, useAuth } from "@/lib/AuthProvider";
 import { ApiError } from "@/lib/api";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useToast } from "@/lib/ToastProvider";
@@ -26,7 +26,7 @@ export default function LoginPage() {
     setError(null);
     try {
       const user = await login(email, password);
-      toast.success(t.auth.login.welcome);
+      toast.success(signedInMessage(user, t.auth.login.welcome));
       router.push(libraryPath(user));
     } catch (err) {
       setError(
@@ -41,7 +41,7 @@ export default function LoginPage() {
     setError(null);
     try {
       const user = await loginWithGoogle(credential);
-      toast.success(t.common.googleWelcomeBack);
+      toast.success(signedInMessage(user, t.common.googleWelcomeBack));
       router.push(libraryPath(user));
     } catch (err) {
       setError(

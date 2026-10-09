@@ -232,6 +232,9 @@ export type Account = {
   hasSubscription: boolean;
   // A trial owner who hasn't added a card yet: the trial starts at checkout.
   needsCard: boolean;
+  // The owner deleted their account and came back: they must subscribe
+  // (paid straight away, no trial) before using the app again.
+  paymentRequired: boolean;
   // Cancelled during the free trial: ends at the trial's end, never charged.
   cancelledInTrial: boolean;
   maxBrands: number;
@@ -530,6 +533,29 @@ export interface LibraryFilters {
   tags?: string[];
 }
 
+// The "Before you go" discount shown when deleting an account.
+export interface CancelOffer {
+  percent: number;
+  months: number;
+}
+
+// One pass through "Delete account", for Admin → Cancellations.
+export interface CancellationFeedback {
+  id: number;
+  userId: number | null;
+  userName: string;
+  userEmail: string;
+  accountName: string | null;
+  plan: string | null;
+  offerPercent: number | null;
+  // "discount": took the offer and stayed; "deactivated": deleted the
+  // account; "returned": signed in again afterwards (reactivated).
+  outcome: "discount" | "deactivated" | "returned";
+  reason: string | null;
+  details: string | null;
+  createdAt: string;
+}
+
 export interface SavedFilter {
   id: number;
   name: string;
@@ -631,8 +657,9 @@ export const api = {
   openBillingPortal: () =>
     request<{ url: string }>("/api/billing/portal", { method: "POST" }),
 
+  // welcomeBack: they'd deleted their account, and signing in reactivated it.
   login: (email: string, password: string) =>
-    request<{ token: string; user: User }>("/api/auth/login", {
+    request<{ token: string; user: User; welcomeBack?: boolean }>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
@@ -649,7 +676,7 @@ export const api = {
     }),
 
   loginWithGoogle: (credential: string) =>
-    request<{ token: string; user: User }>("/api/auth/google", {
+    request<{ token: string; user: User; welcomeBack?: boolean }>("/api/auth/google", {
       method: "POST",
       body: JSON.stringify({ credential }),
     }),
@@ -745,6 +772,21 @@ export const api = {
 
   unsaveAd: (id: string) =>
     request<{ saved: boolean }>(`/api/saved/${id}`, { method: "DELETE" }),
+
+  getCancelOffer: () => request<{ offer: CancelOffer | null }>("/api/cancellation/offer"),
+
+  acceptCancelOffer: () =>
+    request<{ offer: CancelOffer }>("/api/cancellation/offer/accept", { method: "POST" }),
+
+  // Cancels the subscription (for the owner) and deactivates the account.
+  deleteAccount: (data: { reason: string; details: string }) =>
+    request<{ deactivated: boolean }>("/api/cancellation/delete", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getCancellationFeedback: () =>
+    request<{ feedback: CancellationFeedback[] }>("/api/cancellation/feedback"),
 
   getSavedFilters: () => request<{ filters: SavedFilter[] }>("/api/saved-filters"),
 
