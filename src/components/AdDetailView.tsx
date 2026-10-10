@@ -12,6 +12,7 @@ import AdCard from "@/components/AdCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import UpgradePrompt, { type UpgradeReason } from "@/components/UpgradePrompt";
 import { adMarkets, creativeSize } from "@/lib/ads";
+import VideoCreative from "@/components/VideoCreative";
 import {
   adDates,
   adImageAlt,
@@ -302,7 +303,7 @@ export default function AdDetailView({
     { id: "visual-design", nav: "Visual design", title: "Visual design", text: content.visualDesign },
   ].filter((s) => s.text);
   const steps = content.adaptSteps ?? [];
-  const download = !!ad.photo;
+  const download = !!ad.photo || !!ad.video;
 
   // Paid plans and staff download the clean file; other signed-in users get
   // a watermarked copy. The link is served as an attachment, so navigating
@@ -312,8 +313,21 @@ export default function AdDetailView({
     setDownloadOpen(false);
     if (!user) return setSignUp("download");
     try {
-      const { url } = await api.getAdDownload(ad.id);
-      window.location.assign(url);
+      const { url, video, fileName } = await api.getAdDownload(ad.id);
+      if (!video) return window.location.assign(url);
+      // A link to an MP4 plays it in the browser instead of saving it, so
+      // the file is fetched and saved from here. If storage won't let this
+      // page fetch it, it opens in a new tab to be saved from there.
+      try {
+        const blob = await (await fetch(url)).blob();
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName ?? `${ad.id}.mp4`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+      } catch {
+        window.open(url, "_blank", "noopener");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Download failed");
     }
@@ -483,18 +497,28 @@ export default function AdDetailView({
           >
             <div
               style={{ aspectRatio: size.aspect }}
-              className={`relative overflow-hidden ${ad.photo ? "" : ad.swatch}`}
+              className={`relative overflow-hidden ${ad.photo || ad.video ? "" : ad.swatch}`}
             >
-              {ad.photo && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={ad.photo}
+              {ad.video ? (
+                <VideoCreative
+                  src={ad.video}
+                  cover={ad.photo}
                   alt={adImageAlt(ad)}
                   width={size.width}
                   height={size.height}
-                  fetchPriority="high"
-                  className="ad-creative absolute inset-0 h-full w-full object-contain"
                 />
+              ) : (
+                ad.photo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={ad.photo}
+                    alt={adImageAlt(ad)}
+                    width={size.width}
+                    height={size.height}
+                    fetchPriority="high"
+                    className="ad-creative absolute inset-0 h-full w-full object-contain"
+                  />
+                )
               )}
               {ad.premium && (
                 <span className="absolute top-3 left-3">

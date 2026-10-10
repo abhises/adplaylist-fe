@@ -19,9 +19,13 @@ import { ApiError } from "@/lib/api";
 import { useToast } from "@/lib/ToastProvider";
 import {
   SUPPORTED_IMAGE_ACCEPT,
+  SUPPORTED_VIDEO_ACCEPT,
   uploadImage,
+  uploadVideo,
   validateImageFile,
+  validateVideoFile,
 } from "@/lib/upload";
+import VideoCreative from "@/components/VideoCreative";
 
 
 const inputClass =
@@ -121,6 +125,7 @@ export default function AdEditor({
   statusLabel,
 }: AdEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(initialDraft);
   const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -160,6 +165,35 @@ export default function AdEditor({
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  // A new video brings its own cover, taken from the video; "Replace cover"
+  // swaps that for another image afterwards.
+  async function handleReplaceVideo(file: File | undefined) {
+    if (!file) return;
+    const invalid = validateVideoFile(file);
+    if (invalid) {
+      setUploadError(invalid);
+      return;
+    }
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const { videoUrl, coverUrl, dims, videoLength } = await uploadVideo(file);
+      update({
+        mediaType: "video",
+        videoUrl,
+        videoDims: dims,
+        videoLength,
+        photoUrl: coverUrl,
+        photoDims: dims,
+      });
+    } catch (err) {
+      setUploadError((err as Error).message);
+    } finally {
+      setUploading(false);
+      if (videoInputRef.current) videoInputRef.current.value = "";
     }
   }
 
@@ -252,16 +286,20 @@ export default function AdEditor({
               width: `min(75%, calc(60vh * ${adSize.width / adSize.height}))`,
             }}
             className={`group relative mx-auto overflow-hidden ${
-              ad.photo ? "" : ad.swatch
+              ad.photo || ad.video ? "" : ad.swatch
             }`}
           >
-            {ad.photo && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={ad.photo}
-                alt=""
-                className="absolute inset-0 h-full w-full object-contain"
-              />
+            {ad.video ? (
+              <VideoCreative src={ad.video} cover={ad.photo} alt="" />
+            ) : (
+              ad.photo && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={ad.photo}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-contain"
+                />
+              )
             )}
             {uploading && (
               <div className="absolute inset-0 flex items-center justify-center bg-surface/80 text-sm text-ink">
@@ -275,14 +313,45 @@ export default function AdEditor({
               className="hidden"
               onChange={(e) => handleReplaceImage(e.target.files?.[0])}
             />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="absolute right-3 bottom-3 bg-surface px-3 py-1.5 text-xs font-bold text-ink shadow disabled:opacity-60"
-            >
-              &#128247; {ad.photo ? "Replace image" : "Add image"}
-            </button>
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept={SUPPORTED_VIDEO_ACCEPT}
+              className="hidden"
+              onChange={(e) => handleReplaceVideo(e.target.files?.[0])}
+            />
+            {/* At the top, clear of the video player's controls. */}
+            <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="bg-surface px-3 py-1.5 text-xs font-bold text-ink shadow disabled:opacity-60"
+              >
+                &#128247;{" "}
+                {ad.video ? "Replace cover" : ad.photo ? "Replace image" : "Add image"}
+              </button>
+              <button
+                type="button"
+                onClick={() => videoInputRef.current?.click()}
+                disabled={uploading}
+                className="bg-surface px-3 py-1.5 text-xs font-bold text-ink shadow disabled:opacity-60"
+              >
+                &#9654; {ad.video ? "Replace video" : "Add video (MP4)"}
+              </button>
+              {ad.video && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    update({ videoUrl: undefined, videoDims: undefined, videoLength: undefined })
+                  }
+                  disabled={uploading}
+                  className="bg-surface px-3 py-1.5 text-xs font-bold text-ink shadow disabled:opacity-60"
+                >
+                  Remove video
+                </button>
+              )}
+            </div>
           </div>
           {uploadError && (
             <p className="mt-2 text-center text-xs text-brand">

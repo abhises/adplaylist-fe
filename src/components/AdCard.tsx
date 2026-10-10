@@ -130,6 +130,16 @@ export default function AdCard({
               {ad.premium && <PremiumBadge />}
             </span>
           )}
+          {ad.mediaType === "video" && (
+            <span
+              aria-label="Video"
+              className="absolute right-2 bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white sm:right-3 sm:bottom-3"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden>
+                <path d="M8 5v14l11-7Z" />
+              </svg>
+            </span>
+          )}
           {ad.badge && (
             <span
               className={`absolute bottom-2 left-2 flex items-center gap-1 text-[11px] sm:bottom-3 sm:left-3 font-medium tracking-[0.5px] uppercase ${inkTextMuted}`}

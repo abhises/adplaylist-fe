@@ -53,11 +53,22 @@ const SIZE_NEEDED_OPTIONS = [
   { value: "300 x 250 Display", size: "300 × 250", use: "Display" },
   { value: "728 x 90 Leaderboard", size: "728 × 90", use: "Leaderboard" },
   { value: "970 x 250 Billboard", size: "970 × 250", use: "Billboard" },
-  { value: "16:9 Video", size: "16:9", use: "Video" },
   { value: "All standard sizes", size: "All standard sizes", use: "Every size above" },
 ];
 const ALL_SIZES = "All standard sizes";
 
+// Videos are delivered as MP4, vertical unless square is asked for.
+const VIDEO_SIZE_OPTIONS = [
+  { value: "Video 1080 x 1920", size: "1080 × 1920", use: "Vertical" },
+  { value: "Video 1200 x 1200", size: "1200 × 1200", use: "Square" },
+];
+const DEFAULT_VIDEO_SIZE = VIDEO_SIZE_OPTIONS[0].value;
+
+// Kept in sync with the backend's request costs in adplaylist-be/src/lib/billing.ts
+const IMAGE_REQUEST_CREDITS = 1;
+const VIDEO_REQUEST_CREDITS = 2;
+
+const checkboxClass = "mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-brand";
 
 export default function RequestsPage() {
   return (
@@ -104,6 +115,12 @@ function Requests() {
   const [dragOver, setDragOver] = useState(false);
   const [viewingRequest, setViewingRequest] = useState<CreativeRequest | null>(null);
   const [sizes, setSizes] = useState<string[]>([]);
+  // What's being asked for: images, a video or both.
+  const [wantsImage, setWantsImage] = useState(true);
+  const [wantsVideo, setWantsVideo] = useState(false);
+  const [videoSizes, setVideoSizes] = useState<string[]>([DEFAULT_VIDEO_SIZE]);
+  const cost =
+    (wantsImage ? IMAGE_REQUEST_CREDITS : 0) + (wantsVideo ? VIDEO_REQUEST_CREDITS : 0);
 
   // "All standard sizes" stands alone; picking a specific size clears it.
   function toggleSize(opt: string) {
@@ -194,6 +211,17 @@ function Requests() {
     // Locked on Starter or an expired plan, and when the credits run out.
     if (!can(user, "requests")) return setUpgrade("requests");
     if (user?.account && user.account.credits < 1) return setUpgrade("outOfCredits");
+    if (!wantsImage && !wantsVideo) {
+      return setSubmitError("Choose image, video or both.");
+    }
+    if (wantsVideo && videoSizes.length === 0) {
+      return setSubmitError("Choose a size for the video.");
+    }
+    if (user?.account && user.account.credits < cost) {
+      return setSubmitError(
+        `This request needs ${cost} credits and you have ${user.account.credits}.`
+      );
+    }
     const formEl = e.currentTarget;
     const form = new FormData(formEl);
     setSubmitting(true);
@@ -203,8 +231,12 @@ function Requests() {
       const { request } = await api.createRequest({
         title: String(form.get("title")),
         adUrl: adUrl.trim(),
+        media: [...(wantsImage ? ["image" as const] : []), ...(wantsVideo ? ["video" as const] : [])],
         sizeNeeded:
-          SIZE_NEEDED_OPTIONS.filter((opt) => sizes.includes(opt.value))
+          [
+            ...(wantsImage ? SIZE_NEEDED_OPTIONS.filter((opt) => sizes.includes(opt.value)) : []),
+            ...(wantsVideo ? VIDEO_SIZE_OPTIONS.filter((opt) => videoSizes.includes(opt.value)) : []),
+          ]
             .map((opt) => opt.value)
             .join(", ") || undefined,
         neededBy: String(form.get("neededBy") || "") || undefined,
@@ -215,10 +247,13 @@ function Requests() {
       setRequests((prev) => [request, ...prev]);
       setSubmitted(true);
       toast.success("Request submitted. Our team will pick it up shortly.");
-      // One credit was spent; update the balance shown.
+      // Credits were spent; update the balance shown.
       if (user?.account) refresh();
       formEl.reset();
       setSizes([]);
+      setWantsImage(true);
+      setWantsVideo(false);
+      setVideoSizes([DEFAULT_VIDEO_SIZE]);
       setAdUrl("");
       clearAttachment();
       setTab("Open");
@@ -479,7 +514,7 @@ function Requests() {
           {user.account && (
             <p className="mt-1.5 text-xs text-ink-muted">
               {can(user, "requests")
-                ? `Uses 1 credit · ${user.account.credits} left`
+                ? `Uses ${cost} ${cost === 1 ? "credit" : "credits"} · ${user.account.credits} left`
                 : "Requests are included on Pro and Agency."}
             </p>
           )}
@@ -516,7 +551,83 @@ function Requests() {
             </div>
             <div>
               <label className="mb-[5px] block text-xs text-ink/70">
-                Sizes needed
+                What do you need?
+              </label>
+              <div className="grid grid-cols-2 gap-x-4 pt-0.5">
+                {(
+                  [
+                    ["Image", wantsImage, setWantsImage],
+                    ["Video", wantsVideo, setWantsVideo],
+                  ] as const
+                ).map(([label, checked, setChecked]) => (
+                  <label key={label} className="group flex cursor-pointer items-start gap-2.5">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setChecked(!checked)}
+                      className={checkboxClass}
+                    />
+                    <span
+                      className={`text-sm leading-tight transition-colors ${
+                        checked ? "font-semibold text-ink" : "text-ink/80 group-hover:text-ink"
+                      }`}
+                    >
+                      {label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {wantsVideo && (
+                <p className="mt-2 text-[11px] text-ink-muted">
+                  A video request costs {VIDEO_REQUEST_CREDITS} credits. Delivered as MP4.
+                </p>
+              )}
+            </div>
+            {wantsVideo && (
+              <div>
+                <label className="mb-[5px] block text-xs text-ink/70">
+                  Video size
+                </label>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-0.5">
+                  {VIDEO_SIZE_OPTIONS.map((opt) => {
+                    const checked = videoSizes.includes(opt.value);
+                    return (
+                      <label
+                        key={opt.value}
+                        className="group flex cursor-pointer items-start gap-2.5"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setVideoSizes((prev) =>
+                              checked ? prev.filter((s) => s !== opt.value) : [...prev, opt.value]
+                            )
+                          }
+                          className={checkboxClass}
+                        />
+                        <span className="leading-tight">
+                          <span
+                            className={`block text-sm tabular-nums transition-colors ${
+                              checked ? "font-semibold text-ink" : "text-ink/80 group-hover:text-ink"
+                            }`}
+                          >
+                            {opt.size}
+                          </span>
+                          <span className="mt-0.5 block text-[11px] tracking-[0.04em] text-ink-muted">
+                            {opt.use}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {wantsImage && (
+            <div>
+              <label className="mb-[5px] block text-xs text-ink/70">
+                {wantsVideo ? "Image sizes" : "Sizes needed"}
               </label>
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-0.5">
                 {SIZE_NEEDED_OPTIONS.map((opt) => {
@@ -532,7 +643,7 @@ function Requests() {
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggleSize(opt.value)}
-                        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-brand"
+                        className={checkboxClass}
                       />
                       <span className="leading-tight">
                         <span
@@ -551,6 +662,7 @@ function Requests() {
                 })}
               </div>
             </div>
+            )}
             <div>
               <label className="mb-[5px] block text-xs text-ink/70">
                 Needed by

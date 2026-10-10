@@ -25,8 +25,12 @@ import {
 } from "@/lib/adDraft";
 import {
   SUPPORTED_IMAGE_ACCEPT,
+  SUPPORTED_VIDEO_ACCEPT,
+  isVideoFile,
   uploadImage,
+  uploadVideo,
   validateImageFile,
+  validateVideoFile,
 } from "@/lib/upload";
 import { useRequireRole } from "@/lib/AuthProvider";
 
@@ -63,6 +67,8 @@ export default function AddAdPage() {
   const [photoDims, setPhotoDims] = useState<{ width: number; height: number } | null>(
     null
   );
+  // Set when the master file is a video (MP4); the photo is then its cover.
+  const [video, setVideo] = useState<{ url: string; length: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -92,17 +98,45 @@ export default function AddAdPage() {
         setPhotoPreview(stored.photoUrl);
         setPhotoDims(stored.photoDims ?? null);
       }
+      if (stored.videoUrl) {
+        setVideo({ url: stored.videoUrl, length: stored.videoLength ?? "" });
+      }
     });
   }, []);
 
+  // A video's cover is taken from the video itself; it can be replaced on
+  // the preview page.
+  async function handleVideoFile(file: File) {
+    const invalid = validateVideoFile(file);
+    if (invalid) {
+      setUploadError(invalid);
+      return;
+    }
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const { videoUrl, coverUrl, dims, videoLength } = await uploadVideo(file);
+      setPhotoPreview(coverUrl);
+      setPhotoUrl(coverUrl);
+      setPhotoDims(dims);
+      setVideo({ url: videoUrl, length: videoLength });
+    } catch (err) {
+      setUploadError((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function handleFile(file: File | undefined) {
     if (!file) return;
+    if (isVideoFile(file)) return handleVideoFile(file);
     const invalid = validateImageFile(file);
     if (invalid) {
       setUploadError(invalid);
       return;
     }
     setUploadError(null);
+    setVideo(null);
     setPhotoPreview(URL.createObjectURL(file));
     setUploading(true);
     try {
@@ -128,6 +162,7 @@ export default function AddAdPage() {
     setPhotoPreview(null);
     setPhotoUrl(null);
     setPhotoDims(null);
+    setVideo(null);
     setUploadError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -193,6 +228,9 @@ export default function AddAdPage() {
       isLive,
       photoUrl: photoUrl ?? undefined,
       photoDims: photoDims ?? undefined,
+      videoUrl: video?.url,
+      videoDims: video ? photoDims ?? undefined : undefined,
+      videoLength: video?.length || undefined,
       csvFileName: csvFileName ?? undefined,
     };
   }
@@ -321,14 +359,14 @@ export default function AddAdPage() {
                 <label className="text-xs text-ink/70">Master file</label>
                 <span className="text-xs text-ink-muted">
                   {photoDims
-                    ? `${photoDims.width} × ${photoDims.height}px`
-                    : "PNG, JPG or WEBP · up to 8 MB"}
+                    ? `${video ? "MP4 video · " : ""}${photoDims.width} × ${photoDims.height}px`
+                    : "PNG, JPG or WEBP up to 8 MB · MP4 up to 100 MB"}
                 </span>
               </div>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept={SUPPORTED_IMAGE_ACCEPT}
+                accept={`${SUPPORTED_IMAGE_ACCEPT},${SUPPORTED_VIDEO_ACCEPT}`}
                 className="hidden"
                 onChange={(e) => handleFile(e.target.files?.[0])}
               />
@@ -340,6 +378,11 @@ export default function AddAdPage() {
                     alt=""
                     className="h-full w-full object-contain"
                   />
+                  {video && (
+                    <span className="absolute bottom-2 left-2 bg-ink/80 px-2 py-1 text-xs font-bold text-white">
+                      &#9654; Video{video.length && ` · ${video.length}`}
+                    </span>
+                  )}
                   {uploading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-surface/80 text-sm text-ink">
                       Uploading…
@@ -352,6 +395,11 @@ export default function AddAdPage() {
                   >
                     Remove
                   </button>
+                </div>
+              ) : uploading ? (
+                // A video has no preview until its cover is made and uploaded.
+                <div className="mt-1 flex h-40 items-center justify-center border border-border text-sm text-ink">
+                  Uploading video…
                 </div>
               ) : (
                 <div
@@ -367,7 +415,7 @@ export default function AddAdPage() {
                   } cursor-pointer`}
                 >
                   <span className="text-2xl">&#128247;</span>
-                  <span className="text-sm">Drop file, or click to browse</span>
+                  <span className="text-sm">Drop an image or MP4 video, or click to browse</span>
                   <span className="text-xs">No file yet</span>
                 </div>
               )}

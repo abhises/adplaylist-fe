@@ -43,6 +43,10 @@ export type AdDraft = {
   isLive?: boolean;
   photoUrl?: string;
   photoDims?: { width: number; height: number };
+  // A video ad's MP4; photoUrl is then its cover.
+  videoUrl?: string;
+  videoDims?: { width: number; height: number };
+  videoLength?: string;
   csvFileName?: string;
 
   // SEO page fields. Empty ones fall back to generated values on the page.
@@ -255,7 +259,13 @@ export function draftToAd(draft: AdDraft): Omit<Ad, "id" | "createdAt"> {
     brandName: draft.brandName || undefined,
     creativeDescription: draft.creativeDescription || undefined,
     tags: draft.tags,
-    mediaType: draft.mediaType,
+    // An ad with a video is a video ad, whatever its CSV said.
+    mediaType: draft.videoUrl ? "video" : draft.mediaType,
+    video: draft.videoUrl,
+    videoWidth: draft.videoUrl ? draft.videoDims?.width : undefined,
+    videoHeight: draft.videoUrl ? draft.videoDims?.height : undefined,
+    videoLength:
+      draft.videoUrl || draft.mediaType === "video" ? draft.videoLength : undefined,
     swatch: swatch.bg,
     light: swatch.light,
     category: draft.categories[0] ?? "Other",
@@ -323,6 +333,12 @@ export function adToDraft(ad: Ad): AdDraft {
     canvaPremium: !!ad.premium,
     isLive: !!ad.live,
     photoUrl: ad.photo,
+    videoUrl: ad.video,
+    videoDims:
+      ad.videoWidth && ad.videoHeight
+        ? { width: ad.videoWidth, height: ad.videoHeight }
+        : undefined,
+    videoLength: ad.videoLength,
     slug: ad.id,
     subcategory: ad.subcategory ?? "",
     adFormat: ad.adFormat ?? "",

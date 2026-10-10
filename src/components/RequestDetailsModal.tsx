@@ -62,6 +62,10 @@ function AttachmentPreview({ url, name }: { url: string; name?: string }) {
   );
 }
 
+function creditLabel(cost = 1) {
+  return `${cost} ${cost === 1 ? "credit" : "credits"}`;
+}
+
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
@@ -242,6 +246,11 @@ export default function RequestDetailsModal({
                 </>
               )}
             </DetailRow>
+            {r.media && (
+              <DetailRow label="Format">
+                {r.media.map((m) => (m === "video" ? "Video (MP4)" : "Image")).join(" + ")}
+              </DetailRow>
+            )}
             <DetailRow label="Sizes needed">{r.sizeNeeded ?? "Any size"}</DetailRow>
             {r.deliveredUrl && (
               <div className="sm:col-span-2">
@@ -282,10 +291,11 @@ export default function RequestDetailsModal({
               {r.creditCharged ? (
                 r.status === "Declined" ? (
                   <>
-                    1 credit <span className="text-xs text-emerald-700">· refunded</span>
+                    {creditLabel(r.creditCost)}{" "}
+                    <span className="text-xs text-emerald-700">· refunded</span>
                   </>
                 ) : (
-                  "1 credit"
+                  creditLabel(r.creditCost)
                 )
               ) : (
                 <span className="text-ink-muted">No charge</span>

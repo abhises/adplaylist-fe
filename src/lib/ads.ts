@@ -64,7 +64,44 @@ const SQUARE_SIZE: CreativeSize = {
   fileType: "PNG",
 };
 
-export function creativeSize(ad: { live?: boolean }): CreativeSize {
+// Videos are vertical unless a square one was made.
+const VIDEO_SIZE: CreativeSize = {
+  name: "Stories/Reels (9:16)",
+  dims: "1080 × 1920",
+  width: 1080,
+  height: 1920,
+  aspect: "9 / 16",
+  ratioLabel: "9:16 vertical",
+  fileType: "MP4",
+};
+
+const SQUARE_VIDEO_SIZE: CreativeSize = {
+  ...SQUARE_SIZE,
+  fileType: "MP4",
+};
+
+export function creativeSize(ad: {
+  live?: boolean;
+  video?: string;
+  videoWidth?: number;
+  videoHeight?: number;
+}): CreativeSize {
+  if (ad.video) {
+    const { videoWidth: width, videoHeight: height } = ad;
+    if (!width || !height) return VIDEO_SIZE;
+    const base = width === height ? SQUARE_VIDEO_SIZE : VIDEO_SIZE;
+    // A size other than the two standard ones is shown as it is.
+    return {
+      ...base,
+      dims: `${width} × ${height}`,
+      width,
+      height,
+      aspect: `${width} / ${height}`,
+      ...(width !== height && width * 16 !== height * 9
+        ? { name: "Video", ratioLabel: width > height ? "Horizontal" : "Vertical" }
+        : {}),
+    };
+  }
   return ad.live ? LIVE_SIZE : SQUARE_SIZE;
 }
 
