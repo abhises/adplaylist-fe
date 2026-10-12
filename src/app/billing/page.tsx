@@ -407,7 +407,7 @@ function PlanChooser({
   const prices = usePlanPrices();
   const trialCredits = useTrialCredits();
   // What they picked on the pricing page, if they came from there. Otherwise
-  // Pro, billed yearly, is preselected.
+  // Pro, billed monthly, is preselected.
   const initialPlan = isPlanId(initial.plan) ? initial.plan : POPULAR_PLAN;
   const initialVolume = Number(initial.volume);
   const [plan, setPlan] = useState<PlanId>(initialPlan);
@@ -417,7 +417,7 @@ function PlanChooser({
     return v;
   });
   const [cycle, setCycle] = useState<BillingCycle>(
-    initial.cycle === "monthly" ? "monthly" : "yearly"
+    initial.cycle === "yearly" ? "yearly" : "monthly"
   );
 
   const volume = volumes[plan];
