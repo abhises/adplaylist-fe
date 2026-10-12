@@ -401,14 +401,15 @@ export default function AdDetailView({
       {ad.live && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-black px-4 py-3 text-sm text-white sm:px-10 lg:px-12">
           <LiveBadge size="md" />
-          <p className="min-w-0 flex-1">
+          {/* On phones the text gets its own row under the badge and link. */}
+          <p className="order-last min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-0">
             This ad is live and shown for inspiration only. Want something similar for your
             business? We&apos;ll design it for you.
           </p>
           {similarRequested ? (
             <Link
               href="/requests"
-              className="shrink-0 font-bold whitespace-nowrap text-white/80 hover:text-white"
+              className="ml-auto shrink-0 font-bold whitespace-nowrap text-white/80 hover:text-white sm:ml-0"
             >
               &#10003; Similar design requested
             </Link>
@@ -416,7 +417,7 @@ export default function AdDetailView({
             <button
               type="button"
               onClick={startSimilarRequest}
-              className="shrink-0 border-b-2 border-brand pb-0.5 font-bold whitespace-nowrap text-white hover:text-white/80"
+              className="ml-auto shrink-0 border-b-2 border-brand pb-0.5 font-bold whitespace-nowrap text-white hover:text-white/80 sm:ml-0"
             >
               Request a similar design &rarr;
             </button>
@@ -591,7 +592,7 @@ export default function AdDetailView({
           {definition && ad.adFormat && (
             <section className="order-[9] mt-10 lg:order-none">
               <h2 className="text-[22px] font-extrabold text-ink">{definition.question}</h2>
-              <p className="mt-2.5 text-base leading-[1.7] text-pretty text-ink">{definition.answer}</p>
+              <p className="mt-2.5 text-justify text-base leading-[1.7] text-ink">{definition.answer}</p>
               <Link
                 href={libraryQuery("q", ad.adFormat)}
                 className="mt-2.5 inline-block text-[15px] text-brand"
@@ -613,7 +614,7 @@ export default function AdDetailView({
                     </span>
                     <div>
                       <h3 className="text-base font-bold text-ink">{point.title}</h3>
-                      <p className="mt-1 text-[15px] leading-[1.55] text-ink-muted">{point.text}</p>
+                      <p className="mt-1 text-justify text-[15px] leading-[1.55] text-ink-muted">{point.text}</p>
                     </div>
                   </li>
                 ))}
@@ -645,7 +646,7 @@ export default function AdDetailView({
               {breakdown.map((s) => (
                 <div key={s.id} id={s.id} className="mt-7 scroll-mt-6">
                   <h3 className="text-lg font-bold text-ink lg:text-[19px]">{s.title}</h3>
-                  <p className="mt-2.5 text-base leading-[1.7] whitespace-pre-line text-pretty text-ink">
+                  <p className="mt-2.5 text-justify text-base leading-[1.7] whitespace-pre-line text-ink">
                     {s.text}
                   </p>
                 </div>
@@ -667,7 +668,7 @@ export default function AdDetailView({
                   <h3 className="text-lg font-bold text-ink lg:text-[19px]">
                     Tips for {ad.category.toLowerCase()} ads on {mainPlatform}
                   </h3>
-                  <p className="mt-2.5 text-base leading-[1.7] whitespace-pre-line text-pretty text-ink">
+                  <p className="mt-2.5 text-justify text-base leading-[1.7] whitespace-pre-line text-ink">
                     {content.platformTips}
                   </p>
                 </div>
@@ -678,7 +679,7 @@ export default function AdDetailView({
           {ad.creativeDescription && (
             <section className="order-[12] mt-10 lg:order-none">
               <h2 className="text-[22px] font-extrabold text-ink">About this creative</h2>
-              <p className="mt-2.5 text-base leading-[1.7] whitespace-pre-line text-pretty text-ink">
+              <p className="mt-2.5 text-justify text-base leading-[1.7] whitespace-pre-line text-ink">
                 {ad.creativeDescription}
               </p>
             </section>
@@ -702,7 +703,7 @@ export default function AdDetailView({
                     {[ad.author.jobTitle, ad.author.credentials].filter(Boolean).join(" · ")}
                   </p>
                   {ad.author.bio && (
-                    <p className="mt-2 text-[15px] leading-relaxed text-pretty text-ink">{ad.author.bio}</p>
+                    <p className="mt-2 text-justify text-[15px] leading-relaxed text-ink">{ad.author.bio}</p>
                   )}
                   <div className="mt-2.5 flex flex-wrap gap-x-4 text-sm">
                     <Link href={`/authors/${ad.author.slug}`} className="text-brand">
@@ -772,7 +773,7 @@ export default function AdDetailView({
 
           <div className="order-3 lg:order-none">
             {ad.introParagraph && (
-              <p className="mt-5 text-base leading-relaxed text-pretty text-ink lg:mt-4 lg:text-[17px] lg:leading-[1.6]">
+              <p className="mt-5 text-justify text-base leading-relaxed text-ink lg:mt-4 lg:text-[17px] lg:leading-[1.6]">
                 {ad.introParagraph}
               </p>
             )}
@@ -1145,8 +1146,11 @@ export default function AdDetailView({
         </div>
       )}
       {/* The ad's two actions pinned to the bottom on phones and tablets,
-          like an app's action bar (desktop shows them under the title). */}
-      <div className="sticky bottom-0 z-10 grid grid-cols-2 gap-2 border-t border-ink/15 bg-surface px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-10 lg:px-12 lg:hidden">
+          like an app's action bar (desktop shows them under the title).
+          On narrow phones two equal halves are too tight for the Canva
+          label, so Download takes only the room it needs, the text is a
+          step smaller, and the Canva label may wrap as a last resort. */}
+      <div className="sticky bottom-0 z-10 grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-t *:text-sm *:first:text-center *:first:leading-tight *:first:whitespace-normal min-[430px]:grid-cols-2 min-[430px]:*:text-base border-ink/15 bg-surface px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-10 lg:px-12 lg:hidden">
         {canvaAction}
         {downloadAction}
       </div>

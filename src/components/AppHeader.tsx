@@ -161,7 +161,9 @@ export default function AppHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-ink/15 bg-surface lg:static">
-      <div className="flex h-[72px] items-center justify-between gap-4 px-5 sm:px-10 lg:h-auto lg:py-4">
+      {/* Under 400px the row is too tight for everything: the gaps shrink
+          and the Request button keeps only its "+". */}
+      <div className="flex h-[72px] items-center justify-between gap-2 px-4 min-[400px]:gap-4 min-[400px]:px-5 sm:px-10 lg:h-auto lg:py-4">
         <div className="flex items-center gap-10">
           <Link
             href={libraryHref}
@@ -190,13 +192,14 @@ export default function AppHeader() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1.5 min-[400px]:gap-2 sm:gap-4">
           <NotificationBell />
           <Link
             href="/requests"
+            aria-label="Request a creative"
             className="flex items-center gap-1.5 bg-brand px-[14px] py-[10px] text-sm font-bold whitespace-nowrap text-brand-foreground lg:px-4 lg:py-2"
           >
-            <span>+</span> <span className="sm:hidden">Request</span>
+            <span>+</span> <span className="hidden min-[400px]:inline sm:hidden">Request</span>
             <span className="hidden sm:inline">Request a creative</span>
           </Link>
           <AccountMenu />

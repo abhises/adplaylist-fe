@@ -22,7 +22,7 @@ export default function LandingFooter() {
         <Link href="/privacy" className="hover:text-[#EC3016]">{t.footer.privacy}</Link>
         {!signedIn && <Link href="/login" className="hover:text-[#EC3016]">{t.common.signIn}</Link>}
         {languages.map((l) => (
-          <a key={l.locale} href={l.href} hrefLang={l.locale} className="hover:text-[#EC3016]">
+          <a suppressHydrationWarning key={l.locale} href={l.href} hrefLang={l.locale} className="hover:text-[#EC3016]">
             {LOCALE_NAMES[l.locale]}
           </a>
         ))}
