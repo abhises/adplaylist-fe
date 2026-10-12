@@ -23,6 +23,9 @@ const tierLabel = (volume: number) => (volume ? `${volume} ads` : "Starter");
 const tierName = (plan: PlanId, volume: number) =>
   `${PLAN_NAMES[plan]}${volume ? ` · ${volume} ads` : ""}`;
 
+// The yearly price that goes with a monthly one: 12 months less 20%.
+const yearlyFor = (monthly: number) => round2(monthly * 12 * 0.8);
+
 function parseDollars(value: string) {
   const n = Number(value);
   return value.trim() !== "" && Number.isFinite(n) && n >= 0.5 && n <= 100000 && round2(n) === n
@@ -198,7 +201,8 @@ export default function AdminPricingPage() {
         <h1 className="text-3xl font-extrabold text-ink">Pricing</h1>
         <p className="mt-2 max-w-3xl text-sm text-ink-muted">
           Set what each plan costs, in USD excluding tax, and how many credits a month each
-          tier gives. Edit as many as you like, then save them together. A change applies straight away to the pricing page, new sign-ups
+          tier gives. Changing a monthly price sets its yearly price to 12 months less 20%, which
+          you can then adjust. Edit as many as you like, then save them together. A change applies straight away to the pricing page, new sign-ups
           and plan changes. Customers already subscribed keep the price they signed up at. Every
           change is kept in the price history below.
         </p>
@@ -262,7 +266,15 @@ export default function AdminPricingPage() {
                           inputMode="decimal"
                           aria-label={`${PLAN_NAMES[plan]} ${volume} monthly price`}
                           value={draft.monthly}
-                          onChange={(e) => edit(plan, volume, { monthly: e.target.value })}
+                          onChange={(e) => {
+                            // The yearly price follows: 12 months less 20%.
+                            // It can still be set by hand afterwards.
+                            const next = parseDollars(e.target.value);
+                            edit(plan, volume, {
+                              monthly: e.target.value,
+                              ...(next !== null ? { yearly: String(yearlyFor(next)) } : {}),
+                            });
+                          }}
                           className={`${inputClass} ${monthly === null ? "border-brand" : ""}`}
                         />
                         {monthlyChanged && (
@@ -283,7 +295,7 @@ export default function AdminPricingPage() {
                               type="button"
                               title="Set yearly to 12 months less 20%"
                               onClick={() =>
-                                edit(plan, volume, { yearly: String(round2(monthly * 12 * 0.8)) })
+                                edit(plan, volume, { yearly: String(yearlyFor(monthly)) })
                               }
                               className="text-xs whitespace-nowrap text-brand"
                             >
