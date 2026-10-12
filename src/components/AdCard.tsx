@@ -32,15 +32,27 @@ export default function AdCard({
           }`}
         >
           {ad.photo ? (
-            // Fill the square card (cropping edges of non-square creatives)
-            // and zoom in on hover, matching the swatch cards.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={ad.photo}
-              alt={ad.imageAlt ?? ""}
-              loading="lazy"
-              className="ad-creative absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
-            />
+            // The whole creative is shown, uncropped. A non-square one leaves
+            // bars in the square card, filled by a blurred copy of itself
+            // (scaled up so the blur's soft edges fall outside the card).
+            // Zooms in on hover, matching the swatch cards.
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ad.photo}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                className="ad-creative absolute inset-0 h-full w-full scale-125 object-cover blur-xl"
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ad.photo}
+                alt={ad.imageAlt ?? ""}
+                loading="lazy"
+                className="ad-creative absolute inset-0 h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-110"
+              />
+            </>
           ) : (
             <div
               className={`absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-110 ${ad.swatch}`}

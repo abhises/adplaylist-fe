@@ -157,7 +157,8 @@ function ctaColors(ad: Ad) {
 }
 
 // A card's creative (or colour swatch) filling its square, zooming in on
-// hover. Non-square photos are cropped to fit, like the library's AdCard.
+// hover. Non-square photos are shown whole over a blurred copy of
+// themselves, like the library's AdCard.
 function CardBackground({ ad }: { ad: LibraryCard }) {
   return (
     <div
@@ -167,8 +168,17 @@ function CardBackground({ ad }: { ad: LibraryCard }) {
       style={ad.photo ? undefined : ad.bgStyle}
     >
       {ad.photo && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={ad.photo} alt={ad.name} className="ad-creative h-full w-full object-cover" />
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={ad.photo}
+            alt=""
+            aria-hidden
+            className="ad-creative absolute inset-0 h-full w-full scale-125 object-cover blur-xl"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={ad.photo} alt={ad.name} className="ad-creative relative h-full w-full object-contain" />
+        </>
       )}
     </div>
   );
