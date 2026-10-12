@@ -68,6 +68,16 @@ const VIDEO_SIZE_OPTIONS = [
 ];
 const DEFAULT_VIDEO_SIZE = VIDEO_SIZE_OPTIONS[0].value;
 
+// What a request cost, for the lists. A declined request's credits went back
+// (creditCharged is cleared when they're refunded); staff requests are free.
+function creditsText(req: CreativeRequest, customer: boolean) {
+  if (req.creditCharged) return fmtCredits(req.creditCost ?? 0);
+  if (customer && req.status === "Declined" && req.creditCost) {
+    return `${fmtCredits(req.creditCost)} refunded`;
+  }
+  return "No charge";
+}
+
 const checkboxClass = "mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-brand";
 
 export default function RequestsPage() {
@@ -157,7 +167,11 @@ function Requests() {
     try {
       const { request } = await api.requestRevision(revising.id, { notes: revisionNotes.trim() });
       setRequests((prev) => [request, ...prev]);
-      toast.success("Revision requested. Our team will pick it up shortly.");
+      toast.success(
+        `Revision requested${
+          request.creditCharged ? ` · ${fmtCredits(request.creditCost ?? 0)} used` : ""
+        }. Our team will pick it up shortly.`
+      );
       if (user?.account) refresh();
       setRevising(null);
       setTab("Open");
@@ -316,7 +330,11 @@ function Requests() {
       });
       setRequests((prev) => [request, ...prev]);
       setSubmitted(true);
-      toast.success("Request submitted. Our team will pick it up shortly.");
+      toast.success(
+        `Request submitted${
+          request.creditCharged ? ` · ${fmtCredits(request.creditCost ?? 0)} used` : ""
+        }. Our team will pick it up shortly.`
+      );
       // Credits were spent; update the balance shown.
       if (user?.account) refresh();
       formEl.reset();
@@ -377,7 +395,7 @@ function Requests() {
                   <table className="w-full min-w-[640px] border-collapse text-sm">
                     <thead>
                       <tr className={headRow}>
-                        {["S.N.", "Request", "Type", "Needed by", "Status", ""].map((h) => (
+                        {["S.N.", "Request", "Type", "Credits", "Needed by", "Status", ""].map((h) => (
                           <th key={h} className={th}>
                             {h}
                           </th>
@@ -411,6 +429,7 @@ function Requests() {
                             </p>
                           </td>
                           <td className={`${td} whitespace-nowrap text-ink-muted`}>{req.type}</td>
+                          <td className={`${td} whitespace-nowrap text-ink tabular-nums`}>{creditsText(req, !!user.account)}</td>
                           <td className={`${td} whitespace-nowrap text-ink`}>{shortDate(req.neededBy)}</td>
                           <td className={td}>
                             <StatusTag status={req.status} />
@@ -443,7 +462,7 @@ function Requests() {
                       >
                         <AdCard ad={req.ad} />
                         <p className="text-xs text-ink-muted">
-                          Delivered {shortDate(req.createdAt)}
+                          Delivered {shortDate(req.createdAt)} &middot; {creditsText(req, !!user.account)}
                         </p>
                         <div className="mt-auto grid grid-cols-2 gap-2">
                           <a suppressHydrationWarning
@@ -482,7 +501,7 @@ function Requests() {
                           {req.title}
                         </p>
                         <p className="text-xs text-ink-muted">
-                          Delivered {shortDate(req.createdAt)}
+                          Delivered {shortDate(req.createdAt)} &middot; {creditsText(req, !!user.account)}
                         </p>
                         {req.deliveredUrl ? (
                           <div className="mt-auto grid grid-cols-2 gap-2">
@@ -535,7 +554,7 @@ function Requests() {
                   <table className="w-full min-w-[640px] border-collapse text-sm">
                     <thead>
                       <tr className={headRow}>
-                        {["S.N.", "Request", "Type", "Reason", "Status", ""].map((h) => (
+                        {["S.N.", "Request", "Type", "Credits", "Reason", "Status", ""].map((h) => (
                           <th key={h} className={th}>
                             {h}
                           </th>
@@ -553,6 +572,7 @@ function Requests() {
                             </p>
                           </td>
                           <td className={`${td} whitespace-nowrap text-ink-muted`}>{req.type}</td>
+                          <td className={`${td} whitespace-nowrap text-ink tabular-nums`}>{creditsText(req, !!user.account)}</td>
                           <td className={`${td} max-w-[320px] leading-snug text-ink-muted`}>
                             {req.reason ?? "No reason given"}
                           </td>
@@ -869,7 +889,11 @@ function Requests() {
               >
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              {submitting ? "Submitting…" : "Submit request"}
+              {submitting
+                ? "Submitting…"
+                : user.account && can(user, "requests")
+                  ? `Submit request · ${fmtCredits(cost)}`
+                  : "Submit request"}
             </button>
             {submitError && (
               <p className="text-sm text-brand" role="alert">

@@ -24,6 +24,7 @@ import {
 } from "@/components/DataTable";
 import { api, ApiError, type CreativeRequest } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
+import { fmtCredits } from "@/lib/plans";
 import { useNotifications } from "@/lib/NotificationsProvider";
 
 const TABS = ["Open", "Delivered", "Declined"] as const;
@@ -104,6 +105,8 @@ function RequestCell({ req }: { req: CreativeRequest }) {
       <p className="font-semibold text-ink">{req.title}</p>
       <p className="mt-0.5 text-xs text-ink-muted">
         {req.type} &middot; {req.sizeNeeded ?? "Any size"}
+        {/* What it cost the customer (staff requests are free). */}
+        {req.creditCharged && <> &middot; {fmtCredits(req.creditCost ?? 0)}</>}
       </p>
       {req.adUrl && (
         <a
