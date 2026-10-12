@@ -33,7 +33,6 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
 
   const base = onLanding ? "" : "/";
   // The landing page's sign-up form is in its hero; elsewhere, go to /signup.
-  const signupHref = onLanding ? "#signup" : "/signup";
   const linkHref = (l: (typeof NAV_LINKS)[number]) =>
     "href" in l ? l.href : `${base}${l.hash}`;
 
@@ -56,9 +55,9 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
           ) : (
             <>
               <Link href="/login">{t.common.signIn}</Link>
-              <a suppressHydrationWarning href={signupHref} className="bg-white px-[18px] py-[10px] font-bold text-[#EC3016]">
-                {t.common.signUpFree}
-              </a>
+              <Link href="/signup" className="bg-white px-[18px] py-[10px] font-bold text-[#EC3016]">
+                {t.common.signUp}
+              </Link>
             </>
           )}
         </nav>
@@ -68,9 +67,9 @@ export default function LandingHeader({ onLanding = false }: { onLanding?: boole
               {t.common.goToLibrary}
             </Link>
           ) : (
-            <a suppressHydrationWarning href={signupHref} className="bg-white px-[14px] py-[10px] text-[14px] font-bold whitespace-nowrap text-[#EC3016]">
-              {t.common.signUpFree}
-            </a>
+            <Link href="/signup" className="bg-white px-[14px] py-[10px] text-[14px] font-bold whitespace-nowrap text-[#EC3016]">
+              {t.common.signUp}
+            </Link>
           )}
           <button
             type="button"

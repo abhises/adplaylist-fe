@@ -11,7 +11,6 @@ const en = {
   common: {
     signIn: "Sign in",
     signUp: "Sign up",
-    signUpFree: "Sign up free",
     goToLibrary: "Go to Library",
     all: "All",
     or: "or",

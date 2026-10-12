@@ -372,7 +372,7 @@ export default function LandingPage() {
                   className="min-w-0 border-0 sm:flex-[1_1_220px] bg-transparent p-[14px] text-[17px] text-[#161514] outline-0 placeholder:text-[#8a8783]"
                 />
                 <button type="submit" className="border-0 bg-[#161514] px-6 py-[14px] text-[16px] font-bold text-white hover:bg-black">
-                  {t.common.signUpFree}
+                  {t.common.signUp}
                 </button>
               </form>
             )}
@@ -694,9 +694,9 @@ export default function LandingPage() {
               </Link>
             ) : (
               <>
-                <a suppressHydrationWarning href="#top" className="shrink-0 bg-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap text-[#EC3016]">
-                  {t.common.signUpFree}
-                </a>
+                <Link href="/signup" className="shrink-0 bg-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap text-[#EC3016]">
+                  {t.common.signUp}
+                </Link>
                 <Link href="/login" className="shrink-0 border-[1.5px] border-white px-8 py-[18px] text-[18px] font-bold whitespace-nowrap">
                   {t.common.signIn}
                 </Link>

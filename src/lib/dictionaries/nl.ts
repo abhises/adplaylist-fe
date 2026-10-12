@@ -12,7 +12,6 @@ const nl: Dictionary = {
   common: {
     signIn: "Inloggen",
     signUp: "Registreren",
-    signUpFree: "Gratis aanmelden",
     goToLibrary: "Naar de bibliotheek",
     all: "Alles",
     or: "of",
