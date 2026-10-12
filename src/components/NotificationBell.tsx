@@ -51,7 +51,7 @@ export default function NotificationBell() {
   if (!enabled) return null;
 
   return (
-    <div ref={ref} className="relative" onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
+    <div ref={ref} className="lg:relative" onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -68,7 +68,10 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 z-30 mt-2 w-[min(360px,calc(100vw-32px))] border border-ink/15 bg-surface shadow-lg">
+        // Below desktop the bell isn't at the screen's edge, so a panel hung
+        // off it would run off the left: there it's placed against the
+        // (sticky) header instead, full width on phones.
+        <div className="absolute top-full right-4 left-4 z-30 mt-2 border border-ink/15 bg-surface shadow-lg sm:right-10 sm:left-auto sm:w-[360px] lg:right-0">
           <div className="flex items-center justify-between border-b border-ink/10 px-4 py-3">
             <p className="text-sm font-bold text-ink">Notifications</p>
             {unread > 0 && (
