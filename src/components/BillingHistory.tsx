@@ -99,7 +99,9 @@ export function CreditHistory({ version }: { version: string }) {
                         ? "Canva edit"
                         : e.reason === "spent" && e.note?.startsWith("Similar design:")
                           ? "Similar design"
-                          : (REASON_LABELS[e.reason] ?? e.reason)}
+                          : e.reason === "spent" && e.note?.startsWith("Revision:")
+                            ? "Revision"
+                            : (REASON_LABELS[e.reason] ?? e.reason)}
                     </td>
                     <td className="py-2.5 pr-4 text-ink">{e.note}</td>
                     <td

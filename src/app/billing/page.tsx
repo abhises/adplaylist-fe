@@ -7,12 +7,13 @@ import BillingDetailsCard from "@/components/BillingDetails";
 import { CreditHistory, PaymentHistory } from "@/components/BillingHistory";
 import StartPlanNow, { canStartPlanNow } from "@/components/StartPlanNow";
 import { useAuth, useRequireAuth } from "@/lib/AuthProvider";
-import { api, ApiError, type Account, type BillingCycle, type PlanId } from "@/lib/api";
+import { api, ApiError, type Account, type BillingCycle, type CreditCosts, type PlanId } from "@/lib/api";
 import {
   PLAN_IDS,
   PLAN_NAMES,
   STATUS_LABELS,
   defaultVolume,
+  fmtCredits,
   fmtDate,
   fmtUsd,
   isPlanId,
@@ -277,6 +278,17 @@ function PlanCard({ account }: { account: Account }) {
   );
 }
 
+// What each kind of request costs, in the order customers meet them.
+const COST_LABELS: [keyof CreditCosts, string][] = [
+  ["image", "Image ad creative"],
+  ["video", "Video ad creative"],
+  ["imageRevision", "Image ad revision"],
+  ["videoRevision", "Video ad revision"],
+  ["extraSize", "Each extra size"],
+  ["canvaEdit", "Canva edit of a library ad"],
+  ["similarDesign", "Similar design to a live ad"],
+];
+
 function CreditsCard({ account }: { account: Account }) {
   const costs = useCreditCosts();
   const whatTheyBuy = `An image ad costs ${costs.image} credits and a video ad ${costs.video}.`;
@@ -322,6 +334,23 @@ function CreditsCard({ account }: { account: Account }) {
                   ? ` Refills to ${account.creditsPerMonth} on ${fmtDate(account.nextRefillAt)}.`
                   : ""
               }`}
+      </p>
+      <h3 className="mt-5 text-xs font-bold tracking-[0.08em] text-ink-muted uppercase">
+        What each request costs
+      </h3>
+      <dl className="mt-2 divide-y divide-ink/10 border-y border-ink/10 text-sm">
+        {COST_LABELS.map(([key, label]) => (
+          <div key={key} className="flex items-baseline justify-between gap-4 py-1.5">
+            <dt className="text-ink">{label}</dt>
+            <dd className="font-bold whitespace-nowrap text-ink tabular-nums">
+              {fmtCredits(costs[key])}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-2 text-xs text-ink-muted">
+        You&apos;re always shown the cost before a request is sent. Every credit used is listed
+        in your credit history below.
       </p>
     </div>
   );
