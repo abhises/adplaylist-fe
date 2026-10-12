@@ -390,6 +390,9 @@ function ManageCard({
   );
 }
 
+// The plan the pricing page marks as most popular.
+const POPULAR_PLAN: PlanId = "pro";
+
 function PlanChooser({
   account,
   busy,
@@ -403,7 +406,9 @@ function PlanChooser({
 }) {
   const prices = usePlanPrices();
   const trialCredits = useTrialCredits();
-  const initialPlan = isPlanId(initial.plan) ? initial.plan : account.plan;
+  // What they picked on the pricing page, if they came from there. Otherwise
+  // Pro, billed yearly, is preselected.
+  const initialPlan = isPlanId(initial.plan) ? initial.plan : POPULAR_PLAN;
   const initialVolume = Number(initial.volume);
   const [plan, setPlan] = useState<PlanId>(initialPlan);
   const [volumes, setVolumes] = useState<Record<PlanId, number>>(() => {
@@ -412,7 +417,7 @@ function PlanChooser({
     return v;
   });
   const [cycle, setCycle] = useState<BillingCycle>(
-    initial.cycle === "yearly" ? "yearly" : "monthly"
+    initial.cycle === "monthly" ? "monthly" : "yearly"
   );
 
   const volume = volumes[plan];
@@ -446,7 +451,8 @@ function PlanChooser({
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Room above the cards for the popular plan's banner. */}
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:mt-12 sm:grid-cols-3">
         {PLAN_IDS.map((p) => {
           const tiers = volumesOf(prices, p);
           const selected = p === plan;
@@ -458,10 +464,21 @@ function PlanChooser({
               tabIndex={0}
               onClick={() => setPlan(p)}
               onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setPlan(p)}
-              className={`cursor-pointer border p-5 ${
+              className={`relative cursor-pointer border p-5 ${
                 selected ? "border-2 border-brand" : "border-ink/15"
-              }`}
+              } ${p === POPULAR_PLAN ? "mt-7 sm:mt-0" : ""}`}
             >
+              {/* The pricing page's banner, sitting on top of the card and
+                  as wide as it, border included. */}
+              {p === POPULAR_PLAN && (
+                <div
+                  className={`absolute bottom-full bg-brand py-[7px] text-center font-mono text-[11px] tracking-[0.08em] text-brand-foreground ${
+                    selected ? "-right-0.5 -left-0.5" : "-right-px -left-px"
+                  }`}
+                >
+                  MOST POPULAR
+                </div>
+              )}
               <p className="text-lg font-extrabold text-ink">{PLAN_NAMES[p]}</p>
               <p className="mt-2 text-2xl font-extrabold text-ink">
                 {fmtUsd(monthlyPrice(prices, p, volumes[p], cycle))}
