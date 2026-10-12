@@ -4,7 +4,6 @@ import { useRef, useState, type ReactNode } from "react";
 import Modal from "@/components/Modal";
 import { adEmbedSnippet } from "@/lib/adEmbed";
 import type { Ad } from "@/lib/api";
-import { adCategories } from "@/lib/categories";
 import {
   SUPPORTED_IMAGE_ACCEPT,
   uploadImage,
@@ -13,6 +12,21 @@ import {
 
 const inputClass =
   "w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70";
+
+// How many ads can be added in one go; they're shown side by side.
+const MAX_AD_URLS = 3;
+
+// The ad a pasted link points at: the slug of an ad page (…/ads/<slug>, on
+// any of our hosts).
+function adSlugFromUrl(value: string) {
+  let path: string;
+  try {
+    path = new URL(value.trim()).pathname;
+  } catch {
+    return null;
+  }
+  return path.match(/^\/ads\/([a-z0-9-]+)\/?$/)?.[1] ?? null;
+}
 
 export function escapeHtml(s: string) {
   return s
@@ -23,7 +37,8 @@ export function escapeHtml(s: string) {
 }
 
 // The HTML box shared by the brand page and blog post editors, with buttons
-// to insert an uploaded image or library ad creatives at the cursor.
+// to insert an uploaded image, or library ad creatives by their page links,
+// at the cursor.
 // `snippets` adds editor-specific insert buttons (e.g. a sign-up button).
 export default function HtmlContentEditor({
   value,
@@ -37,7 +52,7 @@ export default function HtmlContentEditor({
 }: {
   value: string;
   onChange: (html: string) => void;
-  // The library, for the ad picker.
+  // The library, to check pasted ad links against.
   ads: Ad[];
   label: string;
   placeholder?: string;
@@ -52,8 +67,7 @@ export default function HtmlContentEditor({
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerQuery, setPickerQuery] = useState("");
-  const [picked, setPicked] = useState<string[]>([]);
+  const [adUrls, setAdUrls] = useState<string[]>(() => Array(MAX_AD_URLS).fill(""));
 
   // Inserts a snippet at the cursor (or replaces the selection).
   function insertHtml(snippet: string) {
@@ -95,24 +109,29 @@ export default function HtmlContentEditor({
 
   function closePicker() {
     setPickerOpen(false);
-    setPicked([]);
-    setPickerQuery("");
+    setAdUrls(Array(MAX_AD_URLS).fill(""));
   }
 
-  function insertPickedAds() {
-    if (picked.length) insertHtml(adEmbedSnippet(picked));
+  // What's wrong with a pasted link, if anything. An empty box is fine.
+  function adUrlError(url: string) {
+    if (!url.trim()) return null;
+    const slug = adSlugFromUrl(url);
+    if (!slug) return "Paste the link of an ad's page, like https://adplaylist.com/ads/…";
+    // Only checked once the library has loaded.
+    if (ads.length > 0 && !ads.some((ad) => ad.id === slug)) return "No ad found at this link.";
+    return null;
+  }
+
+  // The ads to add, in the order pasted, each once.
+  const slugs = [
+    ...new Set(adUrls.map(adSlugFromUrl).filter((slug): slug is string => !!slug)),
+  ];
+  const invalid = adUrls.some((url) => adUrlError(url));
+
+  function insertAdUrls() {
+    if (slugs.length && !invalid) insertHtml(adEmbedSnippet(slugs));
     closePicker();
   }
-
-  const q = pickerQuery.trim().toLowerCase();
-  const pickerAds = q
-    ? ads.filter(
-        (ad) =>
-          ad.title.toLowerCase().includes(q) ||
-          ad.headline.toLowerCase().includes(q) ||
-          adCategories(ad).some((c) => c.toLowerCase().includes(q))
-      )
-    : ads;
 
   return (
     <div>
@@ -139,7 +158,7 @@ export default function HtmlContentEditor({
             onClick={() => setPickerOpen(true)}
             className="border border-border px-3 py-1 text-xs font-bold text-ink"
           >
-            🖼 Insert ad creative
+            🔗 Add ad URL
           </button>
           {snippets.map((snippet) => (
             <button
@@ -165,64 +184,38 @@ export default function HtmlContentEditor({
       {uploadError && <p className="mt-1 text-xs text-brand">{uploadError}</p>}
       {help && <p className="mt-1 text-xs text-ink-muted">{help}</p>}
 
-      <Modal open={pickerOpen} onClose={closePicker} maxWidth="max-w-3xl">
-        <h2 className="text-lg font-extrabold text-ink">Insert ad creatives</h2>
+      <Modal open={pickerOpen} onClose={closePicker} maxWidth="max-w-xl">
+        <h2 className="text-lg font-extrabold text-ink">Add ad creatives</h2>
         <p className="mt-1 text-sm text-ink-muted">
-          Pick one or more ads. Several are shown side by side.
+          Paste the link of each ad&apos;s page, up to {MAX_AD_URLS}. Several are shown side by
+          side.
         </p>
-        <input
-          type="search"
-          value={pickerQuery}
-          onChange={(e) => setPickerQuery(e.target.value)}
-          placeholder="Search by name, headline or category"
-          className={`mt-4 ${inputClass}`}
-        />
-        <div className="mt-4 grid max-h-[55vh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-4">
-          {pickerAds.map((ad) => {
-            const index = picked.indexOf(ad.id);
+        <div className="mt-4 space-y-3">
+          {adUrls.map((url, i) => {
+            const slug = adSlugFromUrl(url);
+            const ad = slug ? ads.find((a) => a.id === slug) : undefined;
+            const error = adUrlError(url);
             return (
-              <button
-                key={ad.id}
-                type="button"
-                onClick={() =>
-                  setPicked((list) =>
-                    index >= 0
-                      ? list.filter((id) => id !== ad.id)
-                      : [...list, ad.id]
-                  )
-                }
-                className={`relative border-2 text-left ${
-                  index >= 0 ? "border-brand" : "border-transparent"
-                }`}
-              >
-                <div
-                  className={`relative aspect-[4/5] overflow-hidden ${
-                    ad.photo ? "" : ad.swatch
-                  }`}
-                >
-                  {ad.photo && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={ad.photo}
-                      alt=""
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                  )}
-                  {index >= 0 && (
-                    <span className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center bg-brand text-xs font-bold text-brand-foreground">
-                      {index + 1}
-                    </span>
-                  )}
-                </div>
-                <p className="truncate px-1 py-1 text-xs font-bold text-ink">
-                  {ad.title}
-                </p>
-              </button>
+              <div key={i}>
+                <label className="mb-[5px] block text-xs text-ink/70">Ad URL {i + 1}</label>
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) =>
+                    setAdUrls((list) => list.map((u, n) => (n === i ? e.target.value : u)))
+                  }
+                  placeholder="https://adplaylist.com/ads/…"
+                  autoFocus={i === 0}
+                  className={`${inputClass} ${error ? "border-brand" : ""}`}
+                />
+                {error ? (
+                  <p className="mt-1 text-xs text-brand">{error}</p>
+                ) : (
+                  ad && <p className="mt-1 truncate text-xs text-ink-muted">✓ {ad.title}</p>
+                )}
+              </div>
             );
           })}
-          {pickerAds.length === 0 && (
-            <p className="col-span-full text-sm text-ink-muted">No ads match.</p>
-          )}
         </div>
         <div className="mt-6 flex justify-end gap-3">
           <button
@@ -234,11 +227,11 @@ export default function HtmlContentEditor({
           </button>
           <button
             type="button"
-            onClick={insertPickedAds}
-            disabled={picked.length === 0}
+            onClick={insertAdUrls}
+            disabled={slugs.length === 0 || invalid}
             className="bg-brand px-4 py-2 text-sm font-bold text-brand-foreground disabled:opacity-60"
           >
-            Insert {picked.length || ""} {picked.length === 1 ? "ad" : "ads"}
+            Add {slugs.length || ""} {slugs.length === 1 ? "ad" : "ads"}
           </button>
         </div>
       </Modal>

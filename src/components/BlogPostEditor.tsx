@@ -47,7 +47,7 @@ export default function BlogPostEditor({
 
   const [ads, setAds] = useState<Ad[]>([]);
 
-  // The library, for the ad picker and for rendering embedded ads in the
+  // The library, for checking pasted ad links and for rendering embedded ads in the
   // preview exactly as the public post will.
   useEffect(() => {
     api
@@ -256,7 +256,7 @@ export default function BlogPostEditor({
                 <>
                   Any HTML works: headings, paragraphs, lists, images, links
                   and inline styles. Scripts and event handlers are removed
-                  when you save. &ldquo;Insert ad creative&rdquo; adds library
+                  when you save. &ldquo;Add ad URL&rdquo; adds library
                   ads with their copy; they update when the ad is edited.
                 </>
               }

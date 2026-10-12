@@ -36,7 +36,7 @@ export default function BrandPageEditor({
 
   const [ads, setAds] = useState<Ad[]>([]);
 
-  // The library, for the ad picker and for rendering embedded ads in the
+  // The library, for checking pasted ad links and for rendering embedded ads in the
   // preview exactly as the public page will.
   useEffect(() => {
     api
@@ -194,7 +194,7 @@ export default function BrandPageEditor({
                   and inline styles. Scripts and event handlers are removed
                   when you save. A sign-up button is always shown at the bottom
                   of the page; use &ldquo;+ Sign-up button&rdquo; to add more
-                  inside the content. &ldquo;Insert ad creative&rdquo; adds
+                  inside the content. &ldquo;Add ad URL&rdquo; adds
                   library ads with their copy; they update when the ad is
                   edited.
                 </>
