@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "@/components/Link";
 import type { PlanId } from "@/lib/api";
 import { creditsOf, fmtUsd as fmt, monthlyPrice, volumesOf, yearlySaving } from "@/lib/plans";
-import { usePlanPrices } from "@/lib/usePlanPrices";
+import { useCreditCosts, usePlanPrices, useTrialCredits } from "@/lib/usePlanPrices";
 import { useI18n } from "@/lib/I18nProvider";
 import type { Dictionary } from "@/lib/dictionaries";
 
@@ -22,14 +22,10 @@ const PLANS: Plan[] = [
   { id: "agency", name: "Agency" },
 ];
 
-// A string per plan is shown as-is; a boolean per plan is a ✓ or —.
-// "credits" follows whatever each plan's dropdown is set to, and
-// "turnaround" comes from the dictionary. Labels are dictionary keys.
-const FEATURES: [keyof Dictionary["pricing"]["features"], "credits" | "turnaround" | string[] | boolean[]][] = [
+// A boolean per plan is a ✓ or —; "credits" follows whatever each plan's
+// dropdown is set to. Labels are dictionary keys.
+const FEATURES: [keyof Dictionary["pricing"]["features"], "credits" | boolean[]][] = [
   ["credits", "credits"],
-  ["brands", ["1", "2", "5"]],
-  ["seats", ["1", "2", "5"]],
-  ["turnaround", "turnaround"],
   ["library", [true, true, true]],
   ["localisation", [false, true, true]],
   ["brandKit", [false, false, true]],
@@ -38,7 +34,10 @@ const FEATURES: [keyof Dictionary["pricing"]["features"], "credits" | "turnaroun
 ];
 
 // Rows up to here are the headline numbers, set in bold.
-const BOLD_ROWS = 4;
+const BOLD_ROWS = 1;
+
+// The "What you can get with your credits" list, in order.
+const CREDIT_ITEMS = ["image", "video", "imageRevision", "videoRevision", "extraSize"] as const;
 
 const mono = "font-mono text-[12px] tracking-[0.08em]";
 const h2 = "text-[clamp(36px,4.5vw,56px)] leading-none font-extrabold tracking-[-0.03em]";
@@ -82,9 +81,12 @@ function Toggle<T extends string | boolean>({
 export default function PricingSection({ signedIn }: { signedIn: boolean }) {
   // Admins can change prices, so they come from the API.
   const prices = usePlanPrices();
+  const costs = useCreditCosts();
+  const trialCredits = useTrialCredits();
   const { t: dict } = useI18n();
   const t = dict.pricing;
   const [yearly, setYearly] = useState(false);
+  // Each plan's chosen tier, by its fixed id (see lib/plans.ts).
   const [credits, setCredits] = useState<Record<PlanId, number>>({
     starter: 0,
     pro: 10,
@@ -132,6 +134,7 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
             const monthly = monthlyPrice(prices, p.id, c, "monthly");
             const price = monthlyPrice(prices, p.id, c, yearly ? "yearly" : "monthly");
             const tierKeys = volumesOf(prices, p.id);
+            const perMonth = creditsOf(prices, p.id, c);
             return (
               <div
                 key={p.id}
@@ -166,13 +169,18 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
                     >
                       {tierKeys.map((k) => (
                         <option key={k} value={k}>
-                          {t.adsPerMonth(creditsOf(prices, p.id, k))}
+                          {t.creditsPerMonth(creditsOf(prices, p.id, k))}
                         </option>
                       ))}
                     </select>
                   ) : (
                     <span className="flex h-12 items-center border-[1.5px] border-[#161514] px-3 text-[16px] font-semibold">
-                      {c ? t.adsPerMonth(creditsOf(prices, p.id, c)) : t.libraryOnly}
+                      {t.creditsPerMonth(perMonth)}
+                    </span>
+                  )}
+                  {costs.image > 0 && costs.video > 0 && (
+                    <span className="text-[13px] text-[#6b6864]">
+                      {t.approx(Math.floor(perMonth / costs.image), Math.floor(perMonth / costs.video))}
                     </span>
                   )}
                 </div>
@@ -204,10 +212,8 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
                 >
                   {t.startTrial}
                 </Link>
-                <span className="-mt-2 text-center text-[13px] text-[#6b6864]">
-                  {c
-                    ? t.perAd(`$${(price / c).toFixed(2)}`, yearly)
-                    : t.upgradeAnytime}
+                <span className="-mt-2 min-h-5 text-center text-[13px] text-[#6b6864]">
+                  {perMonth > 0 && t.perCredit(`$${(price / perMonth).toFixed(2)}`, yearly)}
                 </span>
               </div>
             );
@@ -240,12 +246,8 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
                 {PLANS.map((p, ci) => {
                   const raw =
                     values === "credits"
-                      ? credits[p.id]
-                        ? String(creditsOf(prices, p.id, credits[p.id]))
-                        : "—"
-                      : values === "turnaround"
-                        ? t.turnaround[ci]
-                        : values[ci];
+                      ? String(creditsOf(prices, p.id, credits[p.id]))
+                      : values[ci];
                   const isBool = typeof raw === "boolean";
                   const pop = p.popular;
                   return (
@@ -273,8 +275,45 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
             );
           })}
         </div>
+        {/* What credits buy; the amounts are set by admins. */}
+        <div className="mt-[clamp(56px,7vw,88px)] grid gap-8 min-[820px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] min-[820px]:gap-12">
+          <div>
+            <div className={`${mono} text-[#EC3016]`}>{t.creditsEyebrow}</div>
+            <h3 className="mt-[14px] max-w-[420px] text-[clamp(28px,3.2vw,40px)] leading-[1.05] font-extrabold tracking-[-0.03em] text-balance">
+              {t.creditsTitle}
+            </h3>
+            <p className="mt-4 max-w-[440px] text-[17px] leading-[1.55] text-pretty text-[#55524e]">
+              {t.creditsLead}
+            </p>
+          </div>
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)] border border-[#dcd9d5] bg-white">
+            {CREDIT_ITEMS.map((item, i) => (
+              <div key={item} className="contents">
+                <dt
+                  className={`flex items-baseline gap-2 border-r border-[#e7e5e2] px-5 py-[18px] ${
+                    i ? "border-t" : ""
+                  }`}
+                >
+                  <span className="text-[32px] leading-none font-extrabold tracking-[-0.03em] tabular-nums">
+                    {costs[item]}
+                  </span>
+                  <span className="font-mono text-[11px] tracking-[0.08em] text-[#6b6864]">
+                    {t.creditUnit(costs[item])}
+                  </span>
+                </dt>
+                <dd
+                  className={`m-0 flex items-center border-[#e7e5e2] px-5 py-[18px] text-[17px] font-medium ${
+                    i ? "border-t" : ""
+                  }`}
+                >
+                  {t.creditItems[item]}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
         {/* Enterprise: above the biggest Agency tier, talk to the team. */}
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-6 bg-[#161514] p-[clamp(24px,4vw,40px)] text-white">
+        <div className="mt-[clamp(56px,7vw,88px)] flex flex-wrap items-center justify-between gap-6 bg-[#161514] p-[clamp(24px,4vw,40px)] text-white">
           <div className="flex max-w-[640px] flex-col gap-2.5">
             <div className={`${mono} text-[#FF6A52]`}>{t.enterpriseEyebrow}</div>
             <h3 className="m-0 text-[clamp(26px,3vw,36px)] leading-[1.1] font-extrabold tracking-[-0.02em]">
@@ -292,7 +331,7 @@ export default function PricingSection({ signedIn }: { signedIn: boolean }) {
           </a>
         </div>
         <p className="mt-5 text-[14px] text-[#6b6864]">
-          {t.footnote}
+          {t.footnote(trialCredits)}
         </p>
       </div>
     </section>

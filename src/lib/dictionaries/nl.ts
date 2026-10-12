@@ -100,12 +100,12 @@ const nl: Dictionary = {
   pricing: {
     eyebrow: "PRIJZEN",
     title: "Kies een abonnement. Vraag maatwerk aan wanneer je het nodig hebt.",
-    lead: "Elk abonnement bevat de volledige advertentiebibliotheek. Bij Pro en Agency staat één credit voor één nieuwe, op maat gemaakte creative van het designteam.",
+    lead: "Elk abonnement bevat de volledige advertentiebibliotheek en een maandelijks tegoed aan credits voor maatwerkcreatives van het designteam.",
     monthly: "Maandelijks",
     yearly: "Jaarlijks · bespaar 20%",
     plans: {
       starter: {
-        desc: "Voor marketeers die willen bladeren en bewaren wat het team al heeft gemaakt.",
+        desc: "Voor marketeers die door de bibliotheek willen bladeren en af en toe een advertentie op maat bestellen.",
         goodFor: ["Zzp'ers en individuen", "Af en toe een campagne"],
       },
       pro: {
@@ -118,41 +118,49 @@ const nl: Dictionary = {
       },
     },
     features: {
-      credits: "Maatwerkadvertenties per maand",
-      brands: "Merken",
-      seats: "Teamleden",
-      turnaround: "Levertijd",
+      credits: "Credits per maand",
       library: "Toegang tot de volledige bibliotheek",
       localisation: "Lokalisatie naar nieuwe markten",
       brandKit: "Merkkit en templates",
       video: "Geanimeerde en video-advertenties",
       lead: "Vaste creatief lead",
     },
-    turnaround: ["—", "3 dagen", "48 uur"],
     mostPopular: "MEEST GEKOZEN",
     greatFor: "Ideaal voor",
-    adsPerMonth: (n: number) => `${n} advertenties / maand`,
-    libraryOnly: "Alleen bibliotheek, geen maatwerk",
+    creditsPerMonth: (n: number) => `${n} credits / maand`,
+    approx: (images: number, videos: number) =>
+      `≈ ${images} ${images === 1 ? "afbeeldingsadvertentie" : "afbeeldingsadvertenties"} of ${videos} ${videos === 1 ? "videoadvertentie" : "videoadvertenties"}`,
     perMonth: "/mnd",
     save: (amount: string) => `Bespaar ${amount} per jaar`,
     billedMonthly: "Maandelijks gefactureerd. Altijd opzegbaar.",
     startTrial: "Start gratis proefperiode",
-    perAd: (amount: string, yearly: boolean) => `${amount} per advertentie${yearly ? ", jaarlijks gefactureerd" : ""}`,
-    upgradeAnytime: "Upgrade wanneer je wilt om advertenties aan te vragen",
+    perCredit: (amount: string, yearly: boolean) => `${amount} per credit${yearly ? ", jaarlijks gefactureerd" : ""}`,
     compare: "Vergelijk abonnementen",
     enterpriseEyebrow: "ENTERPRISE",
     enterpriseTitle: "Eigen volume, eigen prijs.",
     enterpriseLead:
-      "Meer dan 150 advertenties per maand nodig, of een opzet die we niet aanbieden? Vertel ons wat je nodig hebt en we denken graag met je mee.",
+      "Meer dan 750 credits per maand nodig, of een opzet die we niet aanbieden? Vertel ons wat je nodig hebt en we denken graag met je mee.",
     talkToUs: "Neem contact op",
-    footnote:
-      "Elk abonnement begint met een gratis proefperiode van 7 dagen. Proefperiodes van Pro en Agency bevatten 2 gratis advertentieaanvragen. Prijzen in USD, exclusief btw.",
+    footnote: (trial: { starter: number; pro: number; agency: number }) =>
+      `Elk abonnement begint met een gratis proefperiode van 7 dagen, met gratis credits om een aanvraag te proberen (Starter ${trial.starter}, Pro ${trial.pro}, Agency ${trial.agency}). Prijzen in USD, exclusief btw.`,
+    creditsEyebrow: "ZO WERKEN CREDITS",
+    creditsTitle: "Wat je met je credits kunt krijgen",
+    creditsLead:
+      "Besteed je maandelijkse credits aan elke combinatie van afbeeldingsadvertenties, videoadvertenties, revisies en extra formaten.",
+    creditUnit: (n: number) => (n === 1 ? "CREDIT" : "CREDITS"),
+    creditItems: {
+      image: "1 afbeeldingsadvertentie",
+      video: "1 videoadvertentie",
+      imageRevision: "1 revisie van een afbeeldingsadvertentie",
+      videoRevision: "1 revisie van een videoadvertentie",
+      extraSize: "Voor elk ander formaat",
+    },
   },
 
   contact: {
     eyebrow: "ENTERPRISE",
     title: "Eigen volume, eigen prijs.",
-    lead: "Meer dan 150 advertenties per maand nodig, meerdere merken onder één account of een opzet die we niet aanbieden? Vertel ons wat je nodig hebt en we stellen een abonnement en prijs voor je samen.",
+    lead: "Meer dan 750 credits per maand nodig, meerdere merken onder één account of een opzet die we niet aanbieden? Vertel ons wat je nodig hebt en we stellen een abonnement en prijs voor je samen.",
     points: ["Elk maandelijks volume aan maatwerkadvertenties", "Meer merken en teamleden", "Een vaste creatief lead", "Betalen op factuur"],
     thanksToast: "Bedankt! We reageren binnen één werkdag.",
     sendFailed: "Je bericht kon niet worden verstuurd.",

@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import CreditSettingsEditor from "@/components/CreditSettingsEditor";
 import { api, ApiError, type PlanId, type PlanPriceChange } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
 import { PLAN_IDS, PLAN_NAMES, fmtUsd, volumesOf, type PriceList } from "@/lib/plans";
-import { setPlanPrices, usePlanPrices } from "@/lib/usePlanPrices";
+import { setPriceCatalog, usePlanPrices } from "@/lib/usePlanPrices";
 
 const inputClass =
   "w-28 border border-border bg-surface-2 px-2.5 py-1.5 text-right text-sm text-ink tabular-nums outline-none focus:border-ink/70";
@@ -16,10 +17,11 @@ type Change = { plan: PlanId; volume: number; monthly: number; yearly: number; c
 
 const key = (plan: PlanId, volume: number) => `${plan}:${volume}`;
 const round2 = (n: number) => Math.round(n * 100) / 100;
-// Tiers are named by their fixed volume ("Pro 10"); their credits a month
-// can differ once edited.
+// Tiers are named by their fixed volume, which was the ads a month each
+// was sold as ("Pro · 10 ads"); the credits a month it gives are editable.
+const tierLabel = (volume: number) => (volume ? `${volume} ads` : "Starter");
 const tierName = (plan: PlanId, volume: number) =>
-  `${PLAN_NAMES[plan]}${volume ? ` ${volume}` : ""}`;
+  `${PLAN_NAMES[plan]}${volume ? ` · ${volume} ads` : ""}`;
 
 function parseDollars(value: string) {
   const n = Number(value);
@@ -127,15 +129,14 @@ export default function AdminPricingPage() {
     setSaving(true);
     setError(null);
     try {
-      const { plans } = await api.updatePlanPrices(changes);
-      setPlanPrices(plans);
+      setPriceCatalog(await api.updatePlanPrices(changes));
       setDrafts({});
       setNotice(`Saved ${changes.length} price change${changes.length === 1 ? "" : "s"}.`);
       setConfirming(false);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't save the prices.");
       // Some may have saved before the failure; show what's live now.
-      api.getPlans().then(({ plans }) => setPlanPrices(plans)).catch(() => {});
+      api.getPlans().then(setPriceCatalog).catch(() => {});
     } finally {
       setSaving(false);
       loadHistory();
@@ -241,7 +242,7 @@ export default function AdminPricingPage() {
                       }`}
                     >
                       <td className="px-4 py-2.5 font-bold text-ink">{PLAN_NAMES[plan]}</td>
-                      <td className="px-4 py-2.5 text-ink-muted">{volume || "Library only"}</td>
+                      <td className="px-4 py-2.5 text-ink-muted">{tierLabel(volume)}</td>
                       <td className="px-4 py-2.5">
                         <input
                           inputMode="numeric"
@@ -315,6 +316,8 @@ export default function AdminPricingPage() {
           </p>
           {saveBar}
         </div>
+
+        <CreditSettingsEditor />
 
         <section className="mt-12">
           <h2 className="text-xl font-extrabold text-ink">Price history</h2>

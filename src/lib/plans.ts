@@ -1,27 +1,78 @@
-import type { Account, AccountStatus, BillingCycle, Entitlements, PlanId, User } from "@/lib/api";
+import type {
+  Account,
+  AccountStatus,
+  BillingCycle,
+  CreditCosts,
+  Entitlements,
+  PlanId,
+  User,
+} from "@/lib/api";
 
-// Credit volume (each tier's fixed id) → price in USD, monthly and yearly,
-// and the credits a month the tier gives. Admins edit these (/admin/pricing);
+// Volume (each tier's fixed id) → price in USD, monthly and yearly, and the
+// credits a month the tier gives. Admins edit these (/admin/pricing);
 // usePlanPrices() loads the live list from the API.
 export type TierPrice = { monthly: number; yearly: number; credits: number };
 export type PriceList = Record<PlanId, Record<number, TierPrice>>;
 
 // What's shown until the live list loads: the backend's defaults.
 export const DEFAULT_PRICES: PriceList = {
-  starter: { 0: { monthly: 15, yearly: 144, credits: 0 } },
+  starter: { 0: { monthly: 15, yearly: 144, credits: 10 } },
   pro: {
-    10: { monthly: 49, yearly: 470.4, credits: 10 },
-    20: { monthly: 95, yearly: 912, credits: 20 },
-    30: { monthly: 139, yearly: 1334.4, credits: 30 },
-    40: { monthly: 179, yearly: 1718.4, credits: 40 },
+    10: { monthly: 49, yearly: 470.4, credits: 50 },
+    20: { monthly: 95, yearly: 912, credits: 100 },
+    30: { monthly: 139, yearly: 1334.4, credits: 150 },
+    40: { monthly: 179, yearly: 1718.4, credits: 200 },
   },
   agency: {
-    50: { monthly: 215, yearly: 2064, credits: 50 },
-    70: { monthly: 289, yearly: 2774.4, credits: 70 },
-    100: { monthly: 399, yearly: 3830.4, credits: 100 },
-    150: { monthly: 499, yearly: 4790.4, credits: 150 },
+    50: { monthly: 215, yearly: 2064, credits: 250 },
+    70: { monthly: 289, yearly: 2774.4, credits: 350 },
+    100: { monthly: 399, yearly: 3830.4, credits: 500 },
+    150: { monthly: 499, yearly: 4790.4, credits: 750 },
   },
 };
+
+// What requests cost in credits and what each plan's trial gets, until the
+// live values load: the backend's defaults.
+export const DEFAULT_CREDIT_COSTS: CreditCosts = {
+  image: 5,
+  video: 10,
+  imageRevision: 2,
+  videoRevision: 4,
+  extraSize: 1,
+  canvaEdit: 2,
+  similarDesign: 5,
+};
+
+export const DEFAULT_TRIAL_CREDITS: Record<PlanId, number> = { starter: 5, pro: 10, agency: 10 };
+
+// "5 credits", "1 credit".
+export function fmtCredits(n: number) {
+  return `${n} ${n === 1 ? "credit" : "credits"}`;
+}
+
+// What a new request costs: an image ad, a video ad or both, plus each
+// extra size.
+export function requestCost(
+  costs: CreditCosts,
+  media: readonly ("image" | "video")[],
+  extraSizes = 0
+) {
+  return (
+    (media.includes("image") ? costs.image : 0) +
+    (media.includes("video") ? costs.video : 0) +
+    extraSizes * costs.extraSize
+  );
+}
+
+// What revising a delivered request costs, by what was delivered (older and
+// one-click requests are images).
+export function revisionCost(costs: CreditCosts, media?: readonly ("image" | "video")[]) {
+  const of = media?.length ? media : ["image"];
+  return (
+    (of.includes("image") ? costs.imageRevision : 0) +
+    (of.includes("video") ? costs.videoRevision : 0)
+  );
+}
 
 export const PLAN_NAMES: Record<PlanId, string> = {
   starter: "Starter",
@@ -35,9 +86,9 @@ export function volumesOf(prices: PriceList, plan: PlanId) {
   return Object.keys(prices[plan]).map(Number).sort((a, b) => a - b);
 }
 
-// Credits a month a tier gives (falls back to its volume).
+// Credits a month a tier gives.
 export function creditsOf(prices: PriceList, plan: PlanId, volume: number) {
-  return prices[plan][volume]?.credits ?? volume;
+  return prices[plan][volume]?.credits ?? 0;
 }
 
 export function defaultVolume(plan: PlanId) {

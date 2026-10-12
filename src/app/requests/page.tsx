@@ -11,6 +11,7 @@ import {
 import { useSearchParams } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import Spinner from "@/components/Spinner";
 import RequestDetailsModal, { attachmentKind, shortDate } from "@/components/RequestDetailsModal";
 import {
@@ -28,7 +29,8 @@ import {
 import { api, ApiError, type CreativeRequest } from "@/lib/api";
 import { useAuth, useRequireAuth } from "@/lib/AuthProvider";
 import UpgradePrompt, { type UpgradeReason } from "@/components/UpgradePrompt";
-import { can } from "@/lib/plans";
+import { can, fmtCredits, requestCost, revisionCost } from "@/lib/plans";
+import { useCreditCosts } from "@/lib/usePlanPrices";
 import { useToast } from "@/lib/ToastProvider";
 import { useNotifications } from "@/lib/NotificationsProvider";
 
@@ -56,6 +58,8 @@ const SIZE_NEEDED_OPTIONS = [
   { value: "All standard sizes", size: "All standard sizes", use: "Every size above" },
 ];
 const ALL_SIZES = "All standard sizes";
+// How many sizes "All standard sizes" stands for.
+const ALL_SIZES_COUNT = SIZE_NEEDED_OPTIONS.length - 1;
 
 // Videos are delivered as MP4, vertical unless square is asked for.
 const VIDEO_SIZE_OPTIONS = [
@@ -63,10 +67,6 @@ const VIDEO_SIZE_OPTIONS = [
   { value: "Video 1200 x 1200", size: "1200 × 1200", use: "Square" },
 ];
 const DEFAULT_VIDEO_SIZE = VIDEO_SIZE_OPTIONS[0].value;
-
-// Kept in sync with the backend's request costs in adplaylist-be/src/lib/billing.ts
-const IMAGE_REQUEST_CREDITS = 1;
-const VIDEO_REQUEST_CREDITS = 2;
 
 const checkboxClass = "mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-brand";
 
@@ -84,6 +84,8 @@ function Requests() {
   const { onNotification } = useNotifications();
   const toast = useToast();
   const [upgrade, setUpgrade] = useState<UpgradeReason | null>(null);
+  // What requests cost in credits (admins set these).
+  const costs = useCreditCosts();
   // A notification links to ?tab=Delivered (or Declined); clicking a tab
   // overrides it.
   const searchParams = useSearchParams();
@@ -119,8 +121,75 @@ function Requests() {
   const [wantsImage, setWantsImage] = useState(true);
   const [wantsVideo, setWantsVideo] = useState(false);
   const [videoSizes, setVideoSizes] = useState<string[]>([DEFAULT_VIDEO_SIZE]);
-  const cost =
-    (wantsImage ? IMAGE_REQUEST_CREDITS : 0) + (wantsVideo ? VIDEO_REQUEST_CREDITS : 0);
+  // An image ad and a video ad each include one size; every size beyond
+  // that is charged as an extra size.
+  const imageSizeCount = sizes.includes(ALL_SIZES) ? ALL_SIZES_COUNT : sizes.length;
+  const extraSizes =
+    (wantsImage ? Math.max(0, imageSizeCount - 1) : 0) +
+    (wantsVideo ? Math.max(0, videoSizes.length - 1) : 0);
+  const media = [
+    ...(wantsImage ? ["image" as const] : []),
+    ...(wantsVideo ? ["video" as const] : []),
+  ];
+  const cost = requestCost(costs, media, extraSizes);
+
+  // The delivered request a revision is being asked for, and what to change.
+  const [revising, setRevising] = useState<CreativeRequest | null>(null);
+  const [revisionNotes, setRevisionNotes] = useState("");
+  const [revisionSending, setRevisionSending] = useState(false);
+  const [revisionError, setRevisionError] = useState<string | null>(null);
+
+  function startRevision(req: CreativeRequest) {
+    if (!can(user, "requests")) return setUpgrade("requests");
+    if (user?.account && user.account.credits < revisionCost(costs, req.media)) {
+      return setUpgrade("outOfCredits");
+    }
+    setRevisionNotes("");
+    setRevisionError(null);
+    setRevising(req);
+  }
+
+  async function sendRevision() {
+    if (!revising) return;
+    if (!revisionNotes.trim()) return setRevisionError("Describe what should change.");
+    setRevisionSending(true);
+    setRevisionError(null);
+    try {
+      const { request } = await api.requestRevision(revising.id, { notes: revisionNotes.trim() });
+      setRequests((prev) => [request, ...prev]);
+      toast.success("Revision requested. Our team will pick it up shortly.");
+      if (user?.account) refresh();
+      setRevising(null);
+      setTab("Open");
+    } catch (err) {
+      if (err instanceof ApiError && err.upgrade) {
+        setRevising(null);
+        setUpgrade(err.outOfCredits ? "outOfCredits" : "requests");
+        refresh();
+      } else {
+        setRevisionError(err instanceof ApiError ? err.message : "Something went wrong.");
+      }
+    } finally {
+      setRevisionSending(false);
+    }
+  }
+
+  const revisionButton = (req: CreativeRequest) => (
+    <button
+      type="button"
+      onClick={() => startRevision(req)}
+      className="border border-border px-2.5 py-1.5 text-sm font-bold text-ink hover:bg-surface-2"
+    >
+      Request revision
+      {/* Staff requests are free. */}
+      {user?.account && (
+        <span className="font-normal text-ink-muted">
+          {" "}
+          &middot; {fmtCredits(revisionCost(costs, req.media))}
+        </span>
+      )}
+    </button>
+  );
 
   // "All standard sizes" stands alone; picking a specific size clears it.
   function toggleSize(opt: string) {
@@ -208,7 +277,7 @@ function Requests() {
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    // Locked on Starter or an expired plan, and when the credits run out.
+    // Locked on an expired plan, and when the credits run out.
     if (!can(user, "requests")) return setUpgrade("requests");
     if (user?.account && user.account.credits < 1) return setUpgrade("outOfCredits");
     if (!wantsImage && !wantsVideo) {
@@ -231,7 +300,8 @@ function Requests() {
       const { request } = await api.createRequest({
         title: String(form.get("title")),
         adUrl: adUrl.trim(),
-        media: [...(wantsImage ? ["image" as const] : []), ...(wantsVideo ? ["video" as const] : [])],
+        media,
+        extraSizes,
         sizeNeeded:
           [
             ...(wantsImage ? SIZE_NEEDED_OPTIONS.filter((opt) => sizes.includes(opt.value)) : []),
@@ -393,6 +463,7 @@ function Requests() {
                             Details
                           </button>
                         </div>
+                        {revisionButton(req)}
                       </div>
                     ) : (
                       <div
@@ -440,6 +511,7 @@ function Requests() {
                             Details
                           </button>
                         )}
+                        {revisionButton(req)}
                       </div>
                     )
                   )}
@@ -514,8 +586,10 @@ function Requests() {
           {user.account && (
             <p className="mt-1.5 text-xs text-ink-muted">
               {can(user, "requests")
-                ? `Uses ${cost} ${cost === 1 ? "credit" : "credits"} · ${user.account.credits} left`
-                : "Requests are included on Pro and Agency."}
+                ? `Uses ${fmtCredits(cost)}${
+                    extraSizes ? ` (incl. ${extraSizes} extra ${extraSizes === 1 ? "size" : "sizes"})` : ""
+                  } · ${user.account.credits} left`
+                : "Start a plan to request ads."}
             </p>
           )}
 
@@ -556,10 +630,10 @@ function Requests() {
               <div className="grid grid-cols-2 gap-x-4 pt-0.5">
                 {(
                   [
-                    ["Image", wantsImage, setWantsImage],
-                    ["Video", wantsVideo, setWantsVideo],
+                    ["Image", wantsImage, setWantsImage, costs.image],
+                    ["Video", wantsVideo, setWantsVideo, costs.video],
                   ] as const
-                ).map(([label, checked, setChecked]) => (
+                ).map(([label, checked, setChecked, credits]) => (
                   <label key={label} className="group flex cursor-pointer items-start gap-2.5">
                     <input
                       type="checkbox"
@@ -573,15 +647,17 @@ function Requests() {
                       }`}
                     >
                       {label}
+                      <span className="mt-0.5 block text-[11px] font-normal tracking-[0.04em] text-ink-muted">
+                        {fmtCredits(credits)}
+                      </span>
                     </span>
                   </label>
                 ))}
               </div>
-              {wantsVideo && (
-                <p className="mt-2 text-[11px] text-ink-muted">
-                  A video request costs {VIDEO_REQUEST_CREDITS} credits. Delivered as MP4.
-                </p>
-              )}
+              <p className="mt-2 text-[11px] text-ink-muted">
+                One size is included; each extra size is {fmtCredits(costs.extraSize)}.
+                {wantsVideo && " Videos are delivered as MP4."}
+              </p>
             </div>
             {wantsVideo && (
               <div>
@@ -813,6 +889,52 @@ function Requests() {
           <UpgradePrompt reason={upgrade} onClose={() => setUpgrade(null)} />
         </aside>
       </main>
+
+      <ConfirmDialog
+        open={!!revising}
+        title="Request a revision?"
+        message={
+          revising && (
+            <>
+              <p>
+                Tell us what to change in{" "}
+                <span className="font-bold text-ink">{revising.title}</span>.
+                {user.account && (
+                  <>
+                    {" "}
+                    This will cost{" "}
+                    <span className="font-bold text-ink">
+                      {fmtCredits(revisionCost(costs, revising.media))}
+                    </span>{" "}
+                    (you have {user.account.credits}). If we can&apos;t do it, the credits are
+                    refunded.
+                  </>
+                )}
+              </p>
+              <textarea
+                value={revisionNotes}
+                onChange={(e) => setRevisionNotes(e.target.value)}
+                rows={4}
+                maxLength={5000}
+                aria-label="What should change"
+                placeholder="What should change, as precisely as possible."
+                className="mt-3 w-full resize-none border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+              />
+              {revisionError && <p className="mt-2 text-brand">{revisionError}</p>}
+            </>
+          )
+        }
+        confirmLabel={
+          revisionSending
+            ? "Requesting…"
+            : revising && user.account
+              ? `Request for ${fmtCredits(revisionCost(costs, revising.media))}`
+              : "Request revision"
+        }
+        loading={revisionSending}
+        onConfirm={sendRevision}
+        onCancel={() => setRevising(null)}
+      />
 
       {viewingRequest && (
         <RequestDetailsModal

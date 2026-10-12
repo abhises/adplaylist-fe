@@ -9,6 +9,8 @@ import Pagination, { usePagination } from "@/components/Pagination";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type AdminUser, type NewUserInput, type Role } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
+import { creditsOf, isPlanId } from "@/lib/plans";
+import { usePlanPrices } from "@/lib/usePlanPrices";
 import { useToast } from "@/lib/ToastProvider";
 
 const ROLES: Role[] = ["client", "designer", "editor", "admin"];
@@ -114,10 +116,13 @@ function matchesFilter(u: AdminUser, filter: Filter) {
 
 // The Plan cell: a Paid / Trial / Expired tag and the plan they're on.
 function PlanTag({ user }: { user: AdminUser }) {
+  const prices = usePlanPrices();
   const b = user.billing;
   if (!b) return <span className="text-xs text-ink-muted">{user.role === "client" ? "No plan" : "Staff"}</span>;
   const plan = `${b.plan[0].toUpperCase()}${b.plan.slice(1)}`;
-  const detail = `${plan}${b.creditVolume ? ` · ${b.creditVolume} credits` : ""} · ${b.billingCycle}`;
+  // What the tier gives a month now (creditVolume is the tier's fixed id).
+  const credits = isPlanId(b.plan) ? creditsOf(prices, b.plan, b.creditVolume) : 0;
+  const detail = `${plan}${credits ? ` · ${credits} credits` : ""} · ${b.billingCycle}`;
   const tag = b.paid
     ? {
         label:

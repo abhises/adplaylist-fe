@@ -37,7 +37,11 @@ export default function UpgradePrompt({
     const startable = canStartPlanNow(account);
     return (
       <Modal open onClose={onClose}>
-        <h2 className="text-lg font-extrabold text-ink">You&apos;ve used your trial credits</h2>
+        <h2 className="text-lg font-extrabold text-ink">
+          {account.credits > 0
+            ? `You have ${account.credits} trial credits left, not enough for this`
+            : "You've used your trial credits"}
+        </h2>
         <p className="mt-2 text-sm text-ink-muted">
           {startable
             ? `Start your ${account.planName} plan now to get ${account.creditsPerMonth} credits straight away. Otherwise you won't be charged until your trial ends on ${fmtDate(account.trialEndsAt)}.`
@@ -64,7 +68,11 @@ export default function UpgradePrompt({
   }
 
   if (reason === "outOfCredits") {
-    title = "You're out of credits";
+    // Each kind of request has its own cost, so some credits can be left.
+    title =
+      account.credits > 0
+        ? `Not enough credits (you have ${account.credits})`
+        : "You're out of credits";
     // Pro can upgrade for more; Agency's top tier waits for the refill.
     if (account.plan === "agency" && account.creditVolume === 150) {
       body = `Your credits refill on ${fmtDate(account.nextRefillAt)}.`;
@@ -78,7 +86,7 @@ export default function UpgradePrompt({
     cta = owner ? "Subscribe" : null;
   } else {
     title = "Upgrade to unlock this";
-    body = `${WHAT[reason]} is included on Pro and Agency. Starter is library-only.`;
+    body = `${WHAT[reason]} is included on Pro and Agency.`;
   }
 
   return (

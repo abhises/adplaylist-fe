@@ -26,7 +26,7 @@ export default function AccountBanner() {
         if (owner) return null;
         text = "Your free trial starts once the account owner adds a card.";
         action = null;
-      } else if (account.credits === 0 && account.creditVolume > 0) {
+      } else if (account.credits === 0 && account.creditTotal > 0) {
         text = `${left} You've used your trial credits.`;
         action = "Start plan now";
       } else {

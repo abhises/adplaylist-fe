@@ -160,6 +160,22 @@ export type PlanCatalog = {
   tiers: { volume: number; monthly: number; yearly: number; credits: number }[];
 }[];
 
+// What each kind of request costs in credits (admins edit these).
+export type CreditCosts = {
+  image: number;
+  video: number;
+  imageRevision: number;
+  videoRevision: number;
+  // Each size beyond the first.
+  extraSize: number;
+  // The one-click requests on an ad's page.
+  canvaEdit: number;
+  similarDesign: number;
+};
+
+// The price list: the plans and what requests cost.
+export type PriceCatalog = { plans: PlanCatalog; creditCosts: CreditCosts };
+
 export type CreditTotals = {
   received: number;
   used: number;
@@ -384,6 +400,10 @@ export type CreativeRequest = {
   // What was asked for; missing on older and one-click requests.
   media?: ("image" | "video")[];
   sizeNeeded?: string;
+  // Sizes wanted beyond the first, each charged as an extra size.
+  extraSizes?: number;
+  // On a revision: the delivered request it asks to change.
+  revisionOfId?: number;
   neededBy?: string;
   notes?: string;
   status: string;
@@ -392,7 +412,7 @@ export type CreativeRequest = {
   attachmentName?: string;
   ad?: Ad;
   // Whether credits paid for it (a declined request's are refunded), and
-  // how many: 1 for images, 2 for a video, 3 for both.
+  // how many.
   creditCharged?: boolean;
   creditCost?: number;
   // Only sent to staff: who raised it, and their company account.
@@ -618,14 +638,25 @@ export const api = {
       body: JSON.stringify({ sessionId }),
     }),
 
-  getPlans: () => request<{ plans: PlanCatalog }>("/api/plans"),
+  getPlans: () => request<PriceCatalog>("/api/plans"),
 
   updatePlanPrices: (
     changes: { plan: PlanId; volume: number; monthly: number; yearly: number; credits: number }[]
   ) =>
-    request<{ plans: PlanCatalog }>("/api/admin/plan-prices", {
+    request<PriceCatalog>("/api/admin/plan-prices", {
       method: "PUT",
       body: JSON.stringify({ changes }),
+    }),
+
+  // What requests cost and what each plan's trial gets; only what's sent
+  // changes.
+  updateCreditSettings: (changes: {
+    costs?: Partial<CreditCosts>;
+    trialCredits?: Partial<Record<PlanId, number>>;
+  }) =>
+    request<PriceCatalog>("/api/admin/credit-settings", {
+      method: "PUT",
+      body: JSON.stringify(changes),
     }),
 
   getPlanPriceHistory: () =>
@@ -819,7 +850,7 @@ export const api = {
 
   getRequests: () => request<{ requests: CreativeRequest[] }>("/api/requests"),
 
-  // "Request Canva Edit" on an ad with no Canva copy; costs a client 1 credit.
+  // "Request Canva Edit" on an ad with no Canva copy; costs a client credits.
   // alreadyRequested: an open request for it existed, so nothing was charged.
   requestCanvaEdit: (adId: string) =>
     request<{ request: CreativeRequest; alreadyRequested: boolean }>("/api/requests/canva", {
@@ -827,11 +858,21 @@ export const api = {
       body: JSON.stringify({ adId }),
     }),
 
-  // "Request a similar design" on a live ad; costs 1 credit, like any request.
+  // "Request a similar design" on a live ad; costs credits, like any request.
   requestSimilarDesign: (adId: string) =>
     request<{ request: CreativeRequest; alreadyRequested: boolean }>("/api/requests/similar", {
       method: "POST",
       body: JSON.stringify({ adId }),
+    }),
+
+  // Asks for changes to a delivered request; costs a revision's credits.
+  requestRevision: (
+    id: number,
+    data: { notes: string; attachmentUrl?: string; attachmentName?: string }
+  ) =>
+    request<{ request: CreativeRequest }>(`/api/requests/${id}/revision`, {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
 
   createRequest: (data: {
@@ -839,6 +880,7 @@ export const api = {
     adUrl: string;
     media?: ("image" | "video")[];
     sizeNeeded?: string;
+    extraSizes?: number;
     neededBy?: string;
     notes?: string;
     attachmentUrl?: string;

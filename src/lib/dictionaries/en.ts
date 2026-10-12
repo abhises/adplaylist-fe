@@ -99,12 +99,12 @@ const en = {
   pricing: {
     eyebrow: "PRICING",
     title: "Pick a plan. Request custom ads when you need them.",
-    lead: "Every plan includes the full ad library. On Pro and Agency, one credit is one new custom creative from the design team.",
+    lead: "Every plan includes the full ad library and a monthly balance of credits to spend on custom creatives from the design team.",
     monthly: "Monthly",
     yearly: "Yearly · save 20%",
     plans: {
       starter: {
-        desc: "For marketers who want to browse and save what the team has already made.",
+        desc: "For marketers who want to browse the library and order the occasional custom ad.",
         goodFor: ["Individuals", "Occasional campaigns"],
       },
       pro: {
@@ -117,41 +117,49 @@ const en = {
       },
     },
     features: {
-      credits: "Custom ads per month",
-      brands: "Brands",
-      seats: "Team seats",
-      turnaround: "Turnaround",
+      credits: "Credits per month",
       library: "Full ad library access",
       localisation: "Localisation into new markets",
       brandKit: "Brand kit and templates",
       video: "Animated and video ads",
       lead: "Dedicated creative lead",
     },
-    turnaround: ["—", "3 days", "48 hours"],
     mostPopular: "MOST POPULAR",
     greatFor: "Great for",
-    adsPerMonth: (n: number) => `${n} ads / month`,
-    libraryOnly: "Library only, no custom ads",
+    creditsPerMonth: (n: number) => `${n} credits / month`,
+    approx: (images: number, videos: number) =>
+      `≈ ${images} image ${images === 1 ? "ad" : "ads"} or ${videos} video ${videos === 1 ? "ad" : "ads"}`,
     perMonth: "/mo",
     save: (amount: string) => `Save ${amount} a year`,
     billedMonthly: "Billed monthly. Cancel anytime.",
     startTrial: "Start free trial",
-    perAd: (amount: string, yearly: boolean) => `${amount} per ad${yearly ? ", billed yearly" : ""}`,
-    upgradeAnytime: "Upgrade anytime to request ads",
+    perCredit: (amount: string, yearly: boolean) => `${amount} per credit${yearly ? ", billed yearly" : ""}`,
     compare: "Compare plans",
     enterpriseEyebrow: "ENTERPRISE",
     enterpriseTitle: "Custom volume, custom price.",
     enterpriseLead:
-      "Need more than 150 ads a month or a setup we don’t list? Tell us what you need and we’re happy to solve it with you.",
+      "Need more than 750 credits a month or a setup we don’t list? Tell us what you need and we’re happy to solve it with you.",
     talkToUs: "Talk to us",
-    footnote:
-      "Every plan starts with a 7-day free trial. Pro and Agency trials include 2 free ad requests. Prices in USD, excluding tax.",
+    footnote: (trial: { starter: number; pro: number; agency: number }) =>
+      `Every plan starts with a 7-day free trial that includes free credits to try a request (Starter ${trial.starter}, Pro ${trial.pro}, Agency ${trial.agency}). Prices in USD, excluding tax.`,
+    creditsEyebrow: "HOW CREDITS WORK",
+    creditsTitle: "What you can get with your credits",
+    creditsLead:
+      "Spend your monthly credits on any mix of image ads, video ads, revisions and extra sizes.",
+    creditUnit: (n: number) => (n === 1 ? "CREDIT" : "CREDITS"),
+    creditItems: {
+      image: "1 image ad creative",
+      video: "1 video ad creative",
+      imageRevision: "1 image ad creative revision",
+      videoRevision: "1 video ad creative revision",
+      extraSize: "For each different size",
+    },
   },
 
   contact: {
     eyebrow: "ENTERPRISE",
     title: "Custom volume, custom price.",
-    lead: "Need more than 150 ads a month, several brands under one account, or a setup we don’t list? Tell us what you need and we’ll put together a plan and price for you.",
+    lead: "Need more than 750 credits a month, several brands under one account, or a setup we don’t list? Tell us what you need and we’ll put together a plan and price for you.",
     points: ["Any monthly volume of custom ads", "More brands and team seats", "A dedicated creative lead", "Invoiced billing"],
     thanksToast: "Thanks! We'll get back to you within one working day.",
     sendFailed: "Couldn't send your message.",

@@ -22,7 +22,7 @@ import {
   volumesOf,
   yearlyTotal,
 } from "@/lib/plans";
-import { usePlanPrices } from "@/lib/usePlanPrices";
+import { useCreditCosts, usePlanPrices, useTrialCredits } from "@/lib/usePlanPrices";
 
 export default function BillingPage() {
   return (
@@ -278,6 +278,8 @@ function PlanCard({ account }: { account: Account }) {
 }
 
 function CreditsCard({ account }: { account: Account }) {
+  const costs = useCreditCosts();
+  const whatTheyBuy = `An image ad costs ${costs.image} credits and a video ad ${costs.video}.`;
   return (
     <div className="border-2 border-ink/15 p-6">
       <h2 className="text-xl font-extrabold text-ink">Credits</h2>
@@ -309,19 +311,17 @@ function CreditsCard({ account }: { account: Account }) {
         </>
       )}
       <p className="mt-1 text-sm text-ink-muted">
-        {account.plan === "starter"
-          ? "Starter is library-only. Upgrade to Pro or Agency to request custom ads."
-          : account.status === "trial"
-            ? account.credits === 0
-              ? `You've used all your trial credits. Start your paid plan now to get ${account.creditsPerMonth} credits straight away.`
-              : "Trial credits. One credit is one custom ad from the design team."
-            : account.status === "expired"
-              ? "Subscribe to get credits again."
-              : `One credit is one custom ad. Shared by everyone on the account; unused credits don't roll over.${
-                  account.nextRefillAt && account.status !== "cancelled"
-                    ? ` Refills to ${account.creditsPerMonth} on ${fmtDate(account.nextRefillAt)}.`
-                    : ""
-                }`}
+        {account.status === "trial"
+          ? account.credits === 0 && account.creditTotal > 0
+            ? `You've used all your trial credits. Start your paid plan now to get ${account.creditsPerMonth} credits straight away.`
+            : `Trial credits, for custom work from the design team. ${whatTheyBuy}`
+          : account.status === "expired"
+            ? "Subscribe to get credits again."
+            : `${whatTheyBuy} Shared by everyone on the account; unused credits don't roll over.${
+                account.nextRefillAt && account.status !== "cancelled"
+                  ? ` Refills to ${account.creditsPerMonth} on ${fmtDate(account.nextRefillAt)}.`
+                  : ""
+              }`}
       </p>
     </div>
   );
@@ -373,6 +373,7 @@ function PlanChooser({
   onCheckout: (plan: PlanId, volume: number, cycle: BillingCycle) => void;
 }) {
   const prices = usePlanPrices();
+  const trialCredits = useTrialCredits();
   const initialPlan = isPlanId(initial.plan) ? initial.plan : account.plan;
   const initialVolume = Number(initial.volume);
   const [plan, setPlan] = useState<PlanId>(initialPlan);
@@ -397,7 +398,7 @@ function PlanChooser({
           </h2>
           <p className="mt-1 text-sm text-ink-muted">
             {keepsTrial
-              ? "Your card is needed to start the trial, and is first charged when the 7 days are up — cancel before then and you pay nothing. Pro and Agency trials include 2 credits."
+              ? `Your card is needed to start the trial, and is first charged when the 7 days are up — cancel before then and you pay nothing. Trials include free credits: ${PLAN_IDS.map((p) => `${PLAN_NAMES[p]} ${trialCredits[p]}`).join(", ")}.`
               : "You'll be charged today. Prices in USD, excluding tax."}
           </p>
         </div>
@@ -459,7 +460,9 @@ function PlanChooser({
                   ))}
                 </select>
               ) : (
-                <p className="mt-3 py-1.5 text-sm text-ink-muted">Library only</p>
+                <p className="mt-3 py-1.5 text-sm text-ink-muted">
+                  {creditsOf(prices, p, volumes[p])} credits / month
+                </p>
               )}
             </div>
           );

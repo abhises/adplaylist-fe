@@ -62,7 +62,7 @@ function AttachmentPreview({ url, name }: { url: string; name?: string }) {
   );
 }
 
-function creditLabel(cost = 1) {
+function creditLabel(cost = 0) {
   return `${cost} ${cost === 1 ? "credit" : "credits"}`;
 }
 
@@ -251,7 +251,16 @@ export default function RequestDetailsModal({
                 {r.media.map((m) => (m === "video" ? "Video (MP4)" : "Image")).join(" + ")}
               </DetailRow>
             )}
-            <DetailRow label="Sizes needed">{r.sizeNeeded ?? "Any size"}</DetailRow>
+            {r.type !== "Revision" && (
+              <DetailRow label="Sizes needed">
+                {r.sizeNeeded ?? "Any size"}
+                {!!r.extraSizes && (
+                  <span className="ml-1.5 text-xs text-ink-muted">
+                    ({r.extraSizes} extra {r.extraSizes === 1 ? "size" : "sizes"} charged)
+                  </span>
+                )}
+              </DetailRow>
+            )}
             {r.deliveredUrl && (
               <div className="sm:col-span-2">
                 <DetailRow label="Delivered ad">
@@ -275,7 +284,7 @@ export default function RequestDetailsModal({
             )}
             {r.adUrl && (
               <div className="sm:col-span-2">
-                <DetailRow label="Ad link">
+                <DetailRow label={r.type === "Revision" ? "Creative to revise" : "Ad link"}>
                   <a
                     href={r.adUrl}
                     target="_blank"

@@ -27,7 +27,8 @@ import { api, ApiError, type Ad, type Author } from "@/lib/api";
 import { adCategories } from "@/lib/categories";
 import { useToast } from "@/lib/ToastProvider";
 import { useAuth } from "@/lib/AuthProvider";
-import { can } from "@/lib/plans";
+import { can, fmtCredits } from "@/lib/plans";
+import { useCreditCosts } from "@/lib/usePlanPrices";
 import { SITE_URL } from "@/lib/site";
 import { slugify } from "@/lib/slug";
 
@@ -153,6 +154,8 @@ export default function AdDetailView({
   guides?: RelatedGuide[];
 }) {
   const { user, refresh } = useAuth();
+  // What the one-click requests cost in credits (admins set these).
+  const costs = useCreditCosts();
   const toast = useToast();
   const id = initialAd.id;
 
@@ -200,12 +203,12 @@ export default function AdDetailView({
   }
 
   // "Request Canva Edit" on an ad without a Canva copy: visitors sign up,
-  // plans without requests (or out of credits) see the upgrade prompt, and
-  // everyone else confirms spending the credit first.
+  // an expired plan (or one without enough credits) sees the upgrade prompt,
+  // and everyone else confirms spending the credits first.
   function startCanvaRequest() {
     if (!user) return setSignUp("requests");
     if (!can(user, "requests")) return setUpgrade("requests");
-    if (user.account && user.account.credits < 1) return setUpgrade("outOfCredits");
+    if (user.account && user.account.credits < costs.canvaEdit) return setUpgrade("outOfCredits");
     setCanvaConfirm(true);
   }
 
@@ -217,8 +220,8 @@ export default function AdDetailView({
       setCanvaConfirm(false);
       toast.success(
         alreadyRequested
-          ? "You've already requested a Canva edit for this ad. No extra credit was used."
-          : "Canva edit requested. We'll add the Canva link to this ad; 1 credit used."
+          ? "You've already requested a Canva edit for this ad. No extra credits were used."
+          : `Canva edit requested. We'll add the Canva link to this ad; ${fmtCredits(costs.canvaEdit)} used.`
       );
       refresh().catch(() => {});
     } catch (err) {
@@ -232,12 +235,12 @@ export default function AdDetailView({
   }
 
   // "Request a similar design" on a live ad: the same steps as a Canva edit
-  // (sign up, upgrade or confirm the credit), then the request goes straight
+  // (sign up, upgrade or confirm the credits), then the request goes straight
   // to the team.
   function startSimilarRequest() {
     if (!user) return setSignUp("requests");
     if (!can(user, "requests")) return setUpgrade("requests");
-    if (user.account && user.account.credits < 1) return setUpgrade("outOfCredits");
+    if (user.account && user.account.credits < costs.similarDesign) return setUpgrade("outOfCredits");
     setSimilarConfirm(true);
   }
 
@@ -249,8 +252,8 @@ export default function AdDetailView({
       setSimilarConfirm(false);
       toast.success(
         alreadyRequested
-          ? "You've already requested a design like this one. No extra credit was used."
-          : "Request sent. Our team will design something similar for you; 1 credit used."
+          ? "You've already requested a design like this one. No extra credits were used."
+          : `Request sent. Our team will design something similar for you; ${fmtCredits(costs.similarDesign)} used.`
       );
       refresh().catch(() => {});
     } catch (err) {
@@ -1166,13 +1169,14 @@ export default function AdDetailView({
               ad. You&apos;ll find it in Requests once it&apos;s done.
             </p>
             <p className="mt-2">
-              This will cost <span className="font-bold text-ink">1 credit</span>
+              This will cost{" "}
+              <span className="font-bold text-ink">{fmtCredits(costs.canvaEdit)}</span>
               {user?.account ? ` (you have ${user.account.credits})` : ""}. If we can&apos;t do
-              it, the credit is refunded.
+              it, the credits are refunded.
             </p>
           </>
         }
-        confirmLabel={canvaRequesting ? "Requesting…" : "Request for 1 credit"}
+        confirmLabel={canvaRequesting ? "Requesting…" : `Request for ${fmtCredits(costs.canvaEdit)}`}
         loading={canvaRequesting}
         onConfirm={requestCanvaEdit}
         onCancel={() => setCanvaConfirm(false)}
@@ -1188,13 +1192,14 @@ export default function AdDetailView({
               You&apos;ll find it in Requests once it&apos;s done.
             </p>
             <p className="mt-2">
-              This will cost <span className="font-bold text-ink">1 credit</span>
+              This will cost{" "}
+              <span className="font-bold text-ink">{fmtCredits(costs.similarDesign)}</span>
               {user?.account ? ` (you have ${user.account.credits})` : ""}. If we can&apos;t do
-              it, the credit is refunded.
+              it, the credits are refunded.
             </p>
           </>
         }
-        confirmLabel={similarRequesting ? "Requesting…" : "Request for 1 credit"}
+        confirmLabel={similarRequesting ? "Requesting…" : `Request for ${fmtCredits(costs.similarDesign)}`}
         loading={similarRequesting}
         onConfirm={requestSimilarDesign}
         onCancel={() => setSimilarConfirm(false)}

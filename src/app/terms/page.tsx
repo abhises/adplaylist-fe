@@ -123,8 +123,8 @@ export default function TermsPage() {
             .
           </p>
           <p>
-            <Term>Free trial.</Term> Every plan starts with a 7-day free trial. Pro and
-            Agency trials include 2 free custom ad requests. Unless you cancel before
+            <Term>Free trial.</Term> Every plan starts with a 7-day free trial, which
+            includes a number of free credits shown when you start it. Unless you cancel before
             the trial ends, your paid plan starts automatically and your payment method
             is charged.
           </p>
@@ -135,10 +135,11 @@ export default function TermsPage() {
             billing period.
           </p>
           <p>
-            <Term>Credits.</Term> On Pro and Agency, one credit equals one new custom
-            creative from the design team. Your plan includes a set number of credits
-            per month. Unused credits do not carry over to the next month and have no
-            cash value.
+            <Term>Credits.</Term> Your plan includes a set number of credits per month,
+            which you spend on custom work from the design team: new image and video
+            creatives, revisions and extra sizes. What each costs in credits is shown on
+            the pricing page and before you confirm a request. Unused credits do not
+            carry over to the next month and have no cash value.
           </p>
           <p>
             <Term>Prices and tax.</Term> Prices are in US dollars (USD) and exclude
@@ -181,8 +182,8 @@ export default function TermsPage() {
                 rights or goes against these Terms.
               </>,
               <>
-                <Term>Revisions and limits.</Term> Custom requests are available on Pro
-                and Agency only, and each new creative uses one credit. Localisation,
+                <Term>Revisions and limits.</Term> Custom requests, revisions and extra
+                sizes each use credits from your plan&rsquo;s monthly balance. Localisation,
                 brand kits, animated and video ads, and a dedicated creative lead depend
                 on your plan.
               </>,
