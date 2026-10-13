@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
+import AddAdTabs from "@/components/AddAdTabs";
 import Spinner from "@/components/Spinner";
 import { api, ApiError, type Author } from "@/lib/api";
 import {
@@ -368,13 +369,13 @@ export default function BulkAddAdsPage() {
         <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
           Admin
         </p>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h1 className="text-3xl font-extrabold text-ink">Bulk add ads</h1>
-          <Link href="/add-ad" className="text-sm text-brand">
-            Add a single ad instead &rarr;
-          </Link>
-        </div>
-        <p className="mt-2 max-w-3xl text-sm text-ink-muted">
+        <h1 className="text-3xl font-extrabold text-ink">Add ads</h1>
+        <p className="mt-2 text-sm text-ink-muted">
+          Fill in an ad by hand, upload a single ad&apos;s CSV, or bulk add up
+          to {MAX_BULK} ads at once. Preview before publishing to the library.
+        </p>
+        <AddAdTabs active="bulk" />
+        <p className="mt-6 max-w-3xl text-sm text-ink-muted">
           Drop up to {MAX_BULK} ad CSVs and their creatives. Each CSV is matched
           to the image named in its &quot;File name from image PNG&quot; row (or
           its &quot;Image file name&quot; row, or an image with the same name as

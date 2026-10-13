@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import {
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type FormEvent,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import AdCard from "@/components/AdCard";
+import AddAdTabs from "@/components/AddAdTabs";
 import TagPicker from "@/components/TagPicker";
 import AdSeoEditor from "@/components/AdSeoEditor";
 import CategorySelect from "@/components/CategorySelect";
@@ -17,6 +24,7 @@ import {
 } from "@/lib/ads";
 import {
   applyCsvToDraft,
+  clearDraft,
   draftToAd,
   emptyDraft,
   loadDraft,
@@ -32,17 +40,38 @@ import {
   validateImageFile,
   validateVideoFile,
 } from "@/lib/upload";
+import { api, ApiError } from "@/lib/api";
 import { useRequireRole } from "@/lib/AuthProvider";
+import { useToast } from "@/lib/ToastProvider";
 
 const inputClass =
   "w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70";
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+// A labelled field. A single input is wrapped in its <label>, so it can be
+// found by that name (screen readers, and tools filling the form in); a
+// `group` of checkboxes or a picker is a named group instead.
+function Field({
+  label,
+  group,
+  children,
+}: {
+  label: string;
+  group?: boolean;
+  children: React.ReactNode;
+}) {
+  if (group) {
+    return (
+      <div role="group" aria-label={label} className="py-3">
+        <p className="mb-[5px] text-xs text-ink/70">{label}</p>
+        {children}
+      </div>
+    );
+  }
   return (
-    <div className="py-3">
-      <p className="mb-[5px] text-xs text-ink/70">{label}</p>
+    <label className="block py-3">
+      <span className="mb-[5px] block text-xs text-ink/70">{label}</span>
       {children}
-    </div>
+    </label>
   );
 }
 
@@ -51,13 +80,29 @@ function toggleIn(list: string[], value: string) {
 }
 
 export default function AddAdPage() {
+  return (
+    <Suspense>
+      <AddAd />
+    </Suspense>
+  );
+}
+
+// Adding one ad, two ways (the tabs; Bulk is its own page): "Manual" shows
+// every field of the CSV template to fill in by hand, and "CSV" fills them
+// from an uploaded file. Either way the fields stay editable, and the ad can
+// be published from here or looked at on the preview page first.
+function AddAd() {
   const { user, ready } = useRequireRole(["designer", "admin"]);
   const router = useRouter();
+  const toast = useToast();
+  const mode = useSearchParams().get("mode") === "csv" ? "csv" : "manual";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
-  // Fields parsed from the CSV; null until a CSV has been loaded.
-  const [csvDraft, setCsvDraft] = useState<AdDraft | null>(null);
+  // The ad's fields: typed in by hand, or filled from the CSV.
+  const [fields, setFields] = useState<AdDraft>(emptyDraft);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [canvaUrl, setCanvaUrl] = useState("");
   const [canvaPremium, setCanvaPremium] = useState(false);
   const [isLive, setIsLive] = useState(false);
@@ -86,9 +131,14 @@ export default function AddAdPage() {
     Promise.resolve().then(() => {
       const stored = loadDraft();
       if (!stored) return;
+      setFields(stored);
       if (stored.csvFileName) {
-        setCsvDraft(stored);
         setCsvFileName(stored.csvFileName);
+        // "Back to edit" comes back to /add-ad: a CSV's draft belongs on
+        // the CSV tab.
+        if (new URLSearchParams(window.location.search).get("mode") !== "csv") {
+          router.replace("/add-ad?mode=csv");
+        }
       }
       setCanvaUrl(stored.canvaUrl);
       setCanvaPremium(!!stored.canvaPremium);
@@ -102,7 +152,7 @@ export default function AddAdPage() {
         setVideo({ url: stored.videoUrl, length: stored.videoLength ?? "" });
       }
     });
-  }, []);
+  }, [router]);
 
   // A video's cover is taken from the video itself; it can be replaced on
   // the preview page.
@@ -190,7 +240,7 @@ export default function AddAdPage() {
         );
         return;
       }
-      setCsvDraft(draft);
+      setFields(draft);
       setCsvFileName(file.name);
       setCsvMatched(matched);
       setCsvUnrecognized(unrecognized);
@@ -207,7 +257,7 @@ export default function AddAdPage() {
   }
 
   function clearCsv() {
-    setCsvDraft(null);
+    setFields(emptyDraft());
     setCsvFileName(null);
     setCsvError(null);
     setCsvUnrecognized([]);
@@ -216,13 +266,14 @@ export default function AddAdPage() {
   }
 
   function updateFields(patch: Partial<AdDraft>) {
-    setCsvDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+    setFields((prev) => ({ ...prev, ...patch }));
   }
 
+  // Null on the CSV tab until a CSV is loaded: nothing to show or save yet.
   function currentDraft(): AdDraft | null {
-    if (!csvDraft) return null;
+    if (mode === "csv" && !csvFileName) return null;
     return {
-      ...csvDraft,
+      ...fields,
       canvaUrl,
       canvaPremium,
       isLive,
@@ -246,6 +297,31 @@ export default function AddAdPage() {
     router.push("/add-ad/preview");
   }
 
+  // Publishes straight from this page, skipping the preview step.
+  async function handlePublish() {
+    const draft = currentDraft();
+    if (!draft) return;
+    if (!draft.adName.trim()) {
+      setPublishError("Give the ad a name before publishing.");
+      return;
+    }
+    if (!draft.photoUrl) {
+      setPublishError("Add the master file before publishing.");
+      return;
+    }
+    setPublishing(true);
+    setPublishError(null);
+    try {
+      const { ad } = await api.createAd(draftToAd(draft));
+      toast.success("Ad published to the library.");
+      clearDraft();
+      router.push(`/ads/${ad.id}`);
+    } catch (err) {
+      setPublishError(err instanceof ApiError ? err.message : "Something went wrong.");
+      setPublishing(false);
+    }
+  }
+
   if (!ready || !user) return null;
 
   const draft = currentDraft();
@@ -265,398 +341,431 @@ export default function AddAdPage() {
         <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
           Admin
         </p>
-        <h1 className="text-3xl font-extrabold text-ink">Add a new ad</h1>
+        <h1 className="text-3xl font-extrabold text-ink">Add ads</h1>
         <p className="mt-2 text-sm text-ink-muted">
-          Upload the text data and creative, then preview the ad before
-          publishing it to the library. Adding several?{" "}
-          <Link href="/add-ad/bulk" className="text-brand">
-            Bulk add ads
-          </Link>
+          Fill in an ad by hand, upload a single ad&apos;s CSV, or bulk add up
+          to 25 ads at once. Preview before publishing to the library.
         </p>
+        <AddAdTabs active={mode} />
 
         <form
           onSubmit={handleShowPreview}
           className="mt-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-2"
         >
-          <div className="border-2 border-ink/15 p-6">
-            <h2 className="text-xl font-extrabold text-ink">Creative</h2>
+          <div className="grid gap-6">
+            <section className="border-2 border-ink/15 p-6">
+              <h2 className="text-xl font-extrabold text-ink">Creative</h2>
 
-            <div className="mt-4">
-              <label className="mb-[5px] block text-xs text-ink/70">
-                Text data (CSV)
-              </label>
-              <input
-                ref={csvInputRef}
-                type="file"
-                accept=".csv,text/csv"
-                className="hidden"
-                onChange={(e) => handleCsvFile(e.target.files?.[0])}
-              />
-              {csvFileName ? (
-                <div className="relative mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-border text-ink-muted">
-                  <span className="text-2xl">&#128196;</span>
-                  <span className="text-sm text-ink">{csvFileName}</span>
-                  <span className="text-xs">
-                    {csvMatched !== null
-                      ? `${csvMatched} fields loaded from CSV`
-                      : "Fields loaded from CSV"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={clearCsv}
-                    className="absolute top-2 right-2 bg-surface px-2 py-1 text-xs font-bold text-ink"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <div
-                  onClick={() => csvInputRef.current?.click()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setCsvDragOver(true);
-                  }}
-                  onDragLeave={() => setCsvDragOver(false)}
-                  onDrop={handleCsvDrop}
-                  className={`mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-dashed text-ink-muted ${
-                    csvDragOver ? "border-brand bg-brand/5" : "border-border"
-                  } cursor-pointer`}
-                >
-                  <span className="text-2xl">&#128196;</span>
-                  <span className="text-sm">Drop file, or click to browse</span>
-                  <span className="text-xs">No file yet</span>
-                </div>
-              )}
-              {csvError && (
-                <p className="mt-1 text-xs text-brand">{csvError}</p>
-              )}
-              {csvUnrecognized.length > 0 && (
-                <div className="mt-1 text-xs text-brand">
-                  <p>
-                    These CSV rows weren&apos;t recognized and were left out —
-                    rename them or fill the fields in by hand:
-                  </p>
-                  <ul className="mt-1 list-disc pl-4">
-                    {csvUnrecognized.map((label) => (
-                      <li key={label}>{label}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <p className="mt-1 text-xs text-ink-muted">
-                Use the &quot;Adplaylist File&quot; template (Section, Field,
-                Answer, Notes): one row per field, including the SEO,
-                content, author and linking rows. Older
-                &quot;Field,Answer&quot; files and a single header row of
-                fields still work. Separate multiple platforms, sizes or tags
-                with commas. The SEO and page content fields are shown on the
-                next step.
-              </p>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex items-center justify-between">
-                <label className="text-xs text-ink/70">Master file</label>
-                <span className="text-xs text-ink-muted">
-                  {photoDims
-                    ? `${video ? "MP4 video · " : ""}${photoDims.width} × ${photoDims.height}px`
-                    : "PNG, JPG or WEBP up to 8 MB · MP4 up to 100 MB"}
-                </span>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={`${SUPPORTED_IMAGE_ACCEPT},${SUPPORTED_VIDEO_ACCEPT}`}
-                className="hidden"
-                onChange={(e) => handleFile(e.target.files?.[0])}
-              />
-              {photoPreview ? (
-                <div className="relative mt-1 h-40 border border-border">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={photoPreview}
-                    alt=""
-                    className="h-full w-full object-contain"
+              {mode === "csv" && (
+                <div className="mt-4">
+                  <label className="mb-[5px] block text-xs text-ink/70">
+                    Text data (CSV)
+                  </label>
+                  <input
+                    ref={csvInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={(e) => handleCsvFile(e.target.files?.[0])}
                   />
-                  {video && (
-                    <span className="absolute bottom-2 left-2 bg-ink/80 px-2 py-1 text-xs font-bold text-white">
-                      &#9654; Video{video.length && ` · ${video.length}`}
-                    </span>
-                  )}
-                  {uploading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-surface/80 text-sm text-ink">
-                      Uploading…
+                  {csvFileName ? (
+                    <div className="relative mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-border text-ink-muted">
+                      <span className="text-2xl">&#128196;</span>
+                      <span className="text-sm text-ink">{csvFileName}</span>
+                      <span className="text-xs">
+                        {csvMatched !== null
+                          ? `${csvMatched} fields loaded from CSV`
+                          : "Fields loaded from CSV"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={clearCsv}
+                        className="absolute top-2 right-2 bg-surface px-2 py-1 text-xs font-bold text-ink"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => csvInputRef.current?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setCsvDragOver(true);
+                      }}
+                      onDragLeave={() => setCsvDragOver(false)}
+                      onDrop={handleCsvDrop}
+                      className={`mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-dashed text-ink-muted ${
+                        csvDragOver ? "border-brand bg-brand/5" : "border-border"
+                      } cursor-pointer`}
+                    >
+                      <span className="text-2xl">&#128196;</span>
+                      <span className="text-sm">Drop file, or click to browse</span>
+                      <span className="text-xs">No file yet</span>
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={clearPhoto}
-                    className="absolute top-2 right-2 bg-surface px-2 py-1 text-xs font-bold text-ink"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ) : uploading ? (
-                // A video has no preview until its cover is made and uploaded.
-                <div className="mt-1 flex h-40 items-center justify-center border border-border text-sm text-ink">
-                  Uploading video…
-                </div>
-              ) : (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragOver(true);
-                  }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleDrop}
-                  className={`mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-dashed text-ink-muted ${
-                    dragOver ? "border-brand bg-brand/5" : "border-border"
-                  } cursor-pointer`}
-                >
-                  <span className="text-2xl">&#128247;</span>
-                  <span className="text-sm">Drop an image or MP4 video, or click to browse</span>
-                  <span className="text-xs">No file yet</span>
+                  {csvError && (
+                    <p className="mt-1 text-xs text-brand">{csvError}</p>
+                  )}
+                  {csvUnrecognized.length > 0 && (
+                    <div className="mt-1 text-xs text-brand">
+                      <p>
+                        These CSV rows weren&apos;t recognized and were left out —
+                        rename them or fill the fields in by hand:
+                      </p>
+                      <ul className="mt-1 list-disc pl-4">
+                        {csvUnrecognized.map((label) => (
+                          <li key={label}>{label}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <p className="mt-1 text-xs text-ink-muted">
+                    Use the &quot;Adplaylist File&quot; template (Section, Field,
+                    Answer, Notes): one row per field, including the SEO,
+                    content, author and linking rows. Older
+                    &quot;Field,Answer&quot; files and a single header row of
+                    fields still work. Separate multiple platforms, sizes or tags
+                    with commas. The SEO and page content fields are shown on the
+                    next step.
+                  </p>
                 </div>
               )}
-              {uploadError && (
-                <p className="mt-1 text-xs text-brand">{uploadError}</p>
-              )}
-              <p className="mt-1 text-xs text-ink-muted">
-                Uploaded files are published with the ad and shown in the
-                library.
-              </p>
-            </div>
 
-            <div className="mt-4">
-              <label className="mb-[5px] block text-xs text-ink/70">
-                Canva template link
-              </label>
-              <input
-                type="url"
-                value={canvaUrl}
-                onChange={(e) => setCanvaUrl(e.target.value)}
-                placeholder="https://www.canva.com/design/…"
-                className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
-              />
-              <label className="mt-2 flex items-center gap-2 text-sm text-ink">
+              <div className="mt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-ink/70">Master file</label>
+                  <span className="text-xs text-ink-muted">
+                    {photoDims
+                      ? `${video ? "MP4 video · " : ""}${photoDims.width} × ${photoDims.height}px`
+                      : "PNG, JPG or WEBP up to 8 MB · MP4 up to 100 MB"}
+                  </span>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={`${SUPPORTED_IMAGE_ACCEPT},${SUPPORTED_VIDEO_ACCEPT}`}
+                  aria-label="Master file"
+                  className="hidden"
+                  onChange={(e) => handleFile(e.target.files?.[0])}
+                />
+                {photoPreview ? (
+                  <div className="relative mt-1 h-40 border border-border">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photoPreview}
+                      alt=""
+                      className="h-full w-full object-contain"
+                    />
+                    {video && (
+                      <span className="absolute bottom-2 left-2 bg-ink/80 px-2 py-1 text-xs font-bold text-white">
+                        &#9654; Video{video.length && ` · ${video.length}`}
+                      </span>
+                    )}
+                    {uploading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-surface/80 text-sm text-ink">
+                        Uploading…
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={clearPhoto}
+                      className="absolute top-2 right-2 bg-surface px-2 py-1 text-xs font-bold text-ink"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : uploading ? (
+                  // A video has no preview until its cover is made and uploaded.
+                  <div className="mt-1 flex h-40 items-center justify-center border border-border text-sm text-ink">
+                    Uploading video…
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOver(true);
+                    }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={handleDrop}
+                    className={`mt-1 flex h-40 flex-col items-center justify-center gap-1 border border-dashed text-ink-muted ${
+                      dragOver ? "border-brand bg-brand/5" : "border-border"
+                    } cursor-pointer`}
+                  >
+                    <span className="text-2xl">&#128247;</span>
+                    <span className="text-sm">Drop an image or MP4 video, or click to browse</span>
+                    <span className="text-xs">No file yet</span>
+                  </div>
+                )}
+                {uploadError && (
+                  <p className="mt-1 text-xs text-brand">{uploadError}</p>
+                )}
+                <p className="mt-1 text-xs text-ink-muted">
+                  Uploaded files are published with the ad and shown in the
+                  library.
+                </p>
+              </div>
+
+              <div className="mt-4">
+                <label className="mb-[5px] block text-xs text-ink/70">
+                  Canva template link
+                </label>
+                <input
+                  type="url"
+                  value={canvaUrl}
+                  onChange={(e) => setCanvaUrl(e.target.value)}
+                  placeholder="https://www.canva.com/design/…"
+                  className="w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70"
+                />
+                <label className="mt-2 flex items-center gap-2 text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    checked={canvaPremium}
+                    disabled={!canvaUrl}
+                    onChange={(e) => setCanvaPremium(e.target.checked)}
+                    className="h-[15px] w-[15px] accent-brand"
+                  />
+                  Premium
+                  <span className="text-xs text-ink-muted">— the Canva copy took extra work</span>
+                </label>
+              </div>
+
+              <label className="mt-4 flex items-center gap-2 text-sm text-ink">
                 <input
                   type="checkbox"
-                  checked={canvaPremium}
-                  disabled={!canvaUrl}
-                  onChange={(e) => setCanvaPremium(e.target.checked)}
+                  checked={isLive}
+                  onChange={(e) => setIsLive(e.target.checked)}
                   className="h-[15px] w-[15px] accent-brand"
                 />
-                Premium
-                <span className="text-xs text-ink-muted">— the Canva copy took extra work</span>
+                Live ad
+                <span className="text-xs text-ink-muted">— copied from a real ad</span>
               </label>
-            </div>
+            </section>
 
-            <label className="mt-4 flex items-center gap-2 text-sm text-ink">
-              <input
-                type="checkbox"
-                checked={isLive}
-                onChange={(e) => setIsLive(e.target.checked)}
-                className="h-[15px] w-[15px] accent-brand"
-              />
-              Live ad
-              <span className="text-xs text-ink-muted">— copied from a real ad</span>
-            </label>
-          </div>
-
-          <div className="border-2 border-ink/15 p-6">
-            <h2 className="text-xl font-extrabold text-ink">Preview</h2>
-            {draft && previewAd ? (
+            {draft ? (
               <>
-                <div className="mt-4 max-w-xs">
-                  <AdCard ad={previewAd} disableLink />
-                </div>
-                <div className="mt-6 divide-y divide-ink/10 border-t border-ink/10">
-                  <Field label="Ad name">
-                    <input
-                      type="text"
-                      value={draft.adName}
-                      onChange={(e) => updateFields({ adName: e.target.value })}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Media type">
-                    <select
-                      value={draft.mediaType}
-                      onChange={(e) =>
-                        updateFields({
-                          mediaType: e.target.value as AdDraft["mediaType"],
-                        })
-                      }
-                      className={inputClass}
-                    >
-                      <option value="image">Image</option>
-                      <option value="video">Video</option>
-                    </select>
-                  </Field>
-                  <Field label="Primary text">
-                    <textarea
-                      value={draft.primaryText}
-                      onChange={(e) => updateFields({ primaryText: e.target.value })}
-                      rows={3}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Brand name">
-                    <input
-                      type="text"
-                      value={draft.brandName}
-                      onChange={(e) => updateFields({ brandName: e.target.value })}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Headline">
-                    <input
-                      type="text"
-                      value={draft.headline}
-                      onChange={(e) => updateFields({ headline: e.target.value })}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Description">
-                    <textarea
-                      value={draft.description}
-                      onChange={(e) => updateFields({ description: e.target.value })}
-                      rows={3}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Call to action">
-                    <input
-                      type="text"
-                      value={draft.cta}
-                      onChange={(e) => updateFields({ cta: e.target.value })}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Category">
-                    <CategorySelect
-                      value={draft.categories}
-                      onChange={(categories) => updateFields({ categories })}
-                    />
-                  </Field>
-                  <Field label="Market">
-                    <MarketSelect
-                      value={draft.markets}
-                      onChange={(markets) => updateFields({ markets })}
-                    />
-                  </Field>
-                  <Field label="Language">
-                    <select
-                      value={draft.language}
-                      onChange={(e) => updateFields({ language: e.target.value })}
-                      className={inputClass}
-                    >
-                      {LANGUAGE_OPTIONS.map((l) => (
-                        <option key={l}>{l}</option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Platforms">
-                    <div className="flex flex-wrap gap-4">
-                      {PLATFORM_OPTIONS.map((platform) => (
-                        <label
-                          key={platform}
-                          className="flex items-center gap-2 text-sm text-ink"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={draft.platforms.includes(platform)}
-                            onChange={() =>
-                              updateFields({
-                                platforms: toggleIn(draft.platforms, platform),
-                              })
-                            }
-                            className="h-4 w-4 accent-brand"
+                <section className="border-2 border-ink/15 p-6">
+                  <h2 className="text-xl font-extrabold text-ink">Ad details</h2>
+                  <div className="mt-4 divide-y divide-ink/10 border-t border-ink/10">
+                    <Field label="Ad name">
+                      <input
+                        type="text"
+                        value={draft.adName}
+                        onChange={(e) => updateFields({ adName: e.target.value })}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Media type">
+                      <select
+                        value={draft.mediaType}
+                        onChange={(e) =>
+                          updateFields({
+                            mediaType: e.target.value as AdDraft["mediaType"],
+                          })
+                        }
+                        className={inputClass}
+                      >
+                        <option value="image">Image</option>
+                        <option value="video">Video</option>
+                      </select>
+                    </Field>
+                    <Field label="Primary text">
+                      <textarea
+                        value={draft.primaryText}
+                        onChange={(e) => updateFields({ primaryText: e.target.value })}
+                        rows={3}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Brand name">
+                      <input
+                        type="text"
+                        value={draft.brandName}
+                        onChange={(e) => updateFields({ brandName: e.target.value })}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Headline">
+                      <input
+                        type="text"
+                        value={draft.headline}
+                        onChange={(e) => updateFields({ headline: e.target.value })}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Description">
+                      <textarea
+                        value={draft.description}
+                        onChange={(e) => updateFields({ description: e.target.value })}
+                        rows={3}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Call to action">
+                      <input
+                        type="text"
+                        value={draft.cta}
+                        onChange={(e) => updateFields({ cta: e.target.value })}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Category" group>
+                      <CategorySelect
+                        value={draft.categories}
+                        onChange={(categories) => updateFields({ categories })}
+                      />
+                    </Field>
+                    <Field label="Market" group>
+                      <MarketSelect
+                        value={draft.markets}
+                        onChange={(markets) => updateFields({ markets })}
+                      />
+                    </Field>
+                    <Field label="Language">
+                      <select
+                        value={draft.language}
+                        onChange={(e) => updateFields({ language: e.target.value })}
+                        className={inputClass}
+                      >
+                        {LANGUAGE_OPTIONS.map((l) => (
+                          <option key={l}>{l}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Platforms" group>
+                      <div className="flex flex-wrap gap-4">
+                        {PLATFORM_OPTIONS.map((platform) => (
+                          <label
+                            key={platform}
+                            className="flex items-center gap-2 text-sm text-ink"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={draft.platforms.includes(platform)}
+                              onChange={() =>
+                                updateFields({
+                                  platforms: toggleIn(draft.platforms, platform),
+                                })
+                              }
+                              className="h-4 w-4 accent-brand"
+                            />
+                            {platform}
+                          </label>
+                        ))}
+                      </div>
+                    </Field>
+                    <Field label="Dominant colour" group>
+                      <div className="flex flex-wrap gap-1.5">
+                        {DOMINANT_COLORS.map((c) => (
+                          <button
+                            key={c.name}
+                            type="button"
+                            title={c.name}
+                            aria-label={c.name}
+                            onClick={() => updateFields({ dominantColor: c.name })}
+                            style={{ backgroundColor: c.hex }}
+                            className={`h-6 w-6 border ${
+                              draft.dominantColor === c.name
+                                ? "outline outline-2 outline-offset-2 outline-brand"
+                                : "border-ink/15"
+                            }`}
                           />
-                          {platform}
-                        </label>
-                      ))}
-                    </div>
-                  </Field>
-                  <Field label="Dominant colour">
-                    <div className="flex flex-wrap gap-1.5">
-                      {DOMINANT_COLORS.map((c) => (
-                        <button
-                          key={c.name}
-                          type="button"
-                          title={c.name}
-                          aria-label={c.name}
-                          onClick={() => updateFields({ dominantColor: c.name })}
-                          style={{ backgroundColor: c.hex }}
-                          className={`h-6 w-6 border ${
-                            draft.dominantColor === c.name
-                              ? "outline outline-2 outline-offset-2 outline-brand"
-                              : "border-ink/15"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </Field>
-                  <Field label="Placement sizes">
-                    <div className="grid grid-cols-1 border border-border sm:grid-cols-2">
-                      {SIZE_OPTIONS.map((size) => (
-                        <label
-                          key={size.name}
-                          className="flex items-center gap-2 border-b border-border px-2.5 py-1.5 text-sm text-ink"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={draft.sizes.includes(size.name)}
-                            onChange={() =>
-                              updateFields({ sizes: toggleIn(draft.sizes, size.name) })
-                            }
-                            className="h-[15px] w-[15px] shrink-0 accent-brand"
-                          />
-                          <span className="min-w-0 flex-1 truncate">{size.name}</span>
-                          <span className="text-xs text-ink-muted tabular-nums">
-                            {size.dims}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </Field>
-                  <Field label="Description of the creative">
-                    <textarea
-                      value={draft.creativeDescription}
-                      onChange={(e) =>
-                        updateFields({ creativeDescription: e.target.value })
-                      }
-                      rows={5}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Tags">
-                    <TagPicker
-                      value={draft.tags}
-                      onChange={(tags) => updateFields({ tags })}
-                    />
-                  </Field>
-                </div>
-                {/* Everything else the CSV filled: SEO, content, author and
-                    linking fields, all open so nothing imported is hidden. */}
-                <AdSeoEditor draft={draft} update={updateFields} embedded />
+                        ))}
+                      </div>
+                    </Field>
+                    <Field label="Placement sizes" group>
+                      <div className="grid grid-cols-1 border border-border sm:grid-cols-2">
+                        {SIZE_OPTIONS.map((size) => (
+                          <label
+                            key={size.name}
+                            className="flex items-center gap-2 border-b border-border px-2.5 py-1.5 text-sm text-ink"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={draft.sizes.includes(size.name)}
+                              onChange={() =>
+                                updateFields({ sizes: toggleIn(draft.sizes, size.name) })
+                              }
+                              className="h-[15px] w-[15px] shrink-0 accent-brand"
+                            />
+                            <span className="min-w-0 flex-1 truncate">{size.name}</span>
+                            <span className="text-xs text-ink-muted tabular-nums">
+                              {size.dims}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </Field>
+                    <Field label="Description of the creative">
+                      <textarea
+                        value={draft.creativeDescription}
+                        onChange={(e) =>
+                          updateFields({ creativeDescription: e.target.value })
+                        }
+                        rows={5}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Tags" group>
+                      <TagPicker
+                        value={draft.tags}
+                        onChange={(tags) => updateFields({ tags })}
+                      />
+                    </Field>
+                  </div>
+                </section>
+                {/* Everything else in the CSV template: SEO, content, author
+                    and linking fields, all open so nothing is hidden. */}
+                <section className="border-2 border-ink/15 px-6 pb-2">
+                  <AdSeoEditor draft={draft} update={updateFields} embedded />
+                </section>
               </>
             ) : (
+              <p className="text-sm text-ink-muted">
+                Upload the text data CSV to see the ad&apos;s fields here, or
+                switch to Manual to fill them in by hand.
+              </p>
+            )}
+          </div>
+
+          <div className="border-2 border-ink/15 p-6 lg:sticky lg:top-6">
+            <h2 className="text-xl font-extrabold text-ink">Preview</h2>
+            {previewAd ? (
+              <div className="mt-4 max-w-xs">
+                <AdCard ad={previewAd} disableLink />
+              </div>
+            ) : (
               <p className="mt-4 text-sm text-ink-muted">
-                Upload the text data CSV to see the ad&apos;s fields here.
+                Upload the text data CSV to see the ad here.
               </p>
             )}
 
+            {publishError && (
+              <p className="mt-4 text-sm text-brand" role="alert">
+                {publishError}
+              </p>
+            )}
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
-                type="submit"
-                disabled={!draft || uploading}
+                type="button"
+                onClick={handlePublish}
+                disabled={!draft || uploading || publishing}
                 className="bg-brand px-5 py-2.5 text-sm font-bold text-brand-foreground disabled:opacity-60"
+              >
+                {publishing ? "Publishing…" : "Publish ad"}
+              </button>
+              <button
+                type="submit"
+                disabled={!draft || uploading || publishing}
+                className="border border-ink px-5 py-2.5 text-sm font-bold text-ink disabled:opacity-60"
               >
                 Show preview
               </button>
             </div>
+            <p className="mt-2 text-xs text-ink-muted">
+              Show preview opens the full ad page first, where it can still be
+              edited before publishing.
+            </p>
           </div>
         </form>
       </main>
