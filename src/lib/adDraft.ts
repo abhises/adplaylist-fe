@@ -360,7 +360,7 @@ export function adToDraft(ad: Ad): AdDraft {
 
 // Splits CSV text into rows of cells. Quoted cells may contain commas,
 // doubled quotes and line breaks (long answers in spreadsheet exports).
-function parseCsvRows(text: string): string[][] {
+export function parseCsvRows(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cur = "";

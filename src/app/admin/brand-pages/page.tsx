@@ -27,8 +27,12 @@ export default function BrandPagesList() {
 
   async function copyLink(page: BrandPage) {
     try {
+      // A CSV page's link carries its key, so the brand sees its ads
+      // without signing in.
       await navigator.clipboard.writeText(
-        `${window.location.origin}/brands/${page.slug}`
+        `${window.location.origin}/brands/${page.slug}${
+          page.profile && page.accessKey ? `?key=${page.accessKey}` : ""
+        }`
       );
       setCopied(page.id);
       setTimeout(() => setCopied((c) => (c === page.id ? null : c)), 1500);

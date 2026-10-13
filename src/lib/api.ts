@@ -1,3 +1,4 @@
+import type { BrandProfile } from "@/lib/brandProfile";
 import { clearReferralCode, getReferralCode } from "@/lib/referral";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
@@ -600,6 +601,14 @@ export type BrandPage = {
   brandName: string;
   heading: string;
   bodyHtml: string;
+  // Set on pages made from a brand CSV, which are laid out from it instead
+  // of from bodyHtml.
+  profile?: BrandProfile;
+  // The visitor isn't signed in and the link has no key: the profile's ads
+  // came without their creatives.
+  adsLocked?: boolean;
+  // Staff only: goes on the link sent to the brand (/brands/slug?key=…).
+  accessKey?: string;
   ctaLabel: string;
   published: boolean;
   createdAt: string;
@@ -611,6 +620,7 @@ export type BrandPageInput = {
   slug?: string;
   heading?: string;
   bodyHtml?: string;
+  profile?: BrandProfile | null;
   ctaLabel?: string;
   published?: boolean;
 };
@@ -1164,9 +1174,11 @@ export const api = {
   deleteUser: (id: number) =>
     request<void>(`/api/admin/users/${id}`, { method: "DELETE" }),
 
-  getPublicBrandPage: (slug: string) =>
+  getPublicBrandPage: (slug: string, key?: string) =>
     request<{ page: BrandPage }>(
-      `/api/brand-pages/public/${encodeURIComponent(slug)}`
+      `/api/brand-pages/public/${encodeURIComponent(slug)}${
+        key ? `?key=${encodeURIComponent(key)}` : ""
+      }`
     ),
 
   getTags: () => request<{ tags: Tag[] }>("/api/tags"),
