@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, type CreditCosts, type PlanId, type PriceCatalog } from "@/lib/api";
+import {
+  api,
+  type CreditCosts,
+  type PlanId,
+  type PriceCatalog,
+  type ReferralRewards,
+} from "@/lib/api";
 import {
   DEFAULT_CREDIT_COSTS,
   DEFAULT_PRICES,
+  DEFAULT_REFERRAL_REWARDS,
   DEFAULT_TRIAL_CREDITS,
   type PriceList,
 } from "@/lib/plans";
@@ -17,19 +24,21 @@ type Catalog = {
   prices: PriceList;
   creditCosts: CreditCosts;
   trialCredits: Record<PlanId, number>;
+  referralRewards: ReferralRewards;
 };
 
 const DEFAULTS: Catalog = {
   prices: DEFAULT_PRICES,
   creditCosts: DEFAULT_CREDIT_COSTS,
   trialCredits: DEFAULT_TRIAL_CREDITS,
+  referralRewards: DEFAULT_REFERRAL_REWARDS,
 };
 
 let cache: Catalog | null = null;
 let pending: Promise<void> | null = null;
 const listeners = new Set<(catalog: Catalog) => void>();
 
-function toCatalog({ plans, creditCosts }: PriceCatalog): Catalog {
+function toCatalog({ plans, creditCosts, referralRewards }: PriceCatalog): Catalog {
   const prices = structuredClone(DEFAULT_PRICES);
   const trialCredits = { ...DEFAULT_TRIAL_CREDITS };
   for (const plan of plans) {
@@ -43,6 +52,7 @@ function toCatalog({ plans, creditCosts }: PriceCatalog): Catalog {
     prices,
     creditCosts: { ...DEFAULT_CREDIT_COSTS, ...creditCosts },
     trialCredits,
+    referralRewards: { ...DEFAULT_REFERRAL_REWARDS, ...referralRewards },
   };
 }
 
@@ -86,4 +96,9 @@ export function useCreditCosts(): CreditCosts {
 // The credits each plan's free trial gets.
 export function useTrialCredits(): Record<PlanId, number> {
   return useCatalog().trialCredits;
+}
+
+// The bonus credits a referral earns each side.
+export function useReferralRewards(): ReferralRewards {
+  return useCatalog().referralRewards;
 }

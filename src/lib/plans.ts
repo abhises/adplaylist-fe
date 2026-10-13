@@ -5,6 +5,7 @@ import type {
   CreditCosts,
   Entitlements,
   PlanId,
+  ReferralRewards,
   User,
 } from "@/lib/api";
 
@@ -44,6 +45,12 @@ export const DEFAULT_CREDIT_COSTS: CreditCosts = {
 };
 
 export const DEFAULT_TRIAL_CREDITS: Record<PlanId, number> = { starter: 5, pro: 10, agency: 10 };
+
+export const DEFAULT_REFERRAL_REWARDS: ReferralRewards = {
+  referrer: 50,
+  referrerStarter: 10,
+  friend: 10,
+};
 
 // "5 credits", "1 credit".
 export function fmtCredits(n: number) {

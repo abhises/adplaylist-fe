@@ -72,6 +72,16 @@ export default function AccountMenu() {
             >
               <span aria-hidden>&#128179;</span> Billing &amp; Credits
             </Link>
+            {/* Staff have no customer account to refer from. */}
+            {user.account && (
+              <Link
+                href="/referrals"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-surface-2"
+              >
+                <span aria-hidden>&#127873;</span> Refer a friend
+              </Link>
+            )}
           </div>
 
           <div className="border-t border-ink/15 py-1">

@@ -131,6 +131,7 @@ export default function AppHeader() {
         { href: "/admin/home-section", label: "Home section" },
         { href: "/admin/feedback", label: "Feedback" },
         { href: "/admin/cancellations", label: "Cancellations" },
+        { href: "/admin/referrals", label: "Referrals" },
         { href: "/admin/brand-answers", label: "Brand answers" },
         { href: "/admin/contact", label: "Contact" },
         { href: "/admin/pricing", label: "Pricing" },

@@ -202,6 +202,8 @@ const en = {
       submitting: "Creating account…",
       submit: "Create account",
       haveAccount: "Already have an account?",
+      invited: (credits: number) =>
+        `You've been invited. Subscribe and get ${credits} bonus ${credits === 1 ? "credit" : "credits"} on top of your first month.`,
     },
   },
 };

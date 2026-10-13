@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, JetBrains_Mono } from "next/font/google";
 import ImageGuard from "@/components/ImageGuard";
+import ReferralCapture from "@/components/ReferralCapture";
 import { AuthProvider } from "@/lib/AuthProvider";
 import { ThemeProvider } from "@/lib/ThemeProvider";
 import { NotificationsProvider } from "@/lib/NotificationsProvider";
@@ -71,6 +72,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <ThemeProvider>
             <AuthProvider>
               <ImageGuard />
+              <ReferralCapture />
               <ToastProvider>
                 <NotificationsProvider>{children}</NotificationsProvider>
               </ToastProvider>

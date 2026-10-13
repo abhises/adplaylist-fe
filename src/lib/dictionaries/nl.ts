@@ -203,6 +203,8 @@ const nl: Dictionary = {
       submitting: "Account aanmaken…",
       submit: "Account aanmaken",
       haveAccount: "Heb je al een account?",
+      invited: (credits: number) =>
+        `Je bent uitgenodigd. Neem een abonnement en krijg ${credits} ${credits === 1 ? "bonuscredit" : "bonuscredits"} bovenop je eerste maand.`,
     },
   },
 };

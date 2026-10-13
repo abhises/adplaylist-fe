@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "@/components/Link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { libraryPath, signedInMessage, useAuth } from "@/lib/AuthProvider";
-import { ApiError } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
+import { getReferralCode } from "@/lib/referral";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useToast } from "@/lib/ToastProvider";
 import { useI18n } from "@/lib/I18nProvider";
@@ -41,6 +42,20 @@ function SignupForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Bonus credits waiting for a visitor who came through a referral link
+  // (ReferralCapture remembered its code): 0 without one, or a bad one.
+  const [inviteCredits, setInviteCredits] = useState(0);
+
+  useEffect(() => {
+    // Straight from the link on the first render, when the cookie may not
+    // be set yet; from the cookie when they arrived on another page.
+    const code = searchParams.get("ref")?.trim().toUpperCase() || getReferralCode();
+    if (!code) return;
+    api
+      .checkReferralCode(code)
+      .then(({ valid, friendCredits }) => setInviteCredits(valid ? friendCredits : 0))
+      .catch(() => {});
+  }, [searchParams]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -114,6 +129,12 @@ function SignupForm() {
           <h2 className="mt-1 text-[32px] font-extrabold text-ink">
             {t.auth.signup.title}
           </h2>
+
+          {inviteCredits > 0 && (
+            <p className="mt-4 border border-brand/30 bg-brand/10 px-3 py-2 text-sm text-ink">
+              {t.auth.signup.invited(inviteCredits)}
+            </p>
+          )}
 
           <div className="mt-6">
             <GoogleSignInButton

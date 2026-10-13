@@ -37,6 +37,7 @@ const CREDIT_REASONS: Record<string, string> = {
   refunded: "Refunded",
   expired: "Expired",
   adjustment: "Adjustment",
+  referral: "Referral bonus",
 };
 
 const PAYMENT_STATUS: Record<string, string> = {

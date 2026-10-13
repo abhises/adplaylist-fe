@@ -1,3 +1,5 @@
+import { clearReferralCode, getReferralCode } from "@/lib/referral";
+
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
 const TOKEN_KEY = "adplaylist_token";
 
@@ -173,8 +175,77 @@ export type CreditCosts = {
   similarDesign: number;
 };
 
-// The price list: the plans and what requests cost.
-export type PriceCatalog = { plans: PlanCatalog; creditCosts: CreditCosts };
+// Bonus credits for a referral, given when the referred account first pays
+// (admins edit these).
+export type ReferralRewards = {
+  // To the referrer, when their friend pays for Pro or Agency.
+  referrer: number;
+  // To the referrer, when their friend pays for Starter.
+  referrerStarter: number;
+  // To the friend, on top of their first month's credits.
+  friend: number;
+};
+
+// The price list: the plans, what requests cost and what a referral earns.
+export type PriceCatalog = {
+  plans: PlanCatalog;
+  creditCosts: CreditCosts;
+  referralRewards: ReferralRewards;
+};
+
+// pending: signed up, hasn't paid yet. waiting: they paid, and the
+// referrer's credits arrive once the referrer is on an active paid plan.
+// ineligible: they paid but a rule blocked the reward. reversed: the reward
+// was taken back (refund, or by an admin). cancelled: stopped by an admin
+// before it paid out.
+export type ReferralStatus =
+  | "pending"
+  | "waiting"
+  | "rewarded"
+  | "ineligible"
+  | "reversed"
+  | "cancelled";
+
+// The "Refer a friend" page: the account's link and who signed up with it.
+export type ReferralSummary = {
+  code: string;
+  link: string;
+  rewards: ReferralRewards;
+  // The most referrals an account is rewarded for in a year.
+  yearlyCap: number;
+  // Whether bonus credits can land now (an active paid plan).
+  canEarn: boolean;
+  totals: { signedUp: number; rewarded: number; credits: number };
+  referrals: {
+    id: number;
+    name: string;
+    status: ReferralStatus;
+    credits: number;
+    createdAt: string;
+    rewardedAt: string | null;
+  }[];
+};
+
+type ReferralSide = {
+  id: number;
+  name: string;
+  email: string | null;
+  plan: string;
+  status: string;
+};
+
+// One referral, for Admin → Referrals.
+export type AdminReferral = {
+  id: number;
+  referrer: ReferralSide;
+  referred: ReferralSide;
+  status: ReferralStatus;
+  note: string | null;
+  referrerCredits: number;
+  referredCredits: number;
+  createdAt: string;
+  rewardedAt: string | null;
+};
 
 export type CreditTotals = {
   received: number;
@@ -185,7 +256,15 @@ export type CreditTotals = {
 
 export type CreditEntry = {
   id: number;
-  reason: "trial" | "refill" | "upgrade" | "spent" | "refunded" | "expired" | "adjustment";
+  reason:
+    | "trial"
+    | "refill"
+    | "upgrade"
+    | "spent"
+    | "refunded"
+    | "expired"
+    | "adjustment"
+    | "referral";
   delta: number;
   balance: number;
   note: string | null;
@@ -648,11 +727,12 @@ export const api = {
       body: JSON.stringify({ changes }),
     }),
 
-  // What requests cost and what each plan's trial gets; only what's sent
-  // changes.
+  // What requests cost, what each plan's trial gets and what a referral
+  // earns; only what's sent changes.
   updateCreditSettings: (changes: {
     costs?: Partial<CreditCosts>;
     trialCredits?: Partial<Record<PlanId, number>>;
+    referralRewards?: Partial<ReferralRewards>;
   }) =>
     request<PriceCatalog>("/api/admin/credit-settings", {
       method: "PUT",
@@ -720,14 +800,38 @@ export const api = {
   ) =>
     request<{ token: string; user: User }>("/api/auth/register", {
       method: "POST",
-      body: JSON.stringify({ fullName, email, password, role }),
+      // With the code of the referral link they arrived through, if any.
+      body: JSON.stringify({ fullName, email, password, role, referralCode: getReferralCode() }),
+    }).then((res) => {
+      clearReferralCode();
+      return res;
     }),
 
+  // Signing in with Google also signs up, so it carries the referral code too.
   loginWithGoogle: (credential: string) =>
     request<{ token: string; user: User; welcomeBack?: boolean }>("/api/auth/google", {
       method: "POST",
-      body: JSON.stringify({ credential }),
+      body: JSON.stringify({ credential, referralCode: getReferralCode() }),
+    }).then((res) => {
+      clearReferralCode();
+      return res;
     }),
+
+  // Null for staff, who have no customer account to refer from.
+  getReferrals: () => request<{ referral: ReferralSummary | null }>("/api/referrals"),
+
+  // Whether a referral link's code is real, and what the friend gets.
+  checkReferralCode: (code: string) =>
+    request<{ valid: boolean; friendCredits: number }>(
+      `/api/referrals/check/${encodeURIComponent(code)}`
+    ),
+
+  getAdminReferrals: () => request<{ referrals: AdminReferral[] }>("/api/referrals/admin"),
+
+  // Cancels a referral that hasn't paid out, or takes a rewarded one's
+  // credits back from both sides.
+  reverseReferral: (id: number) =>
+    request<{ reversed: boolean }>(`/api/referrals/admin/${id}/reverse`, { method: "POST" }),
 
   me: () => request<{ user: User }>("/api/auth/me"),
 

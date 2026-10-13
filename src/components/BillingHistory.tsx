@@ -20,6 +20,7 @@ const REASON_LABELS: Record<CreditEntry["reason"], string> = {
   refunded: "Refund",
   expired: "Expired",
   adjustment: "Adjustment",
+  referral: "Referral bonus",
 };
 
 // Rows per page for the billing tables; the list starts short.
