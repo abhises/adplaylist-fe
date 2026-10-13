@@ -234,6 +234,38 @@ type ReferralSide = {
   status: string;
 };
 
+// A discount code customers type in at checkout, kept in Stripe.
+export type PromoCode = {
+  id: string;
+  code: string;
+  active: boolean;
+  // One of these is set: a percentage, or a fixed amount in USD (only on
+  // codes made in the Stripe Dashboard).
+  percentOff: number | null;
+  amountOff: number | null;
+  // once: the first payment. repeating: every payment for `months` months.
+  // forever: every payment.
+  duration: "once" | "repeating" | "forever" | null;
+  months: number | null;
+  timesRedeemed: number;
+  maxRedemptions: number | null;
+  expiresAt: string | null;
+  // Only for customers who have never paid before.
+  firstTimeOnly: boolean;
+  createdAt: string;
+};
+
+export type PromoCodeInput = {
+  code: string;
+  percentOff: number;
+  duration: "once" | "repeating" | "forever";
+  months?: number;
+  maxRedemptions: number | null;
+  // "YYYY-MM-DD", the last day it can be used.
+  expiresOn: string | null;
+  firstTimeOnly: boolean;
+};
+
 // One referral, for Admin → Referrals.
 export type AdminReferral = {
   id: number;
@@ -825,6 +857,22 @@ export const api = {
     request<{ valid: boolean; friendCredits: number }>(
       `/api/referrals/check/${encodeURIComponent(code)}`
     ),
+
+  getPromoCodes: () => request<{ promoCodes: PromoCode[] }>("/api/admin/promo-codes"),
+
+  createPromoCode: (data: PromoCodeInput) =>
+    request<{ promoCode: PromoCode }>("/api/admin/promo-codes", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Off: the code stops working at checkout (subscriptions already using it
+  // keep their discount).
+  setPromoCodeActive: (id: string, active: boolean) =>
+    request<{ promoCode: PromoCode }>(`/api/admin/promo-codes/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ active }),
+    }),
 
   getAdminReferrals: () => request<{ referrals: AdminReferral[] }>("/api/referrals/admin"),
 

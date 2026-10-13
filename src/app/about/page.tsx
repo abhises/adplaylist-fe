@@ -35,12 +35,14 @@ export default function AboutPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-8 border-t border-[#dcd9d5] pt-10">
           <div className="flex items-center gap-5">
-            <span
-              aria-hidden
-              className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-[#161514] text-xl font-bold text-white"
-            >
-              AG
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/alex.jpg"
+              alt="Alexander van Gog"
+              width={72}
+              height={72}
+              className="h-[72px] w-[72px] shrink-0 rounded-full object-cover"
+            />
             <div className="flex flex-col gap-1">
               <strong className="text-lg">Alexander van Gog</strong>
               <span className="text-[15px] text-[#666]">Founder, Adplaylist.com</span>

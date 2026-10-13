@@ -135,6 +135,7 @@ export default function AppHeader() {
         { href: "/admin/brand-answers", label: "Brand answers" },
         { href: "/admin/contact", label: "Contact" },
         { href: "/admin/pricing", label: "Pricing" },
+        { href: "/admin/promo-codes", label: "Promo codes" },
         { href: "/admin/transactions", label: "Transactions" },
       ]
     : [];
