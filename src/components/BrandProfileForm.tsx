@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { BrandProfile, BrandProfileAd } from "@/lib/brandProfile";
+import type { Ad } from "@/lib/api";
+import { isImageUrl, type BrandProfile, type BrandProfileAd } from "@/lib/brandProfile";
 import { SUPPORTED_IMAGE_ACCEPT, uploadImage, validateImageFile } from "@/lib/upload";
 
 const inputClass =
@@ -131,6 +132,14 @@ function ImageField({
   return (
     <div>
       <div className="flex items-end gap-2">
+        {isImageUrl(value) && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={value}
+            alt=""
+            className="h-[34px] w-[34px] shrink-0 border border-border object-cover"
+          />
+        )}
         <div className="min-w-0 flex-1">
           <Text
             label={label}
@@ -156,6 +165,110 @@ function ImageField({
         </label>
       </div>
       {error && <p className="mt-1 text-xs text-brand">{error}</p>}
+    </div>
+  );
+}
+
+// The ad a link points at: the slug of an ad page (…/ads/<slug>, on any of
+// our hosts).
+function adSlugFromUrl(url: URL) {
+  return url.pathname.match(/^\/ads\/([a-z0-9-]+)\/?$/)?.[1] ?? null;
+}
+
+// A brand page ad from a library ad: its creative, or its copy when it has none.
+function brandAdFromLibrary(ad: Ad): BrandProfileAd {
+  const photo = isImageUrl(ad.photo) ? ad.photo : undefined;
+  return {
+    live: !!ad.live,
+    label: ad.title,
+    ...(ad.cta && { cta: ad.cta }),
+    ...(photo
+      ? { image: photo, alt: ad.title }
+      : {
+          headline: ad.headline,
+          ...(ad.eyebrow && { eyebrow: ad.eyebrow }),
+          ...(ad.sub && { subline: ad.sub }),
+        }),
+  };
+}
+
+// Adds ads from pasted links, one per line: an ad page from the library
+// (its creative and copy are copied in), or the address of a creative image.
+function AddAdsFromUrls({
+  library,
+  onAdd,
+}: {
+  library: Ad[];
+  onAdd: (ads: BrandProfileAd[]) => void;
+}) {
+  const [text, setText] = useState("");
+  const [errors, setErrors] = useState<string[]>([]);
+
+  function add() {
+    const added: BrandProfileAd[] = [];
+    const problems: string[] = [];
+    for (const line of text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)) {
+      let url: URL;
+      try {
+        url = new URL(line);
+      } catch {
+        problems.push(`${line}: not a link`);
+        continue;
+      }
+      const slug = adSlugFromUrl(url);
+      if (slug) {
+        const ad = library.find((a) => a.id === slug);
+        if (ad) added.push(brandAdFromLibrary(ad));
+        else problems.push(`${line}: no ad found at this link`);
+      } else if (/^https?:$/.test(url.protocol)) {
+        added.push({ live: false, image: line });
+      } else {
+        problems.push(`${line}: not a web address`);
+      }
+    }
+    if (added.length) onAdd(added);
+    setErrors(problems);
+    // Keeps the lines that couldn't be added, to fix and try again.
+    setText(problems.map((p) => p.slice(0, p.lastIndexOf(": "))).join("\n"));
+  }
+
+  return (
+    <div className="border border-dashed border-border p-3 sm:col-span-2">
+      <label className="block">
+        <span className="mb-[5px] block text-xs text-ink/70">
+          Add creatives by URL (one per line)
+        </span>
+        <textarea
+          name="ads.addurls"
+          rows={3}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={"https://adplaylist.com/ads/…\nhttps://…/creative.png"}
+          className={inputClass}
+        />
+      </label>
+      <p className="mt-1 text-xs text-ink-muted">
+        An ad page link copies that library ad&apos;s creative and copy; an image link adds it as a
+        finished creative. Set Status to Live for real, running ads.
+      </p>
+      {errors.length > 0 && (
+        <ul className="mt-2 list-disc pl-5 text-xs text-brand">
+          {errors.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      )}
+      <button
+        type="button"
+        onClick={add}
+        disabled={!text.trim()}
+        className="mt-2 bg-ink px-3 py-1.5 text-sm font-bold text-surface disabled:opacity-50"
+      >
+        Add creatives
+      </button>
     </div>
   );
 }
@@ -235,12 +348,15 @@ export default function BrandProfileForm({
   profile,
   onChange,
   onUploadingChange,
+  library,
 }: {
   profile: BrandProfile;
   // Takes an update of the latest profile, so quick changes in a row (or
   // several clicks of an add button) all apply.
   onChange: (update: (profile: BrandProfile) => BrandProfile) => void;
   onUploadingChange: (uploading: boolean) => void;
+  // The ad library, for adding its ads by their page links.
+  library: Ad[];
 }) {
   // Applies a change to a copy of the profile.
   const edit = (change: (draft: BrandProfile) => void) => {
@@ -436,6 +552,10 @@ export default function BrandProfileForm({
         <AddButton
           label="Add ad"
           onClick={() => edit((d) => (d.ads = [...(d.ads ?? []), { live: false }]))}
+        />
+        <AddAdsFromUrls
+          library={library}
+          onAdd={(added) => edit((d) => (d.ads = [...(d.ads ?? []), ...added]))}
         />
       </Section>
 

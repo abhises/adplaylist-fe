@@ -381,6 +381,7 @@ export default function BrandPageEditor({
                 profile={shownProfile}
                 onChange={(update) => setProfile((latest) => update(latest ?? {}))}
                 onUploadingChange={setUploading}
+                library={ads}
               />
               {initial?.accessKey && effectiveSlug && (
                 <p className="mt-6 border-t border-border pt-4 text-xs text-ink-muted">
