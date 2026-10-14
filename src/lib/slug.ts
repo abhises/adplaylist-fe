@@ -7,3 +7,10 @@ export function slugify(name: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 }
+
+// slugify for a slug field as it's typed: keeps a trailing hyphen, so the
+// separator isn't lost before the next word.
+export function slugifyTyping(value: string): string {
+  const slug = slugify(value);
+  return slug && /[^a-z0-9]$/i.test(value) ? `${slug}-` : slug;
+}

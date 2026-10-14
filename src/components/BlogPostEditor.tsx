@@ -8,7 +8,7 @@ import BlogPostView from "@/components/BlogPostView";
 import HtmlContentEditor from "@/components/HtmlContentEditor";
 import { renderAdEmbeds } from "@/lib/adEmbed";
 import { api, ApiError, type Ad, type BlogPostInput } from "@/lib/api";
-import { slugify } from "@/lib/slug";
+import { slugify, slugifyTyping } from "@/lib/slug";
 import {
   SUPPORTED_IMAGE_ACCEPT,
   uploadImage,
@@ -102,7 +102,7 @@ export default function BlogPostEditor({
     setSaving(true);
     setError(null);
     try {
-      await onSave({ title, slug, excerpt, coverImageUrl, bodyHtml, published });
+      await onSave({ title, slug: slugify(slug), excerpt, coverImageUrl, bodyHtml, published });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");
     } finally {
@@ -170,7 +170,7 @@ export default function BlogPostEditor({
                 <input
                   type="text"
                   value={slug}
-                  onChange={(e) => setSlug(slugify(e.target.value))}
+                  onChange={(e) => setSlug(slugifyTyping(e.target.value))}
                   placeholder={slugify(title) || "ad-creative-trends"}
                   className="min-w-0 flex-1 bg-transparent py-1.5 pr-2.5 text-ink outline-none"
                 />

@@ -173,6 +173,7 @@ export default function HtmlContentEditor({
         </div>
       </div>
       <textarea
+        aria-label={label}
         ref={bodyRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}

@@ -5,6 +5,7 @@ import Link from "@/components/Link";
 import DOMPurify from "dompurify";
 import AppHeader from "@/components/AppHeader";
 import BrandPageView, { brandSignupHref } from "@/components/BrandPageView";
+import BrandProfileForm from "@/components/BrandProfileForm";
 import BrandProfileView from "@/components/BrandProfileView";
 import HtmlContentEditor, { escapeHtml } from "@/components/HtmlContentEditor";
 import { renderAdEmbeds } from "@/lib/adEmbed";
@@ -15,8 +16,17 @@ import {
   withBrandImages,
   type BrandProfile,
 } from "@/lib/brandProfile";
-import { slugify } from "@/lib/slug";
+import { slugify, slugifyTyping } from "@/lib/slug";
 import { SUPPORTED_IMAGE_ACCEPT, uploadImage, validateImageFile } from "@/lib/upload";
+
+// The ways to fill a brand page in: every field by hand, from a filled-in
+// brand CSV (which then fills the same fields), or as free HTML.
+type Mode = "manual" | "csv" | "html";
+const MODES: { mode: Mode; label: string }[] = [
+  { mode: "manual", label: "Manual" },
+  { mode: "csv", label: "CSV" },
+  { mode: "html", label: "HTML" },
+];
 
 const inputClass =
   "w-full border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink/70";
@@ -41,6 +51,15 @@ export default function BrandPageEditor({
   // the HTML content isn't used.
   const [profile, setProfile] = useState<BrandProfile | null>(initial?.profile ?? null);
   const [importNote, setImportNote] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>(
+    initial?.bodyHtml && !initial.profile ? "html" : "manual"
+  );
+  // The HTML tab lays the page out from the HTML content; the others from
+  // the brand fields, starting from none.
+  const shownProfile = useMemo(
+    () => (mode === "html" ? null : (profile ?? {})),
+    [mode, profile]
+  );
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +101,10 @@ export default function BrandPageEditor({
     brandSignupHref(effectiveSlug)
   )}">${escapeHtml(effectiveCta)}</a></p>\n`;
 
-  const missingImages = useMemo(() => (profile ? missingBrandImages(profile) : []), [profile]);
+  const missingImages = useMemo(
+    () => (shownProfile ? missingBrandImages(shownProfile) : []),
+    [shownProfile]
+  );
 
   async function handleCsv(file: File) {
     const imported = parseBrandCsv(await file.text());
@@ -103,12 +125,12 @@ export default function BrandPageEditor({
 
   // Uploads the image files the CSV names; each is matched by its file name.
   async function handleImages(files: File[]) {
-    if (!profile) return;
+    if (!shownProfile) return;
     const wanted = new Set(missingImages.map((path) => path.split(/[\\/]/).pop()!.toLowerCase()));
     const matching = files.filter((f) => wanted.has(f.name.toLowerCase()));
     const invalid = matching.map(validateImageFile).find(Boolean);
     if (matching.length === 0 || invalid) {
-      setImportNote(invalid ?? "None of those files are named in the CSV.");
+      setImportNote(invalid ?? "None of those files are the ones named.");
       return;
     }
     setUploading(true);
@@ -118,7 +140,8 @@ export default function BrandPageEditor({
       for (const file of matching) {
         uploaded[file.name.toLowerCase()] = (await uploadImage(file)).url;
       }
-      setProfile(withBrandImages(profile, uploaded));
+      // Onto the latest fields, which may have changed during the upload.
+      setProfile((latest) => withBrandImages(latest ?? {}, uploaded));
     } catch (err) {
       setImportNote(err instanceof Error ? err.message : "Couldn't upload those files.");
     } finally {
@@ -132,13 +155,21 @@ export default function BrandPageEditor({
       return;
     }
     if (missingImages.length > 0) {
-      setError("Upload the images the CSV names first.");
+      setError("Upload the images named under Images first.");
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await onSave({ brandName, slug, heading, ctaLabel, bodyHtml, profile, published });
+      await onSave({
+        brandName,
+        slug: slugify(slug),
+        heading,
+        ctaLabel,
+        bodyHtml,
+        profile: shownProfile,
+        published,
+      });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");
     } finally {
@@ -194,6 +225,8 @@ export default function BrandPageEditor({
               </label>
               <input
                 type="text"
+                name="basics.companyname"
+                aria-label="Brand name"
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
                 placeholder="Samsung"
@@ -206,6 +239,8 @@ export default function BrandPageEditor({
               </label>
               <input
                 type="text"
+                name="seo.pageheadlineh1"
+                aria-label="Page heading (h1)"
                 value={heading}
                 onChange={(e) => setHeading(e.target.value)}
                 placeholder={brandName ? `${brandName} ads` : "Samsung ads"}
@@ -218,8 +253,10 @@ export default function BrandPageEditor({
                 <span className="pl-2.5 text-ink-muted">/brands/</span>
                 <input
                   type="text"
-                  value={slug}
-                  onChange={(e) => setSlug(slugify(e.target.value))}
+                  name="seo.urlslug"
+                  aria-label="Link"
+                value={slug}
+                  onChange={(e) => setSlug(slugifyTyping(e.target.value))}
                   placeholder={slugify(brandName) || "samsung"}
                   className="min-w-0 flex-1 bg-transparent py-1.5 pr-2.5 text-ink outline-none"
                 />
@@ -231,6 +268,8 @@ export default function BrandPageEditor({
               </label>
               <input
                 type="text"
+                name="footercta.button"
+                aria-label="Sign-up button text"
                 value={ctaLabel}
                 onChange={(e) => setCtaLabel(e.target.value)}
                 placeholder="Sign up"
@@ -239,33 +278,44 @@ export default function BrandPageEditor({
             </div>
           </div>
 
-          <div className="mt-6 border border-border p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-bold text-ink">Brand CSV</p>
-                <p className="mt-1 text-xs text-ink-muted">
-                  {profile
-                    ? `Page built from a CSV: ${profile.ads?.length ?? 0} ads, ${
-                        profile.faq?.length ?? 0
-                      } FAQs. Import again to replace it.`
-                    : "Import a filled-in brand CSV to build the whole page from it."}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                {profile && (
-                  <button
-                    type="button"
-                    onClick={() => setProfile(null)}
-                    className="text-xs text-ink-muted underline hover:text-ink"
-                  >
-                    Remove
-                  </button>
-                )}
+          <nav
+            aria-label="How to fill the page in"
+            className="mt-8 flex gap-6 border-b border-ink/15"
+          >
+            {MODES.map((tab) => (
+              <button
+                key={tab.mode}
+                type="button"
+                onClick={() => setMode(tab.mode)}
+                aria-current={tab.mode === mode ? "page" : undefined}
+                className={`-mb-px border-b-2 pb-2.5 text-sm ${
+                  tab.mode === mode
+                    ? "border-brand font-bold text-ink"
+                    : "border-transparent text-ink-muted hover:text-ink"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {mode === "csv" && (
+            <div className="mt-6 border border-border p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-ink">Brand CSV</p>
+                  <p className="mt-1 text-xs text-ink-muted">
+                    Import a filled-in brand CSV (Section, Field, Answer, Notes)
+                    to fill every field below; check and edit them before
+                    saving. Importing again replaces them.
+                  </p>
+                </div>
                 <label className="cursor-pointer border border-border px-3 py-1.5 text-sm font-bold text-ink hover:border-ink">
                   Import CSV
                   <input
                     type="file"
                     accept=".csv,text/csv"
+                    aria-label="Import CSV"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
@@ -276,46 +326,81 @@ export default function BrandPageEditor({
                 </label>
               </div>
             </div>
-            {missingImages.length > 0 && (
-              <div className="mt-4 border-t border-border pt-4">
-                <p className="text-xs text-ink">
-                  The CSV names {missingImages.length} image
-                  {missingImages.length === 1 ? "" : "s"} still to upload:
+          )}
+
+          {shownProfile && missingImages.length > 0 && (
+            <div className="mt-6 border border-border p-4">
+              <p className="text-xs text-ink">
+                {missingImages.length} image
+                {missingImages.length === 1 ? " is" : "s are"} named by file
+                name and still to upload:
+              </p>
+              <ul className="mt-2 list-disc pl-5 text-xs text-ink-muted">
+                {missingImages.map((path) => (
+                  <li key={path}>{path}</li>
+                ))}
+              </ul>
+              <label className="mt-3 inline-block cursor-pointer bg-ink px-3 py-1.5 text-sm font-bold text-surface">
+                {uploading ? "Uploading…" : "Upload images"}
+                <input
+                  type="file"
+                  multiple
+                  accept={SUPPORTED_IMAGE_ACCEPT}
+                  aria-label="Upload images"
+                  disabled={uploading}
+                  className="hidden"
+                  onChange={(e) => {
+                    handleImages([...(e.target.files ?? [])]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          )}
+          {importNote && <p className="mt-3 text-xs text-brand">{importNote}</p>}
+
+          {shownProfile && (
+            <div className="mt-6">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <p className="text-xs text-ink-muted">
+                  {shownProfile.ads?.length ?? 0} ads,{" "}
+                  {shownProfile.faq?.length ?? 0} FAQs. The CSV&apos;s company
+                  name, URL slug, H1 and footer button are the fields at the top.
                 </p>
-                <ul className="mt-2 list-disc pl-5 text-xs text-ink-muted">
-                  {missingImages.map((path) => (
-                    <li key={path}>{path}</li>
-                  ))}
-                </ul>
-                <label className="mt-3 inline-block cursor-pointer bg-ink px-3 py-1.5 text-sm font-bold text-surface">
-                  {uploading ? "Uploading…" : "Upload images"}
-                  <input
-                    type="file"
-                    multiple
-                    accept={SUPPORTED_IMAGE_ACCEPT}
-                    disabled={uploading}
-                    className="hidden"
-                    onChange={(e) => {
-                      handleImages([...(e.target.files ?? [])]);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
+                {profile && (
+                  <button
+                    type="button"
+                    onClick={() => setProfile(null)}
+                    className="shrink-0 text-xs text-ink-muted underline hover:text-ink"
+                  >
+                    Clear fields
+                  </button>
+                )}
               </div>
-            )}
-            {importNote && <p className="mt-3 text-xs text-brand">{importNote}</p>}
-            {profile && initial?.accessKey && effectiveSlug && (
-              <p className="mt-4 border-t border-border pt-4 text-xs text-ink-muted">
-                Link for the brand, with its ads visible without signing in:
-                <br />
-                <span className="break-all text-ink select-all">
-                  /brands/{effectiveSlug}?key={initial.accessKey}
-                </span>
+              <BrandProfileForm
+                profile={shownProfile}
+                onChange={(update) => setProfile((latest) => update(latest ?? {}))}
+                onUploadingChange={setUploading}
+              />
+              {initial?.accessKey && effectiveSlug && (
+                <p className="mt-6 border-t border-border pt-4 text-xs text-ink-muted">
+                  Link for the brand, with its ads visible without signing in:
+                  <br />
+                  <span className="break-all text-ink select-all">
+                    /brands/{effectiveSlug}?key={initial.accessKey}
+                  </span>
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className={shownProfile ? "hidden" : "mt-6"}>
+            {profile && (
+              <p className="mb-4 text-xs text-brand">
+                This page has brand fields filled in. Saving from the HTML tab
+                lays it out from the HTML below instead, and drops those fields.
               </p>
             )}
-          </div>
-
-          <div className={profile ? "hidden" : "mt-6"}>
             <HtmlContentEditor
               value={bodyHtml}
               onChange={setBodyHtml}
@@ -349,13 +434,13 @@ export default function BrandPageEditor({
           </div>
           {/* Not clickable, so following a preview link can't lose unsaved work. */}
           <div className="pointer-events-none border border-ink/15 shadow-sm select-none">
-            {profile ? (
+            {shownProfile ? (
               <BrandProfileView
                 brandName={brandName}
                 heading={effectiveHeading || "Brand ads"}
                 ctaLabel={effectiveCta}
                 slug={effectiveSlug}
-                profile={profile}
+                profile={shownProfile}
               />
             ) : (
               <BrandPageView
