@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Ad } from "@/lib/api";
+import { api, type Ad } from "@/lib/api";
 import { isImageUrl, type BrandProfile, type BrandProfileAd } from "@/lib/brandProfile";
 import { SUPPORTED_IMAGE_ACCEPT, uploadImage, validateImageFile } from "@/lib/upload";
 
@@ -203,8 +203,22 @@ function AddAdsFromUrls({
 }) {
   const [text, setText] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
+  const [adding, setAdding] = useState(false);
 
-  function add() {
+  // From the loaded library, or else the API, which also finds an ad by a
+  // slug it has since been renamed from (and works before the library loads).
+  async function findAd(slug: string) {
+    const ad = library.find((a) => a.id === slug);
+    if (ad) return ad;
+    try {
+      return (await api.getAd(slug)).ad;
+    } catch {
+      return null;
+    }
+  }
+
+  async function add() {
+    setAdding(true);
     const added: BrandProfileAd[] = [];
     const problems: string[] = [];
     for (const line of text
@@ -220,7 +234,7 @@ function AddAdsFromUrls({
       }
       const slug = adSlugFromUrl(url);
       if (slug) {
-        const ad = library.find((a) => a.id === slug);
+        const ad = await findAd(slug);
         if (ad) added.push(brandAdFromLibrary(ad));
         else problems.push(`${line}: no ad found at this link`);
       } else if (/^https?:$/.test(url.protocol)) {
@@ -233,6 +247,7 @@ function AddAdsFromUrls({
     setErrors(problems);
     // Keeps the lines that couldn't be added, to fix and try again.
     setText(problems.map((p) => p.slice(0, p.lastIndexOf(": "))).join("\n"));
+    setAdding(false);
   }
 
   return (
@@ -264,10 +279,10 @@ function AddAdsFromUrls({
       <button
         type="button"
         onClick={add}
-        disabled={!text.trim()}
+        disabled={!text.trim() || adding}
         className="mt-2 bg-ink px-3 py-1.5 text-sm font-bold text-surface disabled:opacity-50"
       >
-        Add creatives
+        {adding ? "Adding…" : "Add creatives"}
       </button>
     </div>
   );
