@@ -185,18 +185,26 @@ function LockedCreative({ signupHref }: { signupHref: string }) {
 // The page's ads, with the All / Live / New concepts switch. Visitors get
 // the ads locked (the API leaves their creatives out); someone signed in has
 // them fetched here, as the server rendering the page can't see the session.
+// Any ad can be selected, to ask for versions of it through `onRequest`.
 export default function BrandProfileAds({
   slug,
   brandName,
   profile,
   locked,
   signupHref,
+  selected,
+  onToggle,
+  onRequest,
 }: {
   slug: string;
   brandName: string;
   profile: BrandProfile;
   locked: boolean;
   signupHref: string;
+  // Indexes into profile.ads.
+  selected: number[];
+  onToggle: (index: number) => void;
+  onRequest: () => void;
 }) {
   const { user } = useAuth();
   const [filter, setFilter] = useState<Filter>("All");
@@ -220,7 +228,9 @@ export default function BrandProfileAds({
   const isLocked = locked && !unlocked;
   const live = ads.filter((ad) => ad.live);
   const concepts = ads.filter((ad) => !ad.live);
-  const shown = filter === "Live" ? live : filter === "New concepts" ? concepts : ads;
+  const shown = ads
+    .map((ad, index) => ({ ad, index }))
+    .filter(({ ad }) => (filter === "Live" ? ad.live : filter === "New concepts" ? !ad.live : true));
   const colors = {
     primary: profile.colors?.primary ?? "#ec3013",
     secondary: profile.colors?.secondary ?? "#201e1d",
@@ -229,7 +239,7 @@ export default function BrandProfileAds({
   if (ads.length === 0) return null;
 
   return (
-    <section className="flex flex-col gap-5">
+    <section id="ads" className="flex scroll-mt-24 flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1.5">
           <h2 className="text-[32px] leading-tight font-extrabold tracking-[-0.01em]">Ads</h2>
@@ -239,6 +249,8 @@ export default function BrandProfileAds({
               : filter === "New concepts"
                 ? countLabel(0, concepts.length) || "No new concepts"
                 : countLabel(live.length, concepts.length)}
+            . Select any you&rsquo;d like a version of
+            {user ? "." : ", or save them to your playlist."}
           </span>
         </div>
         {live.length > 0 && concepts.length > 0 && (
@@ -279,49 +291,90 @@ export default function BrandProfileAds({
         </div>
       )}
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-5">
-        {shown.map((ad, i) => (
-          <article key={i} className="flex flex-col border border-ink/15 bg-card">
-            <div className="flex min-h-[68px] items-center gap-2.5 px-3.5 py-3">
-              {isImageUrl(profile.logo) && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={profile.logo} alt="" className="h-7 w-7 rounded-full object-cover" />
-              )}
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="text-[13px] leading-tight font-bold">{brandName}</span>
-                <span className="text-xs text-ink-muted">Sponsored</span>
-              </div>
-              <span
-                className={`text-[11px] font-bold tracking-[0.06em] whitespace-nowrap uppercase ${
-                  ad.live ? "text-emerald-700" : "text-brand"
-                }`}
-              >
-                {ad.live ? "Live" : "New concept"}
-              </span>
-            </div>
-            {ad.locked ? (
-              <LockedCreative signupHref={signupHref} />
-            ) : isImageUrl(ad.image) ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={ad.image}
-                alt={ad.alt ?? ""}
-                loading="lazy"
-                className="ad-creative block aspect-square w-full object-cover"
-              />
-            ) : (
-              <ConceptCreative ad={ad} colors={colors} />
-            )}
-            <div className="flex flex-1 items-center justify-between gap-2 border-t border-ink/10 px-3.5 py-3">
-              <span className="min-w-0 text-[13px] text-ink-muted">{ad.label}</span>
-              {ad.cta && (
-                <span className="shrink-0 bg-brand px-2.5 py-1.5 text-[13px] font-bold whitespace-nowrap text-brand-foreground">
-                  {ad.cta}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5">
+        {shown.map(({ ad, index }) => {
+          const isSelected = selected.includes(index);
+          return (
+            <article
+              key={index}
+              className={`flex flex-col border-2 bg-card transition-colors ${
+                isSelected ? "border-brand" : "border-ink/10"
+              }`}
+            >
+              <div className="flex min-h-[60px] items-center gap-2.5 px-3.5 py-3">
+                {isImageUrl(profile.logo) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profile.logo} alt="" className="h-6 w-6 rounded-full object-cover" />
+                )}
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-[13px] leading-tight font-bold">{brandName}</span>
+                  <span className="text-[11px] text-ink-muted">
+                    Sponsored{ad.format && ` · ${ad.format}`}
+                  </span>
+                </div>
+                <span
+                  className={`text-[11px] font-bold tracking-[0.06em] whitespace-nowrap uppercase ${
+                    ad.live ? "text-emerald-700" : "text-brand"
+                  }`}
+                >
+                  {ad.live ? "Live" : "New concept"}
                 </span>
+              </div>
+              {ad.locked ? (
+                <LockedCreative signupHref={signupHref} />
+              ) : isImageUrl(ad.image) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={ad.image}
+                  alt={ad.alt ?? ""}
+                  loading="lazy"
+                  className="ad-creative block aspect-square w-full object-cover"
+                />
+              ) : (
+                <ConceptCreative ad={ad} colors={colors} />
               )}
-            </div>
-          </article>
-        ))}
+              <div className="flex flex-1 items-center justify-between gap-3 bg-surface-2 px-3.5 py-3">
+                <span className="min-w-0 text-[13px] leading-snug text-ink-muted">{ad.label}</span>
+                {ad.cta && (
+                  <span className="shrink-0 border border-ink/30 px-2.5 py-1.5 text-xs font-bold whitespace-nowrap">
+                    {ad.cta}
+                  </span>
+                )}
+              </div>
+              <div className="flex border-t border-ink/10">
+                <button
+                  type="button"
+                  onClick={() => onToggle(index)}
+                  aria-pressed={isSelected}
+                  className={`flex-1 p-3 text-sm font-bold ${
+                    isSelected ? "bg-brand text-brand-foreground" : "hover:bg-surface-2"
+                  }`}
+                >
+                  {isSelected ? "✓ Selected" : "Select"}
+                </button>
+                {!user && (
+                  <Link
+                    href={signupHref}
+                    className="flex-1 border-l border-ink/10 p-3 text-center text-sm font-semibold hover:bg-surface-2"
+                  >
+                    ♡ Save
+                  </Link>
+                )}
+              </div>
+            </article>
+          );
+        })}
+        <button
+          type="button"
+          onClick={onRequest}
+          className="flex min-h-[320px] flex-col items-center justify-center gap-2.5 border border-dashed border-ink/40 bg-surface-2 p-6 text-center hover:border-ink"
+        >
+          <span className="text-[32px] leading-none font-light">+</span>
+          <span className="text-base font-bold">Request a new ad</span>
+          <span className="max-w-[200px] text-[13px] leading-normal text-ink-muted">
+            Describe an offer or service and we&rsquo;ll draft it for {brandName}.
+          </span>
+        </button>
       </div>
     </section>
   );

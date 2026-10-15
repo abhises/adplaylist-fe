@@ -182,6 +182,7 @@ function brandAdFromLibrary(ad: Ad): BrandProfileAd {
     live: !!ad.live,
     label: ad.title,
     ...(ad.cta && { cta: ad.cta }),
+    ...(ad.format && { format: ad.format }),
     ...(photo
       ? { image: photo, alt: ad.title }
       : {
@@ -342,6 +343,7 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
 const AD_TEXT_FIELDS: [keyof BrandProfileAd, string, string][] = [
   ["label", "Card label", "cardlabel"],
   ["cta", "CTA button", "ctabutton"],
+  ["format", "Format", "format"],
   ["alt", "Image alt text", "imagealttext"],
   ["eyebrow", "Eyebrow", "eyebrow"],
   ["headline", "Headline", "headline"],
@@ -431,6 +433,15 @@ export default function BrandProfileForm({
           onChange={(v) => edit((d) => (d.reviewCount = v))}
           placeholder="120"
         />
+        <div className="sm:col-span-2">
+          <Text
+            label="Highlight"
+            name="basics.highlight"
+            value={profile.highlight}
+            onChange={(v) => edit((d) => (d.highlight = v))}
+            placeholder="Licensed WA & OR"
+          />
+        </div>
         <div className="sm:col-span-2">
           <ImageField
             label="Logo file"

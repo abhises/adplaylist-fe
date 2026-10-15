@@ -9,6 +9,8 @@ export type BrandProfileAd = {
   live: boolean;
   label?: string;
   cta?: string;
+  // Shown next to "Sponsored", e.g. Story or Carousel.
+  format?: string;
   // A finished creative. Without one the ad is drawn from the fields below.
   image?: string;
   alt?: string;
@@ -39,6 +41,8 @@ export type BrandProfile = {
   intro?: string;
   recommendPct?: string;
   reviewCount?: string;
+  // A short credential shown with the reviews, e.g. "Licensed WA & OR".
+  highlight?: string;
   contact?: { website?: string; mobile?: string; email?: string; messenger?: string };
   colors?: { primary?: string; secondary?: string };
   ads?: BrandProfileAd[];
@@ -90,6 +94,7 @@ const AD_FIELDS: Record<string, keyof BrandProfileAd> = {
   imagealttext: "alt",
   cardlabel: "label",
   ctabutton: "cta",
+  format: "format",
   eyebrow: "eyebrow",
   headline: "headline",
   subline: "subline",
@@ -161,6 +166,7 @@ export function parseBrandCsv(text: string): BrandCsvImport | null {
     intro: get("basics", "introtext"),
     recommendPct: get("basics", "recommend").replace(/%/g, ""),
     reviewCount: get("basics", "reviewcount"),
+    highlight: get("basics", "highlight"),
     contact: {
       website: get("contact", "website"),
       mobile: get("contact", "mobile"),
