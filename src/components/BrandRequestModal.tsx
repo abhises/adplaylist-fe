@@ -65,6 +65,7 @@ export default function BrandRequestModal({
         company: brandName,
         message,
         website: field("website"),
+        source: "brand-page",
       });
       setSent(true);
       onSent();
