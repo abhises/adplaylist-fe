@@ -14,7 +14,6 @@ import { io } from "socket.io-client";
 import {
   API_URL,
   api,
-  getToken,
   type CreativeRequest,
   type AppNotification,
 } from "@/lib/api";
@@ -64,8 +63,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!enabled) return;
-    const token = getToken();
-    if (!token) return;
 
     let cancelled = false;
     const load = () =>
@@ -77,7 +74,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         .catch(() => {})
         .finally(() => !cancelled && setLoading(false));
 
-    const socket = io(API_URL, { auth: { token } });
+    // Signed in by the session cookie, like every API call.
+    const socket = io(API_URL, { withCredentials: true });
     // Also runs after a reconnect, catching anything sent while offline.
     socket.on("connect", load);
     socket.on("notification", (n: AppNotification) => {

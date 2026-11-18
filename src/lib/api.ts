@@ -2,7 +2,10 @@ import type { BrandProfile } from "@/lib/brandProfile";
 import { clearReferralCode, getReferralCode } from "@/lib/referral";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
-const TOKEN_KEY = "adplaylist_token";
+// Where the sign-in token used to be kept, before sessions moved to an
+// httpOnly cookie that page scripts can't read. Only read once, to move an
+// existing sign-in over (see AuthProvider), then deleted.
+const LEGACY_TOKEN_KEY = "adplaylist_token";
 
 export type Ad = {
   id: string;
@@ -625,17 +628,16 @@ export type BrandPageInput = {
   published?: boolean;
 };
 
-export function getToken(): string | null {
+// Takes the pre-cookie token out of localStorage, if this browser has one.
+export function takeLegacyToken(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token: string) {
-  window.localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearToken() {
-  window.localStorage.removeItem(TOKEN_KEY);
+  try {
+    const token = window.localStorage.getItem(LEGACY_TOKEN_KEY);
+    window.localStorage.removeItem(LEGACY_TOKEN_KEY);
+    return token;
+  } catch {
+    return null;
+  }
 }
 
 class ApiError extends Error {
@@ -777,14 +779,13 @@ async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string> | undefined),
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  // The sign-in session is an httpOnly cookie for the API's domain.
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers, credentials: "include" });
   const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {
@@ -851,9 +852,8 @@ export const api = {
 
   // The Adplaylist-branded PDF of one invoice, saved as a file.
   downloadInvoicePdf: async (invoiceId: string, fileName: string) => {
-    const token = getToken();
     const res = await fetch(`${API_URL}/api/billing/payments/${encodeURIComponent(invoiceId)}/pdf`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -878,7 +878,7 @@ export const api = {
 
   // welcomeBack: they'd deleted their account, and signing in reactivated it.
   login: (email: string, password: string) =>
-    request<{ token: string; user: User; welcomeBack?: boolean }>("/api/auth/login", {
+    request<{ user: User; welcomeBack?: boolean }>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
@@ -889,7 +889,7 @@ export const api = {
     password: string,
     role: Exclude<Role, "admin">
   ) =>
-    request<{ token: string; user: User }>("/api/auth/register", {
+    request<{ user: User }>("/api/auth/register", {
       method: "POST",
       // With the code of the referral link they arrived through, if any.
       body: JSON.stringify({ fullName, email, password, role, referralCode: getReferralCode() }),
@@ -900,7 +900,7 @@ export const api = {
 
   // Signing in with Google also signs up, so it carries the referral code too.
   loginWithGoogle: (credential: string) =>
-    request<{ token: string; user: User; welcomeBack?: boolean }>("/api/auth/google", {
+    request<{ user: User; welcomeBack?: boolean }>("/api/auth/google", {
       method: "POST",
       body: JSON.stringify({ credential, referralCode: getReferralCode() }),
     }).then((res) => {
@@ -941,6 +941,21 @@ export const api = {
     request<{ reversed: boolean }>(`/api/referrals/admin/${id}/reverse`, { method: "POST" }),
 
   me: () => request<{ user: User }>("/api/auth/me"),
+
+  // Who's signed in on this browser (null for a visitor).
+  session: () => request<{ user: User | null }>("/api/auth/session"),
+
+  // Moves a sign-in from before sessions used a cookie over to the cookie.
+  migrateSession: (legacyToken: string) =>
+    request<{ user: User | null }>("/api/auth/session/migrate", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${legacyToken}` },
+    }),
+
+  logout: () => request<void>("/api/auth/logout", { method: "POST" }),
+
+  // Signs out every device, this one included.
+  logoutEverywhere: () => request<void>("/api/auth/logout-all", { method: "POST" }),
 
   // The whole library for the grid: card fields only, without the long text
   // (creativeDescription, primaryText, description, cta…) or credited

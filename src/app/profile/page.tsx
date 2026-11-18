@@ -264,7 +264,20 @@ function BrandAnswers() {
 
 export default function ProfilePage() {
   const { user: authUser, ready } = useRequireAuth();
-  const { refresh, logout } = useAuth();
+  const { refresh, logout, logoutEverywhere } = useAuth();
+  const [signingOutAll, setSigningOutAll] = useState(false);
+
+  async function handleLogoutEverywhere() {
+    setSigningOutAll(true);
+    try {
+      await logoutEverywhere();
+      toast.success("You've been signed out on every device.");
+      router.replace("/login");
+    } catch {
+      toast.error("Couldn't sign out everywhere. Please try again.");
+      setSigningOutAll(false);
+    }
+  }
   const router = useRouter();
   const toast = useToast();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -465,6 +478,30 @@ export default function ProfilePage() {
               <BrandAnswers />
             </div>
           )}
+
+          <div className="mt-10 border border-border p-6">
+            <p className="text-xs font-medium tracking-[1px] text-ink-muted uppercase">
+              Sessions
+            </p>
+            <div className="mt-4 flex items-center justify-between gap-6">
+              <div>
+                <p className="text-sm font-bold text-ink">Sign out of all devices</p>
+                <p className="mt-1 text-xs text-ink-muted">
+                  Ends every session, on this device and anywhere else you&apos;re
+                  signed in. Use it if you signed in on a shared computer or
+                  think someone else has access.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogoutEverywhere}
+                disabled={signingOutAll}
+                className="shrink-0 border border-border px-4 py-2 text-sm font-bold text-ink disabled:opacity-60"
+              >
+                {signingOutAll ? "Signing out…" : "Sign out everywhere"}
+              </button>
+            </div>
+          </div>
 
           {/* Customers only: staff accounts are managed by an admin. */}
           {authUser.role === "client" && (

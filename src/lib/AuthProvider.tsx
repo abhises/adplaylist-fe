@@ -10,9 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import {
   api,
-  clearToken,
-  getToken,
-  setToken,
+  takeLegacyToken,
   type Permission,
   type Role,
   type User,
@@ -31,6 +29,8 @@ type AuthContextValue = {
     role: Exclude<Role, "admin">
   ) => Promise<void>;
   logout: () => void;
+  // Signs out every device, this one included.
+  logoutEverywhere: () => Promise<void>;
   refresh: () => Promise<void>;
 };
 
@@ -40,17 +40,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
 
+  // The session is an httpOnly cookie this code can't see, so the API is
+  // asked who's signed in. A browser signed in before the cookie existed
+  // moves its old token over once.
   async function refresh() {
-    if (!getToken()) {
-      setUser(null);
-      setReady(true);
-      return;
-    }
     try {
-      const { user } = await api.me();
+      const legacy = takeLegacyToken();
+      const { user } = legacy ? await api.migrateSession(legacy) : await api.session();
       setUser(user);
     } catch {
-      clearToken();
       setUser(null);
     } finally {
       setReady(true);
@@ -62,15 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function login(email: string, password: string) {
-    const { token, user, welcomeBack } = await api.login(email, password);
-    setToken(token);
+    const { user, welcomeBack } = await api.login(email, password);
     setUser(user);
     return { ...user, welcomeBack: !!welcomeBack };
   }
 
   async function loginWithGoogle(credential: string) {
-    const { token, user, welcomeBack } = await api.loginWithGoogle(credential);
-    setToken(token);
+    const { user, welcomeBack } = await api.loginWithGoogle(credential);
     setUser(user);
     return { ...user, welcomeBack: !!welcomeBack };
   }
@@ -81,19 +77,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     role: Exclude<Role, "admin">
   ) {
-    const { token, user } = await api.register(fullName, email, password, role);
-    setToken(token);
+    const { user } = await api.register(fullName, email, password, role);
     setUser(user);
   }
 
   function logout() {
-    clearToken();
+    setUser(null);
+    // Clears the session cookie; the screen has already moved on.
+    api.logout().catch(() => {});
+  }
+
+  async function logoutEverywhere() {
+    await api.logoutEverywhere();
     setUser(null);
   }
 
   return (
     <AuthContext.Provider
-      value={{ user, ready, login, loginWithGoogle, register, logout, refresh }}
+      value={{ user, ready, login, loginWithGoogle, register, logout, logoutEverywhere, refresh }}
     >
       {children}
     </AuthContext.Provider>
