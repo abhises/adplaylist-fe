@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import Link from "@/components/Link";
@@ -20,13 +20,19 @@ import {
   DOMINANT_COLORS,
   LANGUAGE_OPTIONS,
   MARKET_OPTIONS,
-  adMarkets,
   PLATFORM_OPTIONS,
   VIDEO_LENGTH_OPTIONS,
-  shuffle,
 } from "@/lib/ads";
-import { api, ApiError, type Ad, type LibraryFilters, type User } from "@/lib/api";
-import { adCategories, findCategory } from "@/lib/categories";
+import {
+  api,
+  ApiError,
+  libraryQuery,
+  type Ad,
+  type LibraryFilters,
+  type LibraryPage,
+  type User,
+} from "@/lib/api";
+import { findCategory } from "@/lib/categories";
 
 const ADDED_OPTIONS = [
   { label: "Any time", days: null },
@@ -52,16 +58,19 @@ export default function LibraryView({
   initialTags,
   initialQuery,
   initialCategory,
-  initialAds,
+  initialPage,
+  seed: initialSeed,
   pageSizeOptions = PAGE_SIZE_OPTIONS,
 }: {
   heading: string;
   // Null for visitors on the public /library page: anyone can browse, but
   // saving asks them to sign up and there are no filters or admin controls.
   user: User | null;
-  // Ads rendered on the server (public page), so the grid is in the HTML
-  // search engines see rather than loaded afterwards.
-  initialAds?: Ad[];
+  // The first page rendered on the server (public page), so the grid is in
+  // the HTML search engines see rather than loaded afterwards, and the
+  // shuffle seed it was made with.
+  initialPage?: LibraryPage;
+  seed?: number;
   // The page's ?tag= value(s), so a tag clicked on an ad page opens the
   // library already filtered to it.
   initialTags?: string | string[];
@@ -74,8 +83,15 @@ export default function LibraryView({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [ads, setAds] = useState<Ad[]>(initialAds ?? []);
-  const [loading, setLoading] = useState(!initialAds);
+  // The library is filtered and paged on the server; this is the page
+  // being shown (see the fetch below).
+  const [data, setData] = useState<LibraryPage | null>(initialPage ?? null);
+  const [fetching, setFetching] = useState(false);
+  // A new random order on each visit, kept while paging (see /library).
+  const [seed] = useState(() => initialSeed ?? Math.floor(Math.random() * 2 ** 31));
+  // Bumped to load the page again (after a delete).
+  const [reload, setReload] = useState(0);
+  const loading = !data;
   const [signUpPrompt, setSignUpPrompt] = useState<"save" | "filters" | null>(null);
   // Phones show the filter sidebar as a full-screen panel, opened on demand.
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -136,21 +152,13 @@ export default function LibraryView({
 
   const signedIn = !!user;
   useEffect(() => {
-    if (!initialAds) {
-      api
-        .getLibraryAds()
-        // A new random order on each visit (see /library's page).
-        .then(({ ads }) => setAds(shuffle(ads)))
-        .catch(() => setError("Couldn't load ads from the server."))
-        .finally(() => setLoading(false));
-    }
     if (signedIn) {
       api
         .getSaved()
         .then(({ ads }) => setSavedIds(new Set(ads.map((ad) => ad.id))))
         .catch(() => {});
     }
-  }, [initialAds, signedIn]);
+  }, [signedIn]);
 
   async function toggleSave(id: string) {
     const wasSaved = savedIds.has(id);
@@ -177,7 +185,7 @@ export default function LibraryView({
   }
 
   function handleDeleteAd(id: string) {
-    const ad = ads.find((a) => a.id === id);
+    const ad = data?.ads.find((a) => a.id === id);
     if (ad) setDeleteTarget(ad);
   }
 
@@ -188,7 +196,7 @@ export default function LibraryView({
     const id = deleteTarget.id;
     try {
       await api.deleteAd(id);
-      setAds((list) => list.filter((a) => a.id !== id));
+      setReload((n) => n + 1);
       setDeleteTarget(null);
     } catch (err) {
       setDeleteError(
@@ -200,26 +208,19 @@ export default function LibraryView({
     }
   }
 
-  const imageCount = ads.filter((ad) => ad.mediaType === "image").length;
-  const videoCount = ads.filter((ad) => ad.mediaType === "video").length;
-  const premiumCount = ads.filter((ad) => ad.premium).length;
-  const liveCount = ads.filter((ad) => ad.live).length;
-
-  const categoryCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const ad of ads) {
-      for (const c of adCategories(ad)) counts.set(c, (counts.get(c) ?? 0) + 1);
-    }
-    return counts;
-  }, [ads]);
-
-  const formatOptions = useMemo(() => {
-    const names = [...new Set(ads.map((ad) => ad.format))].sort();
-    return names.map((name) => ({
-      name,
-      count: ads.filter((ad) => ad.format === name).length,
-    }));
-  }, [ads]);
+  // Counts beside the filters, over the whole library (from the server).
+  const facets = data?.facets;
+  const libraryTotal = facets?.total ?? 0;
+  const imageCount = facets?.image ?? 0;
+  const videoCount = facets?.video ?? 0;
+  const premiumCount = facets?.premium ?? 0;
+  const liveCount = facets?.live ?? 0;
+  const platformCount = (p: string) => facets?.platforms[p] ?? 0;
+  const categoryCounts = useMemo(
+    () => new Map(Object.entries(facets?.categories ?? {})),
+    [facets]
+  );
+  const formatOptions = facets?.formats ?? [];
 
   function toggle(list: string[], value: string, setList: (v: string[]) => void) {
     setList(
@@ -281,82 +282,8 @@ export default function LibraryView({
     setSelectedTags(f.tags ?? []);
   }
 
-  const filtered = useMemo(() => {
-    const kw = keyword.toLowerCase();
-    const wantedTags = selectedTags.map((t) => t.toLowerCase());
-    return ads.filter((ad) => {
-      const adTags = (ad.tags ?? []).map((t) => t.toLowerCase());
-      if (
-        kw &&
-        ![ad.headline, ad.title, ad.brandName, ad.adFormat, ad.subcategory, ...adCategories(ad)].some(
-          (v) => v?.toLowerCase().includes(kw)
-        ) &&
-        !adTags.some((t) => t.includes(kw) || kw.includes(t))
-      ) {
-        return false;
-      }
-      if (wantedTags.length && !wantedTags.some((t) => adTags.includes(t))) {
-        return false;
-      }
-      if (mediaTypes.length && !mediaTypes.includes(ad.mediaType)) {
-        return false;
-      }
-      if (
-        platforms.length &&
-        !platforms.some((p) => ad.platforms.includes(p))
-      ) {
-        return false;
-      }
-      if (
-        selectedCategories.length &&
-        !adCategories(ad).some((c) => selectedCategories.includes(c))
-      ) {
-        return false;
-      }
-      if (country && !adMarkets(ad).includes(country)) return false;
-      if (language && ad.language !== language) return false;
-      if (addedCutoff !== null && new Date(ad.createdAt).getTime() < addedCutoff) {
-        return false;
-      }
-      if (selectedFormats.length && !selectedFormats.includes(ad.format)) {
-        return false;
-      }
-      if (canvaFilter === "editable" && !ad.hasEditableCopy) return false;
-      if (canvaFilter === "non-editable" && ad.hasEditableCopy) return false;
-      if (premiumOnly && !ad.premium) return false;
-      if (adType === "live" && !ad.live) return false;
-      if (adType === "concept" && ad.live) return false;
-      if (
-        selectedLengths.length &&
-        !(ad.videoLength && selectedLengths.includes(ad.videoLength))
-      ) {
-        return false;
-      }
-      if (
-        selectedColors.length &&
-        !(ad.dominantColor && selectedColors.includes(ad.dominantColor))
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [
-    ads,
-    keyword,
-    mediaTypes,
-    platforms,
-    selectedCategories,
-    country,
-    language,
-    addedCutoff,
-    selectedFormats,
-    canvaFilter,
-    premiumOnly,
-    adType,
-    selectedLengths,
-    selectedColors,
-    selectedTags,
-  ]);
+  // How many ads match the filters, across all pages.
+  const total = data?.total ?? 0;
 
   // Any filter change goes back to the first page. Adjusted during render
   // (not in an effect) so the stale page never flashes.
@@ -376,7 +303,7 @@ export default function LibraryView({
     selectedColors,
     selectedTags,
   ]);
-  const pagination = usePagination(filtered.length, "adplaylist_library_page_size", {
+  const pagination = usePagination(total, "adplaylist_library_page_size", {
     options: pageSizeOptions,
     defaultSize: pageSizeOptions[0],
   });
@@ -385,32 +312,56 @@ export default function LibraryView({
     setPrevFilterKey(filterKey);
     pagination.setPage(1);
   }
-  const pageAds = filtered.slice(pagination.start, pagination.end);
+  const page = pagination.props.page;
+  const pageSize = pagination.props.pageSize;
 
-  // Signed out: up to PREVIEW_PER_PLATFORM ads for each picked platform
-  // (an ad on two platforms counts once), then a blurred teaser of what's
-  // locked behind sign-up.
-  const preview = useMemo(() => {
-    if (user) return null;
-    const groups: (string | null)[] = platforms.length
-      ? PLATFORM_OPTIONS.filter((p) => platforms.includes(p))
-      : [null];
-    const shownIds = new Set<string>();
-    const shown: Ad[] = [];
-    for (const platform of groups) {
-      let n = 0;
-      for (const ad of filtered) {
-        if (n >= PREVIEW_PER_PLATFORM) break;
-        if (shownIds.has(ad.id) || (platform && !ad.platforms.includes(platform))) continue;
-        shownIds.add(ad.id);
-        shown.push(ad);
-        n++;
-      }
-    }
-    const rest = [...filtered, ...ads].filter((ad) => !shownIds.has(ad.id));
-    const locked = [...new Map(rest.map((ad) => [ad.id, ad])).values()].slice(0, 10);
-    return { shown, locked };
-  }, [user, platforms, filtered, ads]);
+  // Fetch the page the filters and pagination ask for. Visitors get the
+  // preview (a few ads per platform and a locked teaser) instead. The page
+  // rendered on the server is used as is until something changes; typing a
+  // keyword waits a moment so each keystroke isn't a request.
+  const query = libraryQuery(currentFilters, { page, pageSize, seed });
+  const requestKey = `${query}|${signedIn}|${reload}`;
+  const servedKey = useRef(initialPage ? `${requestKey}` : null);
+  const lastKeyword = useRef(keyword);
+  useEffect(() => {
+    if (servedKey.current === requestKey) return;
+    servedKey.current = requestKey;
+    const controller = new AbortController();
+    const typing = lastKeyword.current !== keyword;
+    lastKeyword.current = keyword;
+    const timer = setTimeout(
+      () => {
+        setFetching(true);
+        api
+          .getLibraryPage(query, { signal: controller.signal })
+          .then((res) => {
+            setData(res);
+            setError(null);
+          })
+          .catch((err) => {
+            if (controller.signal.aborted) return;
+            setError(
+              err instanceof ApiError ? err.message : "Couldn't load ads from the server."
+            );
+          })
+          .finally(() => {
+            if (!controller.signal.aborted) setFetching(false);
+          });
+      },
+      typing ? 300 : 0
+    );
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+      // Let the same request run again if it was cut short.
+      if (servedKey.current === requestKey) servedKey.current = null;
+    };
+    // requestKey covers query, signedIn and reload.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestKey]);
+
+  const pageAds = data?.ads ?? [];
+  const preview = user ? null : { shown: pageAds, locked: data?.locked ?? [] };
 
   // A new page starts at the top of the grid, not where the controls were.
   function goToPage(p: number) {
@@ -569,7 +520,7 @@ export default function LibraryView({
     <div className="mt-10 flex flex-col items-start gap-4 border-2 border-ink/15 p-6 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-lg font-extrabold text-ink">
-          {filtered.length === 0 ? "Can't find the ad you need?" : "Not finding enough ads?"}
+          {total === 0 ? "Can't find the ad you need?" : "Not finding enough ads?"}
         </p>
         <p className="mt-1 text-sm text-ink-muted">
           Our design team can make it for you: a new size, a new market or a brand-new ad.
@@ -613,7 +564,7 @@ export default function LibraryView({
                   />
                   {platform}
                   <span className="ml-auto text-xs text-ink-muted">
-                    {ads.filter((ad) => ad.platforms.includes(platform)).length}
+                    {platformCount(platform)}
                   </span>
                 </label>
               ))}
@@ -722,7 +673,7 @@ export default function LibraryView({
                   />
                   {platform}
                   <span className="ml-auto text-xs text-ink-muted">
-                    {ads.filter((ad) => ad.platforms.includes(platform)).length}
+                    {platformCount(platform)}
                   </span>
                 </label>
               ))}
@@ -738,7 +689,7 @@ export default function LibraryView({
               {(
                 [
                   ["live", "Live ads", liveCount],
-                  ["concept", "Concept ads", ads.length - liveCount],
+                  ["concept", "Concept ads", libraryTotal - liveCount],
                 ] as const
               ).map(([value, label, count]) => (
                 <label key={value} className="flex items-center gap-2 text-sm text-ink">
@@ -967,7 +918,7 @@ export default function LibraryView({
             Reset all filters
           </button>
 
-          {drawerFooter(`Show ${filtered.length} ad${filtered.length === 1 ? "" : "s"}`)}
+          {drawerFooter(`Show ${total} ad${total === 1 ? "" : "s"}`)}
         </aside>
         )}
 
@@ -1038,8 +989,8 @@ export default function LibraryView({
                   </span>
                 ))}
                 <span className="text-ink-muted">
-                  — <span className="font-bold text-ink tabular-nums">{filtered.length}</span> ad
-                  {filtered.length === 1 ? "" : "s"}
+                  — <span className="font-bold text-ink tabular-nums">{total}</span> ad
+                  {total === 1 ? "" : "s"}
                 </span>
                 {activeChips.length > 1 && (
                   <button
@@ -1106,13 +1057,13 @@ export default function LibraryView({
                   <div className="absolute inset-x-[-20px] top-[-40px] bottom-0 flex justify-center bg-gradient-to-b from-surface/0 via-surface/80 to-surface px-4 pt-24 sm:pt-36">
                     <div className="flex h-fit w-full max-w-[520px] flex-col items-center gap-4 border border-border bg-card px-6 py-10 text-center shadow-[0_24px_60px_rgba(20,20,20,0.12)] sm:px-12">
                       <p className="text-[11px] font-medium tracking-[0.16em] text-ink-muted uppercase">
-                        You&rsquo;ve seen {preview.shown.length} of {filtered.length} ads
+                        You&rsquo;ve seen {preview.shown.length} of {total} ads
                       </p>
                       <h2 className="text-[28px] leading-tight font-extrabold text-balance text-ink sm:text-[32px]">
                         Sign up to see the full library
                       </h2>
                       <p className="text-base leading-relaxed text-pretty text-ink-muted">
-                        Start your 7-day free trial to browse all {ads.length} ads, save the ones you
+                        Start your 7-day free trial to browse all {libraryTotal} ads, save the ones you
                         like and request creatives.
                       </p>
                       {platforms.length < PLATFORM_OPTIONS.length && (
@@ -1140,7 +1091,10 @@ export default function LibraryView({
 
           {!loading && !error && !preview && (
             <>
-              <div className="mt-6 grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-4 xl:grid-cols-5">
+              <div
+                aria-busy={fetching}
+                className={`mt-6 grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-4 xl:grid-cols-5 ${fetching ? "opacity-60 transition-opacity" : ""}`}
+              >
                 {pageAds.map((ad) => (
                   <AdCard
                     key={ad.id}
@@ -1157,19 +1111,19 @@ export default function LibraryView({
                 ))}
               </div>
 
-              {filtered.length > 0 && (
+              {total > 0 && (
                 <div className="mt-12 border-t border-ink/15 pt-3">
                   <Pagination {...pagination.props} onPageChange={goToPage} />
                 </div>
               )}
 
-              {filtered.length === 0 && (
+              {total === 0 && (
                 <p className="mt-10 text-sm text-ink-muted">
                   No ads match those filters.
                 </p>
               )}
 
-              {filtered.length < 20 && requestCta}
+              {total < 20 && requestCta}
             </>
           )}
         </main>

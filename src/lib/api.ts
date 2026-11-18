@@ -683,6 +683,55 @@ export interface LibraryFilters {
   tags?: string[];
 }
 
+// One page of the library grid from the server (see libraryQuery below).
+// Visitors get the preview instead: `ads` are the few shown and `locked`
+// the blurred teaser. The facet counts are over the whole library.
+export interface LibraryPage {
+  ads: Ad[];
+  locked?: Ad[];
+  total: number;
+  page: number;
+  pageSize: number;
+  facets: {
+    total: number;
+    image: number;
+    video: number;
+    premium: number;
+    live: number;
+    platforms: Record<string, number>;
+    categories: Record<string, number>;
+    formats: { name: string; count: number }[];
+  };
+}
+
+// The query string for /api/ads/library: the filters, the page and the
+// visit's shuffle seed.
+export function libraryQuery(
+  f: LibraryFilters,
+  { page, pageSize, seed }: { page: number; pageSize: number; seed: number }
+) {
+  const params = new URLSearchParams();
+  const add = (key: string, values?: string[]) => values?.forEach((v) => params.append(key, v));
+  if (f.keyword) params.set("q", f.keyword);
+  add("tag", f.tags);
+  add("mediaType", f.mediaTypes);
+  add("platform", f.platforms);
+  add("category", f.categories);
+  if (f.country) params.set("country", f.country);
+  if (f.language) params.set("language", f.language);
+  if (f.addedDays != null) params.set("addedDays", String(f.addedDays));
+  add("format", f.formats);
+  if (f.canva) params.set("canva", f.canva);
+  if (f.premium) params.set("premium", "true");
+  if (f.adType) params.set("adType", f.adType);
+  add("length", f.lengths);
+  add("color", f.colors);
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
+  params.set("seed", String(seed));
+  return params.toString();
+}
+
 // Name, address, country (ISO code) and VAT ID printed on invoices.
 export interface BillingDetails {
   name: string;
@@ -900,6 +949,9 @@ export const api = {
   // added, edited or deleted shows on the very next load.
   getLibraryAds: () =>
     request<{ ads: Ad[] }>("/api/ads?view=card", { cache: "no-store" }),
+
+  getLibraryPage: (query: string, init?: RequestInit) =>
+    request<LibraryPage>(`/api/ads/library?${query}`, { cache: "no-store", ...init }),
 
   getAds: (params?: Record<string, string>) => {
     const qs = params ? `?${new URLSearchParams(params).toString()}` : "";

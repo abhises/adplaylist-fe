@@ -5,22 +5,24 @@ import { useRouter } from "next/navigation";
 import LibraryView from "@/components/LibraryView";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/lib/AuthProvider";
-import type { Ad } from "@/lib/api";
+import type { LibraryPage } from "@/lib/api";
 import { slugify } from "@/lib/slug";
 
 // Rows-per-page choices on the public library only; the first is the default.
 const PUBLIC_PAGE_SIZE_OPTIONS = [20, 40];
 
-// /library. Rendered for visitors on the server, so search engines get the
-// whole library. Signed in, clients move on to their own branded library
+// /library. Its first page is rendered for visitors on the server, so
+// search engines see the grid. Signed in, clients move on to their own branded library
 // (/library/<name>) and staff get the app header and their controls.
 export default function PublicLibraryView({
-  ads,
+  page,
+  seed,
   initialTags,
   initialQuery,
   initialCategory,
 }: {
-  ads: Ad[];
+  page?: LibraryPage;
+  seed: number;
   initialTags?: string | string[];
   initialQuery?: string;
   initialCategory?: string;
@@ -49,7 +51,8 @@ export default function PublicLibraryView({
     <LibraryView
       heading="Explore Ads"
       user={ready ? user : null}
-      initialAds={ads}
+      initialPage={page}
+      seed={seed}
       initialTags={initialTags}
       initialQuery={initialQuery}
       initialCategory={initialCategory}

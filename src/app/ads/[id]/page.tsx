@@ -12,6 +12,7 @@ import {
   resolveGuides,
 } from "@/lib/adPage";
 import { creativeSize } from "@/lib/ads";
+import { adNeighbors, relatedAds } from "@/lib/relatedAds";
 import { jsonLd, SITE_NAME, SITE_URL } from "@/lib/site";
 
 // Public and indexable: an ad's page is rendered on the server with all its
@@ -185,7 +186,8 @@ export default async function AdPage({ params }: PageProps<"/ads/[id]">) {
       <AdDetailView
         key={ad.id}
         initialAd={ad}
-        initialAds={ads}
+        {...adNeighbors(ad, ads)}
+        related={relatedAds(ad, ads)}
         guides={resolveGuides(ad.content?.relatedGuides, posts)}
       />
     </>

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { randomInt } from "node:crypto";
 import { connection } from "next/server";
 import PublicLibraryView from "@/components/PublicLibraryView";
-import { shuffle } from "@/lib/ads";
-import { api, type Ad } from "@/lib/api";
+import { api, libraryQuery, type LibraryPage } from "@/lib/api";
+import { findCategory } from "@/lib/categories";
 import { jsonLd, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const DESCRIPTION =
@@ -29,13 +30,20 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
   await connection();
   const { tag, q, category } = await searchParams;
   // A new random order on every visit, so the same ads aren't always first.
-  // Shuffled here rather than in the browser so the page renders the same
-  // order the browser then shows.
-  // The list is fetched fresh on every visit, so a new ad shows at once.
-  const ads: Ad[] = await api
-    .getLibraryAds()
-    .then((res) => shuffle(res.ads))
-    .catch(() => []);
+  // The server shuffles with this seed, and the browser sends it back while
+  // paging so the order holds. Only the first page (for a visitor: the
+  // preview) is fetched; the browser asks for the rest.
+  const seed = randomInt(2 ** 31 - 1);
+  const tags = Array.isArray(tag) ? tag : tag ? [tag] : [];
+  const keyword = typeof q === "string" ? q : "";
+  const categories =
+    typeof category === "string" ? [findCategory(category) ?? category] : [];
+  const page: LibraryPage | undefined = await api
+    .getLibraryPage(
+      libraryQuery({ keyword, tags, categories }, { page: 1, pageSize: 20, seed })
+    )
+    .catch(() => undefined);
+  const ads = page?.ads ?? [];
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -45,6 +53,7 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
     url: `${SITE_URL}/library`,
     mainEntity: {
       "@type": "ItemList",
+      // The ads on this page; every ad is in the sitemap.
       numberOfItems: ads.length,
       itemListElement: ads.map((ad, i) => ({
         "@type": "ListItem",
@@ -59,7 +68,8 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(structuredData)} />
       <PublicLibraryView
-        ads={ads}
+        page={page}
+        seed={seed}
         initialTags={tag}
         initialQuery={typeof q === "string" ? q : undefined}
         initialCategory={typeof category === "string" ? category : undefined}
