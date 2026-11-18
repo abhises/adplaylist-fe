@@ -1,0 +1,22 @@
+# Lives on the server at /home/ubuntu/adplaylist-web/docker-compose.yml
+# (copied there by the deploy workflow). Own compose project, separate from
+# the API ("adplaylist") and from the brasq containers.
+name: adplaylist-web
+
+services:
+  web:
+    image: adplaylist-fe:${WEB_TAG:-latest}
+    container_name: adplaylist-web
+    restart: unless-stopped
+    environment:
+      # The server has ~1 GB RAM shared with another site; keep Node's heap small.
+      NODE_OPTIONS: --max-old-space-size=192
+    mem_limit: 350m
+    ports:
+      - "127.0.0.1:3010:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s

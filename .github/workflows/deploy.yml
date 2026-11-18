@@ -1,0 +1,91 @@
+name: Deploy website
+
+# Pull requests: build check only. Push to main (or a manual run): build the
+# Docker image here on GitHub's runner, copy it to the server and swap the
+# container — rolling back if the new one isn't healthy. The server (1 GB
+# RAM, shared with another site) never builds anything. See DEPLOY.md.
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-website-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: adplaylist-fe:${{ github.sha }}
+          outputs: type=docker,dest=/tmp/adplaylist-fe.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Compress image
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p ship
+          gzip -c /tmp/adplaylist-fe.tar > ship/adplaylist-fe.tar.gz
+          cp deploy/docker-compose.yml ship/
+
+      - name: Copy image and compose file to the server
+        if: github.event_name != 'pull_request'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: ship/*
+          target: adplaylist-web/incoming
+          strip_components: 1
+          overwrite: true
+
+      - name: Restart on the server
+        if: github.event_name != 'pull_request'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          envs: TAG
+          script: |
+            set -e
+            cd ~/adplaylist-web
+            gunzip -c incoming/adplaylist-fe.tar.gz | docker load
+            mv incoming/docker-compose.yml .
+            rm -f incoming/adplaylist-fe.tar.gz
+
+            PREV=$(grep '^WEB_TAG=' .env | cut -d= -f2)
+            sed -i "s/^WEB_TAG=.*/WEB_TAG=$TAG/" .env
+            docker compose up -d
+
+            for i in $(seq 1 30); do
+              s=$(docker inspect -f '{{.State.Health.Status}}' adplaylist-web)
+              [ "$s" = healthy ] && break
+              sleep 3
+            done
+            if [ "$s" != healthy ]; then
+              echo "New website container is $s — rolling back to $PREV"
+              docker logs --tail 50 adplaylist-web || true
+              sed -i "s/^WEB_TAG=.*/WEB_TAG=$PREV/" .env
+              docker compose up -d
+              exit 1
+            fi
+
+            # Keep the current and previous image (for rollback); drop older ones.
+            docker images adplaylist-fe --format '{{.Tag}}' \
+              | grep -vx -e "$TAG" -e "$PREV" \
+              | xargs -r -I{} docker rmi adplaylist-fe:{} || true
