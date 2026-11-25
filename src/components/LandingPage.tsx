@@ -98,7 +98,8 @@ function fromLibraryAd(ad: LibraryAd, href: string): LibraryCard {
     meta: [ad.platforms[0], ad.format, ad.market].filter(Boolean).join(" · "),
     categories: adCategories(ad),
     href,
-    photo: ad.photo,
+    // Cards are small: the thumbnail, not the full-size upload.
+    photo: ad.thumb ?? ad.photo,
     video: ad.mediaType === "video",
     platforms: ad.platforms,
     featured: !!ad.featured,
@@ -159,7 +160,11 @@ function ctaColors(ad: Ad) {
 // A card's creative (or colour swatch) filling its square, zooming in on
 // hover. Non-square photos are shown whole over a blurred copy of
 // themselves, like the library's AdCard.
-function CardBackground({ ad }: { ad: LibraryCard }) {
+// The hero's tiles are above the fold, so they load first (`eager`); the
+// library row's load as they near the screen.
+function CardBackground({ ad, eager = false }: { ad: LibraryCard; eager?: boolean }) {
+  const loading = eager ? "eager" : "lazy";
+  const fetchPriority = eager ? "high" : "auto";
   return (
     <div
       className={`absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-110 ${
@@ -174,10 +179,19 @@ function CardBackground({ ad }: { ad: LibraryCard }) {
             src={ad.photo}
             alt=""
             aria-hidden
+            loading={loading}
+            decoding="async"
             className="ad-creative absolute inset-0 h-full w-full scale-125 object-cover blur-xl"
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={ad.photo} alt={ad.name} className="ad-creative relative h-full w-full object-contain" />
+          <img
+            src={ad.photo}
+            alt={ad.name}
+            loading={loading}
+            fetchPriority={fetchPriority}
+            decoding="async"
+            className="ad-creative relative h-full w-full object-contain"
+          />
         </>
       )}
     </div>
@@ -232,7 +246,8 @@ export default function LandingPage() {
   useEffect(() => {
     let cancelled = false;
     api
-      .getAds()
+      // Only the ads picked for this page, not the whole library.
+      .getAds({ home: "1" })
       .then(({ ads }) => {
         if (cancelled) return;
         setLiveAds(ads);
@@ -443,7 +458,7 @@ export default function LandingPage() {
                       className="group relative flex aspect-square flex-col justify-between overflow-hidden p-[10px]"
                       style={{ color: ad.fg }}
                     >
-                      <CardBackground ad={ad} />
+                      <CardBackground ad={ad} eager />
                       {!ad.photo && (
                         <>
                           <div className="relative truncate text-[9px] font-bold tracking-[0.1em]">{ad.tag}</div>

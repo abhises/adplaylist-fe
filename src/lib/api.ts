@@ -33,6 +33,8 @@ export type Ad = {
   markets?: string[];
   language: string;
   photo?: string;
+  // A 600px WebP of photo for cards; missing until the server has made it.
+  thumb?: string;
   platforms: string[];
   editable: boolean;
   // Only sent when the viewer's plan includes editable copies;

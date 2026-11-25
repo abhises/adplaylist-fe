@@ -39,7 +39,7 @@ export default function AdCard({
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={ad.photo}
+                src={ad.thumb ?? ad.photo}
                 alt=""
                 aria-hidden
                 loading="lazy"
@@ -47,7 +47,7 @@ export default function AdCard({
               />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={ad.photo}
+                src={ad.thumb ?? ad.photo}
                 alt={ad.imageAlt ?? ""}
                 loading="lazy"
                 className="ad-creative absolute inset-0 h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-110"
